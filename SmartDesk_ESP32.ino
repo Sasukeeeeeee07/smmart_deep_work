@@ -3087,12 +3087,13 @@ void cameraTask(
 // =====================================================
 void sendRadarDataToBackend() {
   if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
+    static HTTPClient http;
+    http.setReuse(true); // Keep SSL connection alive to stop UI lag!
     http.begin(serverName);
     http.addHeader("Content-Type", "application/json");
     
-    // Set a longer timeout because connecting to a cloud HTTPS server takes longer than a local network
-    http.setTimeout(5000); 
+    // Set a moderate timeout
+    http.setTimeout(3000);
 
     String jsonPayload = "{";
     jsonPayload += "\"state\":\"" + String(getRadarStateText()) + "\",";
@@ -3545,7 +3546,7 @@ void loop()
   // ===================================================
   static uint32_t lastBackendUpdate = 0;
   
-  if (millis() - lastBackendUpdate >= 3000) {
+  if (millis() - lastBackendUpdate >= 10000) {
     lastBackendUpdate = millis();
     
     // Only send data if the radar has returned valid information recently
