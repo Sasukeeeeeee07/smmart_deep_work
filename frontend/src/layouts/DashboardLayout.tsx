@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate, Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Monitor, LogOut, ClipboardList, Bell, Activity, Timer, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Monitor, LogOut, ClipboardList, Bell, Activity, Timer } from 'lucide-react';
 import { notificationService } from '../services/api';
 
 const DashboardLayout = () => {

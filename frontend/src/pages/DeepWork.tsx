@@ -284,7 +284,7 @@ const DeepWorkPage = () => {
     ? (sessions.filter(s => s.selfRating > 0).reduce((a, s) => a + s.selfRating, 0) /
        sessions.filter(s => s.selfRating > 0).length).toFixed(1)
     : '—';
-  const spikes           = sessions.filter(s => s.productivitySpike).length;
+  // const spikes           = sessions.filter(s => s.productivitySpike).length;
 
   return (
     <div className="space-y-6">
