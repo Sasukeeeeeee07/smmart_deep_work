@@ -43,7 +43,7 @@ export const createEmployee = async (req: Request, res: Response) => {
       email,
       department,
       position,
-      status: status || 'Active',
+      status: status || 'ACTIVE',
       user: user._id,
     });
     
