@@ -1,6 +1,8 @@
 import app from './app';
 import { connectDB } from './config/db';
 import os from 'os';
+import { User, Role } from './models/User';
+import bcrypt from 'bcrypt';
 
 const PORT = process.env.PORT || 3000;
 
@@ -18,6 +20,19 @@ const getLanIP = (): string => {
 const startServer = async () => {
   // Connect to database
   await connectDB();
+  
+  // Seed initial admin if empty
+  if ((await User.countDocuments()) === 0) {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash('admin123', salt);
+    await User.create({
+      name: 'Super Admin',
+      email: 'admin@smmart.com',
+      passwordHash,
+      role: Role.ADMIN
+    });
+    console.log('Seeded default admin user: admin@smmart.com / admin123');
+  }
 
   // Listen on 0.0.0.0 so ESP32 and other LAN devices can reach us
   app.listen(Number(PORT), '0.0.0.0', () => {
