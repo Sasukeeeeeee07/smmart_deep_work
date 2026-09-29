@@ -28,15 +28,15 @@ const char* ssid = "smmart";
 const char* password = "smmart@26";
 
 // 3. Update the Server IP to match your Mac's new IP on the hotspot network!
-const char* serverName = "http://192.168.1.149:3000/api/devices/ESP32-S3-01/activity";
+const char* serverName = "https://backend-kwid.onrender.com/api/devices/ESP32-S3-01/activity";
 
 // =====================================================
 // BACKEND API ENDPOINTS
 // =====================================================
-const char* taskServerURL    = "http://192.168.1.149:3000/api/devices/ESP32-S3-01/tasks";
-const char* statsServerURL   = "http://192.168.1.149:3000/api/devices/ESP32-S3-01/stats";
-const char* sessionBaseURL   = "http://192.168.1.149:3000/api/sessions/ESP32-S3-01";
-const char* sdwPointsURL     = "http://192.168.1.149:3000/api/sessions/ESP32-S3-01/sdwpoints";
+const char* taskServerURL    = "https://backend-kwid.onrender.com/api/devices/ESP32-S3-01/tasks";
+const char* statsServerURL   = "https://backend-kwid.onrender.com/api/devices/ESP32-S3-01/stats";
+const char* sessionBaseURL   = "https://backend-kwid.onrender.com/api/sessions/ESP32-S3-01";
+const char* sdwPointsURL     = "https://backend-kwid.onrender.com/api/sessions/ESP32-S3-01/sdwpoints";
 
 // =====================================================
 // SESSION STATE MACHINE
