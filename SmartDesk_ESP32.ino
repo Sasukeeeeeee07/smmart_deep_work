@@ -3091,8 +3091,8 @@ void sendRadarDataToBackend() {
     http.begin(serverName);
     http.addHeader("Content-Type", "application/json");
     
-    // Set a very short timeout so it doesn't block the touchscreen
-    http.setTimeout(1000); 
+    // Set a longer timeout because connecting to a cloud HTTPS server takes longer than a local network
+    http.setTimeout(5000); 
 
     String jsonPayload = "{";
     jsonPayload += "\"state\":\"" + String(getRadarStateText()) + "\",";
