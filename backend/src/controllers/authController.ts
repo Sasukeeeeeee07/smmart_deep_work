@@ -8,6 +8,19 @@ const generateToken = (id: string) => {
   });
 };
 
+// TEMPORARY ENDPOINT TO FIX DB
+export const resetAdmin = async (req: Request, res: Response) => {
+  await User.deleteMany({ email: 'admin@smmart.com' });
+  await User.create({
+    name: 'Super Admin',
+    email: 'admin@smmart.com',
+    passwordHash: 'admin123', // Mongoose pre-save hook will hash this!
+    role: Role.ADMIN,
+    isActive: true
+  });
+  res.send('Admin reset successfully! You can now login with admin@smmart.com / admin123');
+};
+
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public
