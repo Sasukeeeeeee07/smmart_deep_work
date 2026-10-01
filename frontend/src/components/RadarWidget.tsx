@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { deviceService } from '../services/api';
 import { Activity, User, Maximize } from 'lucide-react';
 
@@ -18,8 +18,10 @@ const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) =>
   const [data, setData] = useState<TelemetryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Track whether this is the very first fetch so we don't flash the spinner on polls
+  const initialFetch = useRef(true);
 
-  const fetchTelemetry = async () => {
+  const fetchTelemetry = useCallback(async () => {
     try {
       const latest = await deviceService.getLatestActivity(deviceUid);
       setData(latest);
@@ -28,27 +30,33 @@ const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) =>
       console.error('Failed to fetch telemetry', err);
       setError(true);
     } finally {
-      setLoading(false);
+      if (initialFetch.current) {
+        setLoading(false);
+        initialFetch.current = false;
+      }
     }
-  };
+  }, [deviceUid]);
 
   useEffect(() => {
-    fetchTelemetry(); // Initial fetch
-    // Poll every 3 seconds to match ESP32 transmit rate
-    const interval = setInterval(fetchTelemetry, 3000);
+    initialFetch.current = true;
+    setLoading(true);
+    fetchTelemetry();
+    // 5s poll — smoother than 3s, still near-realtime
+    const interval = setInterval(fetchTelemetry, 5000);
     return () => clearInterval(interval);
-  }, [deviceUid]);
+  }, [fetchTelemetry]);
 
   const isOccupied = data?.state !== 'NO PERSON' && data?.state !== 'UNKNOWN' && data !== null;
 
   return (
-    <div className="glass p-6 rounded-2xl relative overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(34,197,94,0.1)]">
-      {/* Background glow effect based on occupancy */}
-      <div 
-        className={`absolute -inset-4 opacity-20 blur-2xl transition-colors duration-1000 ${
-          isOccupied ? 'bg-green-500' : 'bg-gray-500'
-        }`}
-      />
+    <div
+      style={{ willChange: 'transform' }}
+      className={`glass p-6 rounded-2xl relative overflow-hidden transition-shadow duration-500 ${
+        isOccupied
+          ? 'shadow-[0_0_24px_rgba(34,197,94,0.18)]'
+          : 'shadow-none'
+      }`}
+    >
       
       <div className="relative z-10">
         <div className="flex justify-between items-start mb-6">

@@ -95,7 +95,10 @@ const DashboardLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+      <main
+        className="flex-1 p-6 md:p-8 overflow-y-auto overscroll-y-contain"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         <Outlet />
       </main>
     </div>

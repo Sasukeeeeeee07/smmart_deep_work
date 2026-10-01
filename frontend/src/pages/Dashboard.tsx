@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { deviceService, employeeService, taskService } from '../services/api';
 import RadarWidget from '../components/RadarWidget';
 import { Cpu, Users, ClipboardList, Wifi, CheckCircle, Clock } from 'lucide-react';
@@ -33,9 +33,17 @@ const Dashboard = () => {
   });
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const isFirstFetch = useRef(true);
 
   useEffect(() => {
     const fetchAll = async () => {
+      // Only show full-screen skeleton on first fetch
+      if (isFirstFetch.current) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
       try {
         const [devicesData, employeesData, tasksData] = await Promise.all([
           deviceService.getAllDevices(),
@@ -60,20 +68,32 @@ const Dashboard = () => {
       } catch (err) {
         console.error('Dashboard fetch error', err);
       } finally {
-        setLoading(false);
+        if (isFirstFetch.current) {
+          setLoading(false);
+          isFirstFetch.current = false;
+        }
+        setRefreshing(false);
       }
     };
 
     fetchAll();
-    const interval = setInterval(fetchAll, 15000); // Refresh every 15s
+    const interval = setInterval(fetchAll, 30000); // Background refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="space-y-8">
-      <header>
-        <h2 className="text-2xl font-bold text-text-main">Overview</h2>
-        <p className="text-text-muted text-sm mt-1">Real-time SmartDesk monitoring dashboard</p>
+      <header className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-text-main">Overview</h2>
+          <p className="text-text-muted text-sm mt-1">Real-time SmartDesk monitoring dashboard</p>
+        </div>
+        {refreshing && (
+          <span className="text-xs text-text-muted flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse inline-block" />
+            Syncing…
+          </span>
+        )}
       </header>
 
       {/* Stats Grid */}
