@@ -3,6 +3,7 @@ import { Device } from '../models/Device';
 import { DeepWorkSession } from '../models/DeepWorkSession';
 import { SDWPoints } from '../models/SDWPoints';
 import { Employee } from '../models/Employee';
+import { voiceService } from '../services/voiceService';
 
 // Helper: get ISO week number
 function getWeekNumber(d: Date): number {
@@ -188,6 +189,14 @@ export const endSession = async (req: Request, res: Response) => {
     }
 
     await session.save();
+    
+    // Voice feedback
+    if (pointsEarned > 0) {
+      voiceService.queueMessage(req.params.uid, `Incredible work! You just completed a 2 hour deep work session and earned 5 points.`);
+    } else {
+      voiceService.queueMessage(req.params.uid, `Session ended. You worked for ${session.activeMinutes} minutes.`);
+    }
+
     res.json({ success: true, data: { pointsEarned, activeMinutes: session.activeMinutes } });
   } catch (err) {
     console.error('[SESSION] end error:', err);

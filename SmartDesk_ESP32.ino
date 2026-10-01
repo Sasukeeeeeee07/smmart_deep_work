@@ -6,6 +6,15 @@
 #include <XPT2046_Touchscreen.h>
 #include <TJpg_Decoder.h>
 #include <ArduinoJson.h>   // Install via Library Manager: "ArduinoJson" by Benoit Blanchon
+#include "Audio.h"         // Install via Library Manager: "ESP32-audioI2S"
+
+// --- AI Voice Agent (I2S) Pins ---
+#define I2S_BCLK 26
+#define I2S_LRC  25
+#define I2S_DOUT 22
+Audio audio;
+unsigned long lastVoicePollMs = 0;
+const unsigned long VOICE_POLL_INTERVAL = 10000; // Poll every 10s
 
 #include "driver/spi_slave.h"
 #include "esp_heap_caps.h"
@@ -37,6 +46,7 @@ const char* taskServerURL    = "https://backend-kwid.onrender.com/api/devices/ES
 const char* statsServerURL   = "https://backend-kwid.onrender.com/api/devices/ESP32-S3-01/stats";
 const char* sessionBaseURL   = "https://backend-kwid.onrender.com/api/sessions/ESP32-S3-01";
 const char* sdwPointsURL     = "https://backend-kwid.onrender.com/api/sessions/ESP32-S3-01/sdwpoints";
+const char* voiceURL         = "https://backend-kwid.onrender.com/api/voice/ESP32-S3-01/next";
 
 // =====================================================
 // SESSION STATE MACHINE
@@ -3122,6 +3132,32 @@ void sendRadarDataToBackend() {
 // =====================================================
 // SETUP
 // =====================================================
+// VOICE AGENT POLLING
+// =====================================================
+void pollVoiceAgent() {
+  if (WiFi.status() == WL_CONNECTED && (millis() - lastVoicePollMs >= VOICE_POLL_INTERVAL)) {
+    lastVoicePollMs = millis();
+    HTTPClient http;
+    // URL matching your backend setup
+    http.begin("https://backend-kwid.onrender.com/api/voice/ESP32-S3-01/next");
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+      String payload = http.getString();
+      DynamicJsonDocument doc(1024);
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (!error && doc["hasMessage"] == true) {
+        String url = doc["audioUrl"].as<String>();
+        Serial.println("[VOICE] Playing new message...");
+        audio.connecttohost(url.c_str());
+      }
+    }
+    http.end();
+  }
+}
+
+// =====================================================
 
 void setup()
 {
@@ -3129,6 +3165,9 @@ void setup()
     115200
   );
 
+  // Init Audio
+  audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+  audio.setVolume(15); // 0-21
 
   delay(500);
 
@@ -3371,6 +3410,11 @@ void setup()
 
 void loop()
 {
+  // Feed the audio buffer
+  audio.loop();
+  
+  // Poll for voice messages from backend
+  pollVoiceAgent();
   // ===================================================
   // READ RADAR FIRST
   // ===================================================
@@ -3708,9 +3752,20 @@ void loop()
       if (personPresent) {
         // Saved! Person came back within grace period
         totalBreakMs  += (millis() - breakStartMs);
+        dailyBreakMs  += (millis() - breakStartMs); // Accumulate global daily break time
         sessionStartMs = millis();
         sessionState   = SESSION_ACTIVE;
         dyingAlarmActive = false;
+        
+        // Tell backend
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/resume");
+          http.addHeader("Content-Type", "application/json");
+          http.POST("{}");
+          http.end();
+        }
+        
         Serial.println("[SESSION] Saved! Resumed after dying.");
         drawHomePage();
       } else if (millis() - dyingAlarmMs >= DYING_GRACE_MS) {

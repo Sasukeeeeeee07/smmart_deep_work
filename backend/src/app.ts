@@ -12,6 +12,7 @@ import taskRoutes from './routes/taskRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import userRoutes from './routes/userRoutes';
+import voiceRoutes from './routes/voiceRoutes';
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/voice', voiceRoutes);
 
 // API Health Check
 app.get('/api/health', (req: Request, res: Response) => {
