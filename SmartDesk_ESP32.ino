@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <Preferences.h>
+Preferences preferences;
 #include <SPI.h>
 
 #include <Adafruit_GFX.h>
@@ -60,6 +62,7 @@ enum SessionState {
 };
 
 SessionState sessionState      = SESSION_IDLE;
+
 unsigned long sessionStartMs   = 0;   // millis() when current active period began
 unsigned long sessionTotalMs   = 0;   // accumulated active time (ms) across breaks
 unsigned long breakStartMs     = 0;   // millis() when current break began
@@ -293,6 +296,7 @@ TaskHandle_t cameraTaskHandle = nullptr;
 #define COLOR_GREEN    0x07E0
 #define COLOR_RED      0xF800
 #define COLOR_YELLOW   0xFFE0
+#define COLOR_ORANGE   0xFD20
 #define COLOR_BLUE     0x001F
 
 
@@ -2104,15 +2108,29 @@ void updateHomePageLiveValues()
   // ── Prod Spike + green tick if selfRating > 3.5 ────────
   tft.fillRect(113, r2Y + 20, 90, 32, COLOR_PANEL);
   if (productivitySpike) {
-    bool goodRating = (selfRating > 0 && (selfRating * 10) > 35);
-    tft.setTextColor(goodRating ? COLOR_GREEN : COLOR_YELLOW);
+    uint16_t spikeColor = COLOR_RED; // Default to red for < 3
+    if (selfRating > 3) spikeColor = COLOR_GREEN;
+    else if (selfRating == 3) spikeColor = COLOR_ORANGE;
+
+    tft.setTextColor(spikeColor);
     tft.setTextSize(1); tft.setCursor(113, r2Y + 26);
-    tft.print(goodRating ? "YES  OK" : "YES");
-    if (goodRating) {
+    
+    if (selfRating > 3) {
+      tft.print("YES  OK");
       // Draw a simple checkmark indicator
-      tft.fillCircle(195, r2Y + 32, 7, COLOR_GREEN);
+      tft.fillCircle(195, r2Y + 32, 7, spikeColor);
       tft.setTextColor(COLOR_BG); tft.setCursor(191, r2Y + 28);
       tft.print("v");
+    } else if (selfRating == 3) {
+      tft.print("AVG");
+      tft.fillCircle(195, r2Y + 32, 7, spikeColor);
+      tft.setTextColor(COLOR_BG); tft.setCursor(191, r2Y + 28);
+      tft.print("-");
+    } else {
+      tft.print("POOR");
+      tft.fillCircle(195, r2Y + 32, 7, spikeColor);
+      tft.setTextColor(COLOR_BG); tft.setCursor(191, r2Y + 28);
+      tft.print("x");
     }
   } else {
     tft.setTextColor(COLOR_MUTED); tft.setTextSize(1);
@@ -2128,16 +2146,25 @@ void updateHomePageLiveValues()
     tft.setCursor(bx + 5, r2Y + 32); tft.print(r);
   }
 
-  // ── Moderator CMD + Alarms ─────────────────────────────
+  // ── Moderator CMD + Alarms (overview) ───────────────────────
   int r3Y = 135;
-  tft.fillRect(12, r3Y + 24, 145, 24, COLOR_PANEL);
-  tft.setTextColor(COLOR_ACCENT); tft.setTextSize(1);
-  tft.setCursor(12, r3Y + 32); tft.printf("CMD: %d", moderatorCommands);
+  // Left block: Commands
+  tft.fillRect(12, r3Y + 20, 140, 30, COLOR_PANEL);
+  tft.setTextColor(moderatorCommands > 0 ? COLOR_ACCENT : COLOR_MUTED);
+  tft.setTextSize(2); tft.setCursor(12, r3Y + 22);
+  tft.printf("CMD %d", moderatorCommands);
+  tft.setTextSize(1); tft.setTextColor(COLOR_MUTED);
+  tft.setCursor(12, r3Y + 38); tft.print("today");
 
-  tft.fillRect(160, r3Y + 24, 155, 24, COLOR_PANEL);
+  // Right block: Alarms (tappable — opens alerts page)
+  tft.fillRect(160, r3Y + 20, 153, 30, COLOR_PANEL);
   tft.setTextColor(moderatorAlarms > 0 ? COLOR_RED : COLOR_MUTED);
-  tft.setCursor(160, r3Y + 32); tft.printf("ALARMS RAISED: %d", moderatorAlarms);
+  tft.setTextSize(2); tft.setCursor(160, r3Y + 22);
+  tft.printf("ALM %d", moderatorAlarms);
+  tft.setTextSize(1); tft.setTextColor(moderatorAlarms > 0 ? COLOR_RED : COLOR_MUTED);
+  tft.setCursor(160, r3Y + 38); tft.print("tap >");
 }
+
 
 
 
@@ -2791,29 +2818,33 @@ void handleTouch()
           }
       }
   }
-
-
-  if (currentPage == PAGE_HOME && tY >= 87 && tY <= 131 && tX >= 213 && tX <= 311) {
+  // ===================================================
+  // HOME PAGE: ALARMS TOUCH (Row 3, X: 160+)
+  // ===================================================
+  if (currentPage == PAGE_HOME && tY >= 135 && tY <= 190 && tX >= 160) {
     currentPage = PAGE_ALERTS;
     drawAlertsPage();
     return;
   }
 
   // ===================================================
-  // HOME PAGE: SELF-RATING TOUCH (Row Y:136-164, 5 boxes)
+  // HOME PAGE: SELF-RATING TOUCH (Row 2, Y: 70-125)
   // ===================================================
-  if (currentPage == PAGE_HOME && tY >= 130 && tY <= 168) {
+  if (currentPage == PAGE_HOME && tY >= 70 && tY <= 125) {
     int newRating = 0;
-    // 5 boxes at tX: ~72-108, 117-153, 162-198, 207-243, 252-288
-    if      (tX >= 65  && tX <= 110) newRating = 1;
-    else if (tX >= 111 && tX <= 156) newRating = 2;
-    else if (tX >= 157 && tX <= 202) newRating = 3;
-    else if (tX >= 203 && tX <= 248) newRating = 4;
-    else if (tX >= 249 && tX <= 294) newRating = 5;
+    // 5 boxes at tX: ~213, 233, 253, 273, 293
+    if      (tX >= 210 && tX <= 230) newRating = 1;
+    else if (tX >= 231 && tX <= 250) newRating = 2;
+    else if (tX >= 251 && tX <= 270) newRating = 3;
+    else if (tX >= 271 && tX <= 290) newRating = 4;
+    else if (tX >= 291 && tX <= 315) newRating = 5;
 
     if (newRating > 0) {
       selfRating = newRating;
       Serial.printf("[SESSION] Self rating set to %d\n", selfRating);
+
+      // Trigger productivity spike based on rating
+      productivitySpike = true;
 
       // Send to backend
       if (WiFi.status() == WL_CONNECTED) {
@@ -3161,6 +3192,10 @@ void pollVoiceAgent() {
 
 void setup()
 {
+  preferences.begin("sdw", false);
+  sessionTotalMs = preferences.getUInt("sessMs", 0);
+  dailyBreakMs = preferences.getUInt("brkMs", 0);
+
   Serial.begin(
     115200
   );
@@ -3640,9 +3675,32 @@ void loop()
   }
 
   // ===================================================
-  // SESSION STATE MACHINE
+  // SESSION STATE MACHINE — with radar debounce
+  // The radar sensor can flicker, so we require the signal to
+  // be consistently absent for ABSENCE_DEBOUNCE_MS before
+  // we trigger a break, and consistently present for
+  // PRESENCE_DEBOUNCE_MS before we resume.
   // ===================================================
-  bool personPresent = (radar.valid && radar.targetState > 0);
+  #define ABSENCE_DEBOUNCE_MS  5000UL  // 5 seconds of no-signal before break
+  #define PRESENCE_DEBOUNCE_MS 3000UL  // 3 seconds of signal before resume
+
+  static unsigned long absenceStartMs  = 0; // when we first saw no person
+  static unsigned long presenceStartMs = 0; // when we first saw a person
+
+  bool rawPresent = (radar.valid && radar.targetState > 0);
+
+  // Update debounce timers
+  if (rawPresent) {
+    absenceStartMs = 0; // reset absence timer
+    if (presenceStartMs == 0) presenceStartMs = millis();
+  } else {
+    presenceStartMs = 0; // reset presence timer
+    if (absenceStartMs == 0) absenceStartMs = millis();
+  }
+
+  // Debounced booleans
+  bool personPresent = rawPresent && (millis() - presenceStartMs >= PRESENCE_DEBOUNCE_MS);
+  bool personAbsent  = !rawPresent && (absenceStartMs > 0) && (millis() - absenceStartMs >= ABSENCE_DEBOUNCE_MS);
 
   switch (sessionState) {
 
@@ -3672,13 +3730,16 @@ void loop()
       break;
 
     case SESSION_ACTIVE:
-      if (!personPresent) {
-        // Person left — start break
+      if (personAbsent) {
+        // Person has been consistently absent for 5 seconds — start break
         sessionState     = SESSION_BREAK;
         sessionTotalMs  += (millis() - sessionStartMs); // accumulate active time
+        preferences.putUInt("sessMs", sessionTotalMs);
         breakStartMs     = millis();
         sessionBreakCount++;
         dailyBreakCount++; // Increment global daily breaks
+        absenceStartMs = 0; // reset debounce
+        presenceStartMs = 0;
 
         // BEEP alarm when user leaves
         Serial.println("\a\a\a"); // System bell sound 3 times
@@ -3708,11 +3769,14 @@ void loop()
       unsigned long breakDuration = millis() - breakStartMs;
 
       if (personPresent) {
-        // Returned from break
+        // Returned from break (debounced — sustained presence)
         totalBreakMs += breakDuration;
         dailyBreakMs += breakDuration; // Accumulate global daily break time
+        preferences.putUInt("brkMs", dailyBreakMs);
         sessionStartMs = millis(); // restart active timer
         sessionState   = SESSION_ACTIVE;
+        absenceStartMs = 0; // reset debounce
+        presenceStartMs = 0;
 
         // Tell backend
         if (WiFi.status() == WL_CONNECTED) {
@@ -3783,6 +3847,10 @@ void loop()
 
         // Reset everything
         sessionState      = SESSION_IDLE;
+
+        preferences.putUInt("sessMs", sessionTotalMs);
+        preferences.putUInt("brkMs", dailyBreakMs);
+
         sessionTotalMs    = 0;
         sessionBreakCount = 0;
         totalBreakMs      = 0;

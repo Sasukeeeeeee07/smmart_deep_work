@@ -8,7 +8,8 @@ import {
   rateSession,
   getSDWPoints,
   sendCommand,
-  raiseAlarm
+  raiseAlarm,
+  getModerationHistory,
 } from '../controllers/sessionController';
 import { protect, authorize } from '../middleware/auth';
 
@@ -26,5 +27,7 @@ router.post('/:uid/rate',   rateSession);
 router.post('/:uid/command', sendCommand);
 router.post('/:uid/alarm', raiseAlarm);
 router.get( '/:uid/sdwpoints', getSDWPoints);
+router.get( '/:uid/moderation-history', protect, authorize('ADMIN', 'MANAGER'), getModerationHistory);
+
 
 export default router;

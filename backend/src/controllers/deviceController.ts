@@ -233,11 +233,11 @@ export const getDeviceStats = async (req: Request, res: Response) => {
     const totalTasks = allTasks.length;
     const completedTasks = allTasks.filter(t => t.status === TaskStatus.COMPLETED).length;
     
-    // If no tasks, task score is 100%. Otherwise, percentage completed.
-    const taskScore = totalTasks === 0 ? 100 : (completedTasks / totalTasks) * 100;
+    // If no tasks, task score is 0%.
+    const taskScore = totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100;
 
     // 2. Presence Score (Fake for now as requested, we will query ActivitySession in the future)
-    const presenceScore = 75; 
+    const presenceScore = 0; 
 
     // 3. Hybrid Score: (Task Score * 0.6) + (Presence Score * 0.4)
     const productivity = Math.round((taskScore * 0.6) + (presenceScore * 0.4));

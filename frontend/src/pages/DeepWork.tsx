@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { deviceService } from '../services/api';
 import api from '../services/api';
+import ModerationHistory from './ModerationHistory';
 import {
   Timer, Coffee, Star, Zap, Shield, AlertTriangle,
-  ChevronDown, RefreshCw, Award
+  ChevronDown, RefreshCw, Award, History
 } from 'lucide-react';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface BreakRecord {
@@ -67,7 +69,7 @@ function StarRating({ value }: { value: number }) {
 }
 
 // ─── Moderator Panel ──────────────────────────────────────────────────────────
-function ModeratorPanel({ device }: { device: any }) {
+function ModeratorPanel({ device, onViewHistory }: { device: any; onViewHistory: (uid: string) => void }) {
   const [command, setCommand] = useState('');
   const [alarm, setAlarm] = useState('');
   const [cmdSent, setCmdSent] = useState(false);
@@ -99,15 +101,24 @@ function ModeratorPanel({ device }: { device: any }) {
 
   return (
     <div className="mt-3 p-3 rounded-xl bg-surface border border-surface-light space-y-3">
-      <p className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-        <Shield size={12} /> Moderator Panel — {device.uid}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+          <Shield size={12} /> Moderator Panel — {device.uid}
+        </p>
+        <button
+          onClick={() => onViewHistory(device.uid)}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface-light border border-surface-light text-text-muted hover:text-indigo-300 hover:border-indigo-500/40 transition-all text-xs"
+        >
+          <History size={11} /> View History
+        </button>
+      </div>
 
       {/* Command */}
       <div className="flex gap-2">
         <input
           value={command}
           onChange={e => setCommand(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && sendCommand()}
           placeholder="Send command to device..."
           className="flex-1 bg-surface-light border border-surface-light rounded-lg px-3 py-2 text-sm text-text-main placeholder-text-muted focus:outline-none focus:border-indigo-500/50"
         />
@@ -124,6 +135,7 @@ function ModeratorPanel({ device }: { device: any }) {
         <input
           value={alarm}
           onChange={e => setAlarm(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && raiseAlarm()}
           placeholder="Raise alarm (message)..."
           className="flex-1 bg-surface-light border border-surface-light rounded-lg px-3 py-2 text-sm text-text-main placeholder-text-muted focus:outline-none focus:border-red-500/50"
         />
@@ -247,6 +259,12 @@ const DeepWorkPage = () => {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterDevice, setFilterDevice] = useState('ALL');
   const [modDevice, setModDevice] = useState<string | null>(null);
+  const [historyDevice, setHistoryDevice] = useState<string | null>(null);
+
+  // If viewing history, render that sub-page instead
+  if (historyDevice) {
+    return <ModerationHistory deviceUid={historyDevice} onBack={() => setHistoryDevice(null)} />;
+  }
 
   const fetchSessions = async () => {
     try {
@@ -375,6 +393,7 @@ const DeepWorkPage = () => {
       {modDevice && (
         <ModeratorPanel
           device={devices.find(d => d.uid === modDevice) ?? { uid: modDevice }}
+          onViewHistory={(uid) => setHistoryDevice(uid)}
         />
       )}
 

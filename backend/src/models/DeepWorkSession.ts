@@ -6,6 +6,12 @@ export interface IBreakRecord {
   durationMinutes?: number;
 }
 
+export interface IModerationLog {
+  type: 'COMMAND' | 'ALARM';
+  message: string;
+  timestamp: Date;
+}
+
 export interface IDeepWorkSession extends Document {
   deviceUid: string;
   employeeId: mongoose.Types.ObjectId;
@@ -19,12 +25,19 @@ export interface IDeepWorkSession extends Document {
   selfRating: number;          // 0 = unrated, 1-5
   sdwPointsEarned: number;     // 5 if 2hr+ session, else 0
   productivitySpike: boolean;  // true if 45+ min with < 2 breaks
+  moderationLog: IModerationLog[];
 }
 
 const BreakRecordSchema = new Schema<IBreakRecord>({
   startTime: { type: Date, required: true },
   endTime: { type: Date },
   durationMinutes: { type: Number },
+});
+
+const ModerationLogSchema = new Schema<IModerationLog>({
+  type:      { type: String, enum: ['COMMAND', 'ALARM'], required: true },
+  message:   { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
 });
 
 const DeepWorkSessionSchema: Schema = new Schema<IDeepWorkSession>(
@@ -41,6 +54,7 @@ const DeepWorkSessionSchema: Schema = new Schema<IDeepWorkSession>(
     selfRating:         { type: Number, default: 0, min: 0, max: 5 },
     sdwPointsEarned:    { type: Number, default: 0 },
     productivitySpike:  { type: Boolean, default: false },
+    moderationLog:      { type: [ModerationLogSchema], default: [] },
   },
   { timestamps: true }
 );

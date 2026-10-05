@@ -272,16 +272,101 @@ export const getSDWPoints = async (req: Request, res: Response) => {
 
 export const sendCommand = async (req: Request, res: Response) => {
   const { command } = req.body;
-  if (command) {
-    voiceService.queueMessage(req.params.uid as string, command);
+  if (!command) return res.status(400).json({ success: false, error: 'command is required' });
+
+  // Queue voice message on ESP32
+  voiceService.queueMessage(req.params.uid as string, command);
+
+  // Log to the active session so history is kept
+  try {
+    const session = await DeepWorkSession.findOne({
+      deviceUid: req.params.uid,
+      status: { $in: ['ACTIVE', 'BREAK', 'DYING'] },
+    }).sort({ startTime: -1 });
+
+    if (session) {
+      session.moderationLog.push({ type: 'COMMAND', message: command, timestamp: new Date() });
+      await session.save();
+    }
+  } catch (err) {
+    console.error('[MOD] command log error:', err);
   }
+
   res.json({ success: true });
 };
 
 export const raiseAlarm = async (req: Request, res: Response) => {
   const { message } = req.body;
-  if (message) {
-    voiceService.queueMessage(req.params.uid as string, message);
+  if (!message) return res.status(400).json({ success: false, error: 'message is required' });
+
+  // Queue voice message on ESP32
+  voiceService.queueMessage(req.params.uid as string, message);
+
+  // Log to the active session
+  try {
+    const session = await DeepWorkSession.findOne({
+      deviceUid: req.params.uid,
+      status: { $in: ['ACTIVE', 'BREAK', 'DYING'] },
+    }).sort({ startTime: -1 });
+
+    if (session) {
+      session.moderationLog.push({ type: 'ALARM', message, timestamp: new Date() });
+      await session.save();
+    }
+  } catch (err) {
+    console.error('[MOD] alarm log error:', err);
   }
+
   res.json({ success: true });
+};
+
+// =====================================================
+// GET /api/sessions/:uid/moderation-history?date=YYYY-MM-DD
+// Returns all moderation actions for a device on a given date
+// =====================================================
+export const getModerationHistory = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query as { date?: string };
+
+    // Build date range — default to today
+    const targetDate = date ? new Date(date) : new Date();
+    const start = new Date(targetDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(targetDate);
+    end.setHours(23, 59, 59, 999);
+
+    const sessions = await DeepWorkSession.find({
+      deviceUid: req.params.uid,
+      startTime: { $gte: start, $lte: end },
+    }).select('startTime endTime status moderationLog employeeId')
+      .populate('employeeId', 'firstName lastName')
+      .sort({ startTime: -1 });
+
+    // Flatten all moderation log entries across sessions for that day
+    const history = sessions.flatMap(s =>
+      s.moderationLog.map(log => ({
+        sessionId:  (s._id as any).toString(),
+        sessionStart: s.startTime,
+        sessionStatus: s.status,
+        employee: s.employeeId,
+        type:      log.type,
+        message:   log.message,
+        timestamp: log.timestamp,
+      }))
+    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    res.json({
+      success: true,
+      data: {
+        date: start.toISOString().split('T')[0],
+        totalActions: history.length,
+        commands: history.filter(h => h.type === 'COMMAND').length,
+        alarms:   history.filter(h => h.type === 'ALARM').length,
+        history,
+      },
+    });
+  } catch (err) {
+    console.error('[MOD] history error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch moderation history' });
+  }
 };
