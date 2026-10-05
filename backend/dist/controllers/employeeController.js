@@ -42,7 +42,7 @@ const createEmployee = async (req, res) => {
             email,
             department,
             position,
-            status: status || 'Active',
+            status: status || 'ACTIVE',
             user: user._id,
         });
         res.status(201).json({ success: true, data: employee });

@@ -15,6 +15,7 @@ const taskRoutes_1 = __importDefault(require("./routes/taskRoutes"));
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const sessionRoutes_1 = __importDefault(require("./routes/sessionRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
+const voiceRoutes_1 = __importDefault(require("./routes/voiceRoutes"));
 const app = (0, express_1.default)();
 // Middleware
 app.use((0, cors_1.default)());
@@ -27,6 +28,7 @@ app.use('/api/devices', deviceRoutes_1.default);
 app.use('/api/tasks', taskRoutes_1.default);
 app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/sessions', sessionRoutes_1.default);
+app.use('/api/voice', voiceRoutes_1.default);
 // API Health Check
 app.get('/api/health', (req, res) => {
     const dbStatus = mongoose_1.default.connection.readyState === 1 ? 'connected' : 'disconnected';

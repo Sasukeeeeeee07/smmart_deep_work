@@ -6,7 +6,7 @@ const router = Router();
 // GET /api/voice/:uid/next
 // ESP32 polls this to check if there is an audio message to play
 router.get('/:uid/next', (req: Request, res: Response) => {
-  const uid = req.params.uid;
+  const uid = req.params.uid as string;
   const audioUrl = voiceService.getNextMessage(uid);
   
   if (audioUrl) {
@@ -24,7 +24,7 @@ router.post('/:uid/speak', (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: 'Text is required' });
   }
   
-  voiceService.queueMessage(req.params.uid, text);
+  voiceService.queueMessage(req.params.uid as string, text);
   res.json({ success: true, message: 'Queued to speak' });
 });
 

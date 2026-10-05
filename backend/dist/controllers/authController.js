@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerAdmin = exports.loginUser = void 0;
+exports.registerAdmin = exports.loginUser = exports.resetAdmin = void 0;
 const User_1 = require("../models/User");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const generateToken = (id) => {
@@ -11,6 +11,19 @@ const generateToken = (id) => {
         expiresIn: '30d',
     });
 };
+// TEMPORARY ENDPOINT TO FIX DB
+const resetAdmin = async (req, res) => {
+    await User_1.User.deleteMany({ email: 'admin@smmart.com' });
+    await User_1.User.create({
+        name: 'Super Admin',
+        email: 'admin@smmart.com',
+        passwordHash: 'admin123', // Mongoose pre-save hook will hash this!
+        role: User_1.Role.ADMIN,
+        isActive: true
+    });
+    res.send('Admin reset successfully! You can now login with admin@smmart.com / admin123');
+};
+exports.resetAdmin = resetAdmin;
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public

@@ -4,6 +4,7 @@ exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resume
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
+const voiceService_1 = require("../services/voiceService");
 // Helper: get ISO week number
 function getWeekNumber(d) {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -166,6 +167,13 @@ const endSession = async (req, res) => {
             console.log(`[SDW] +5 points earned for employee ${session.employeeId}`);
         }
         await session.save();
+        // Voice feedback
+        if (pointsEarned > 0) {
+            voiceService_1.voiceService.queueMessage(req.params.uid, `Incredible work! You just completed a 2 hour deep work session and earned 5 points.`);
+        }
+        else {
+            voiceService_1.voiceService.queueMessage(req.params.uid, `Session ended. You worked for ${session.activeMinutes} minutes.`);
+        }
         res.json({ success: true, data: { pointsEarned, activeMinutes: session.activeMinutes } });
     }
     catch (err) {

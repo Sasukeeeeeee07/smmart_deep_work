@@ -192,9 +192,9 @@ export const endSession = async (req: Request, res: Response) => {
     
     // Voice feedback
     if (pointsEarned > 0) {
-      voiceService.queueMessage(req.params.uid, `Incredible work! You just completed a 2 hour deep work session and earned 5 points.`);
+      voiceService.queueMessage(req.params.uid as string, `Incredible work! You just completed a 2 hour deep work session and earned 5 points.`);
     } else {
-      voiceService.queueMessage(req.params.uid, `Session ended. You worked for ${session.activeMinutes} minutes.`);
+      voiceService.queueMessage(req.params.uid as string, `Session ended. You worked for ${session.activeMinutes} minutes.`);
     }
 
     res.json({ success: true, data: { pointsEarned, activeMinutes: session.activeMinutes } });
