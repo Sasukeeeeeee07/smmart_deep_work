@@ -2821,23 +2821,23 @@ void handleTouch()
   // ===================================================
   // HOME PAGE: ALARMS TOUCH (Row 3, X: 160+)
   // ===================================================
-  if (currentPage == PAGE_HOME && tY >= 135 && tY <= 190 && tX >= 160) {
+  if (currentPage == PAGE_HOME && tY >= 145 && tY <= 210 && tX >= 150) {
     currentPage = PAGE_ALERTS;
     drawAlertsPage();
     return;
   }
 
   // ===================================================
-  // HOME PAGE: SELF-RATING TOUCH (Row 2, Y: 70-125)
+  // HOME PAGE: SELF-RATING TOUCH (Row 2)
   // ===================================================
-  if (currentPage == PAGE_HOME && tY >= 70 && tY <= 125) {
+  if (currentPage == PAGE_HOME && tY >= 60 && tY <= 144) {
     int newRating = 0;
-    // 5 boxes at tX: ~213, 233, 253, 273, 293
-    if      (tX >= 210 && tX <= 230) newRating = 1;
+    // Expanded touch boxes for self rating (visually drawn at X: ~213, 233, 253, 273, 293)
+    if      (tX >= 180 && tX <= 230) newRating = 1;
     else if (tX >= 231 && tX <= 250) newRating = 2;
     else if (tX >= 251 && tX <= 270) newRating = 3;
     else if (tX >= 271 && tX <= 290) newRating = 4;
-    else if (tX >= 291 && tX <= 315) newRating = 5;
+    else if (tX >= 291 && tX <= 320) newRating = 5;
 
     if (newRating > 0) {
       selfRating = newRating;

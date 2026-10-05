@@ -167,14 +167,14 @@ function SessionRow({ session }: { session: Session }) {
       >
         {/* Status dot */}
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${statusBadge(session.status)}`}>
-          {session.status}
+          {String(session.status)}
         </span>
 
         {/* Employee */}
-        <span className="flex-1 text-sm font-medium text-text-main truncate">{emp}</span>
+        <span className="flex-1 text-sm font-medium text-text-main truncate">{String(emp)}</span>
 
         {/* Device UID */}
-        <span className="text-xs text-text-muted font-mono">{session.deviceUid}</span>
+        <span className="text-xs text-text-muted font-mono">{String(session.deviceUid)}</span>
 
         {/* Active time */}
         <span className="flex items-center gap-1 text-sm text-green-400">
