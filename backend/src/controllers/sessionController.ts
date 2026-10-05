@@ -53,10 +53,37 @@ export const startSession = async (req: Request, res: Response) => {
     }
 
     // Close any stale ACTIVE/BREAK session for this device
-    await DeepWorkSession.updateMany(
-      { deviceUid: req.params.uid, status: { $in: ['ACTIVE', 'BREAK', 'DYING'] } },
-      { $set: { status: 'COMPLETED', endTime: new Date() } }
-    );
+    const staleSessions = await DeepWorkSession.find({
+      deviceUid: req.params.uid,
+      status: { $in: ['ACTIVE', 'BREAK', 'DYING'] }
+    });
+
+    const nowEnd = new Date();
+    for (const stale of staleSessions) {
+      stale.endTime = nowEnd;
+      stale.status = 'COMPLETED';
+      
+      if (!stale.activeMinutes || stale.activeMinutes === 0) {
+        const diffMs = nowEnd.getTime() - new Date(stale.startTime).getTime();
+        const totalMin = Math.floor(diffMs / 60000);
+        stale.activeMinutes = Math.max(0, totalMin - (stale.totalBreakMinutes || 0));
+      }
+
+      if (stale.activeMinutes >= 120 && stale.sdwPointsEarned === 0) {
+        stale.sdwPointsEarned = 5;
+        await SDWPoints.create({
+          employeeId: stale.employeeId,
+          sessionId:  stale._id,
+          points:     5,
+          earnedAt:   nowEnd,
+          weekNumber: getWeekNumber(nowEnd),
+          month:      nowEnd.getMonth() + 1,
+          year:       nowEnd.getFullYear(),
+        });
+        console.log(`[SDW] +5 points earned for orphaned session ${stale._id}`);
+      }
+      await stale.save();
+    }
 
     const session = await DeepWorkSession.create({
       deviceUid:   req.params.uid as string,
