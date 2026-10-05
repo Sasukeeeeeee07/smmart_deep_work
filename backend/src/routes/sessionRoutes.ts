@@ -7,6 +7,8 @@ import {
   endSession,
   rateSession,
   getSDWPoints,
+  sendCommand,
+  raiseAlarm
 } from '../controllers/sessionController';
 import { protect, authorize } from '../middleware/auth';
 
@@ -21,6 +23,8 @@ router.post('/:uid/break',  startBreak);
 router.post('/:uid/resume', resumeSession);
 router.post('/:uid/end',    endSession);
 router.post('/:uid/rate',   rateSession);
+router.post('/:uid/command', sendCommand);
+router.post('/:uid/alarm', raiseAlarm);
 router.get( '/:uid/sdwpoints', getSDWPoints);
 
 export default router;

@@ -269,3 +269,19 @@ export const getSDWPoints = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Failed to get SDW points' });
   }
 };
+
+export const sendCommand = async (req: Request, res: Response) => {
+  const { command } = req.body;
+  if (command) {
+    voiceService.queueMessage(req.params.uid as string, command);
+  }
+  res.json({ success: true });
+};
+
+export const raiseAlarm = async (req: Request, res: Response) => {
+  const { message } = req.body;
+  if (message) {
+    voiceService.queueMessage(req.params.uid as string, message);
+  }
+  res.json({ success: true });
+};

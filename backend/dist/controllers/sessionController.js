@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
+exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
@@ -243,3 +243,19 @@ const getSDWPoints = async (req, res) => {
     }
 };
 exports.getSDWPoints = getSDWPoints;
+const sendCommand = async (req, res) => {
+    const { command } = req.body;
+    if (command) {
+        voiceService_1.voiceService.queueMessage(req.params.uid, command);
+    }
+    res.json({ success: true });
+};
+exports.sendCommand = sendCommand;
+const raiseAlarm = async (req, res) => {
+    const { message } = req.body;
+    if (message) {
+        voiceService_1.voiceService.queueMessage(req.params.uid, message);
+    }
+    res.json({ success: true });
+};
+exports.raiseAlarm = raiseAlarm;

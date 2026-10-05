@@ -7,7 +7,7 @@ exports.connectDB = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smartdesk';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smmart deep work';
 const connectDB = async () => {
     try {
         const conn = await mongoose_1.default.connect(MONGODB_URI);

@@ -38,7 +38,7 @@ const getDevice = async (req, res) => {
         if (!device) {
             device = await Device_1.Device.create({
                 uid,
-                name: `SmartDesk - ${uid}`,
+                name: `smmart deep work - ${uid}`,
                 status: 'ONLINE',
             });
         }
@@ -73,7 +73,7 @@ const handleHeartbeat = async (req, res) => {
             // Auto-register
             device = await Device_1.Device.create({
                 uid,
-                name: `SmartDesk - ${uid}`,
+                name: `smmart deep work - ${uid}`,
                 status: 'ONLINE',
             });
         }
@@ -101,7 +101,7 @@ const handleActivity = async (req, res) => {
             // Auto-register
             device = await Device_1.Device.create({
                 uid,
-                name: `SmartDesk - ${uid}`,
+                name: `smmart deep work - ${uid}`,
                 status: 'ONLINE',
             });
         }

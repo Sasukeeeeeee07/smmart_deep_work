@@ -15,5 +15,7 @@ router.post('/:uid/break', sessionController_1.startBreak);
 router.post('/:uid/resume', sessionController_1.resumeSession);
 router.post('/:uid/end', sessionController_1.endSession);
 router.post('/:uid/rate', sessionController_1.rateSession);
+router.post('/:uid/command', sessionController_1.sendCommand);
+router.post('/:uid/alarm', sessionController_1.raiseAlarm);
 router.get('/:uid/sdwpoints', sessionController_1.getSDWPoints);
 exports.default = router;
