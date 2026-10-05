@@ -55,7 +55,7 @@ const Login = () => {
           </div>
           
           <h1 className="text-5xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-text-muted mb-6 tracking-tight">
-            SmartDesk
+            smmart deep work
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light to-accent">Control Center</span>
           </h1>
@@ -74,7 +74,7 @@ const Login = () => {
             <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
               <Cpu className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">SmartDesk</h2>
+            <h2 className="text-2xl font-bold text-white tracking-tight">smmart deep work</h2>
           </div>
 
           <div className="mb-10 text-center md:text-left">
@@ -99,7 +99,7 @@ const Login = () => {
                 <input
                   type="email"
                   className="input-premium w-full pl-11 pr-4 py-3.5 rounded-xl placeholder-text-muted/50 outline-none"
-                  placeholder="admin@smartdesk.local"
+                  placeholder="admin@smmart deep work.local"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -144,7 +144,7 @@ const Login = () => {
           
           <div className="mt-8 text-center">
             <p className="text-xs text-text-muted/60">
-              Secured by SmartDesk Encryption Protocol
+              Secured by smmart deep work Encryption Protocol
             </p>
           </div>
         </div>

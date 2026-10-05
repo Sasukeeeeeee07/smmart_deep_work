@@ -40,7 +40,7 @@ const DashboardLayout = () => {
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-surface border-r border-surface-light flex flex-col">
         <div className="p-6 border-b border-surface-light">
-          <h1 className="text-xl font-bold text-primary tracking-tight">SmartDesk</h1>
+          <h1 className="text-xl font-bold text-primary tracking-tight">smmart deep work</h1>
         </div>
         
         <nav className="flex-1 p-4 space-y-1">

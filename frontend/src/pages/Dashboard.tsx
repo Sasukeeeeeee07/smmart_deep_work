@@ -86,7 +86,7 @@ const Dashboard = () => {
       <header className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-text-main">Overview</h2>
-          <p className="text-text-muted text-sm mt-1">Real-time SmartDesk monitoring dashboard</p>
+          <p className="text-text-muted text-sm mt-1">Real-time smmart deep work monitoring dashboard</p>
         </div>
         {refreshing && (
           <span className="text-xs text-text-muted flex items-center gap-1.5">

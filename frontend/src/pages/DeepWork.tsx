@@ -389,7 +389,7 @@ const DeepWorkPage = () => {
         <div className="glass rounded-2xl border border-dashed border-surface-light p-12 text-center text-text-muted">
           <Timer size={32} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">No sessions found</p>
-          <p className="text-sm mt-1">Sessions will appear here once an employee sits at a SmartDesk.</p>
+          <p className="text-sm mt-1">Sessions will appear here once an employee sits at a smmart deep work.</p>
         </div>
       ) : (
         <div className="space-y-2">
