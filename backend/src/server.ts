@@ -3,6 +3,7 @@ import { connectDB } from './config/db';
 import os from 'os';
 import { User, Role } from './models/User';
 import bcrypt from 'bcrypt';
+import { startCronJobs } from './services/cronService';
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,9 @@ const getLanIP = (): string => {
 const startServer = async () => {
   // Connect to database
   await connectDB();
+  
+  // Start background cron jobs
+  startCronJobs();
   
   // Seed initial admin if empty
   if ((await User.countDocuments()) === 0) {

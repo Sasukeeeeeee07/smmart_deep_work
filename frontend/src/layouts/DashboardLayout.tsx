@@ -36,9 +36,9 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-surface border-r border-surface-light flex flex-col">
+      <aside className="w-full md:w-64 bg-surface border-r border-surface-light flex flex-col shrink-0">
         <div className="p-6 border-b border-surface-light">
           <h1 className="text-xl font-bold text-primary tracking-tight">smmart deep work</h1>
         </div>
