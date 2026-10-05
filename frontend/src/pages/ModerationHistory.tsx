@@ -85,13 +85,13 @@ function EntryRow({ entry, index }: { entry: ModerationEntry; index: number }) {
               ? 'text-red-400 bg-red-500/10 border-red-500/25'
               : 'text-indigo-400 bg-indigo-500/10 border-indigo-500/25'
           }`}>
-            {entry.type}
+            {String(entry.type)}
           </span>
-          <span className="text-sm font-medium text-text-main truncate">{entry.message}</span>
+          <span className="text-sm font-medium text-text-main truncate">{String(entry.message)}</span>
         </div>
         <div className="flex items-center gap-4 mt-1.5 text-xs text-text-muted flex-wrap">
           <span className="flex items-center gap-1">
-            <User size={11} /> {emp}
+            <User size={11} /> {String(emp)}
           </span>
           <span className="flex items-center gap-1">
             <Activity size={11} />
@@ -100,11 +100,11 @@ function EntryRow({ entry, index }: { entry: ModerationEntry; index: number }) {
               entry.sessionStatus === 'BREAK' ? 'text-yellow-400' :
               entry.sessionStatus === 'COMPLETED' ? 'text-indigo-400' : 'text-red-400'
             }`}>
-              {entry.sessionStatus}
+              {String(entry.sessionStatus)}
             </span>
           </span>
           <span className="text-text-muted text-xs">
-            Session started {new Date(entry.sessionStart).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+            Session started {String(new Date(entry.sessionStart).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }))}
           </span>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function ModerationHistory({ deviceUid, onBack }: Props) {
             <Shield size={20} className="text-indigo-400" />
             Moderation History
             <span className="font-mono text-sm text-text-muted bg-surface px-2 py-0.5 rounded-lg border border-surface-light ml-1">
-              {deviceUid}
+              {String(deviceUid)}
             </span>
           </h2>
           <p className="text-text-muted text-sm mt-0.5">
