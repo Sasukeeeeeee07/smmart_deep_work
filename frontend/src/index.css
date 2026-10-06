@@ -8,17 +8,50 @@
   --color-primary-light: #818cf8;
   --color-accent: #14b8a6;
   
-  --color-background: #020617;
-  --color-surface: rgba(15, 23, 42, 0.6);
-  --color-surface-dark: rgba(8, 14, 31, 0.8);
-  --color-surface-light: rgba(30, 41, 59, 0.8);
+  --color-background: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-dark: var(--theme-surface-dark);
+  --color-surface-light: var(--theme-surface-light);
   
-  --color-text-main: #f8fafc;
-  --color-text-muted: #94a3b8;
+  --color-text-main: var(--theme-text-main);
+  --color-text-muted: var(--theme-text-muted);
+
   
   --animate-blob: blob 7s infinite;
   --animate-fade-in-up: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-pulse-slow: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+:root {
+  /* Default Theme (Dark) */
+  --theme-bg: #020617;
+  --theme-surface: rgba(15, 23, 42, 0.6);
+  --theme-surface-dark: rgba(8, 14, 31, 0.8);
+  --theme-surface-light: rgba(30, 41, 59, 0.8);
+  --theme-text-main: #f8fafc;
+  --theme-text-muted: #94a3b8;
+  --theme-border: rgba(255, 255, 255, 0.08);
+  --theme-shadow: rgba(0, 0, 0, 0.5);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.1);
+  --theme-input-bg: rgba(15, 23, 42, 0.4);
+  --theme-input-border: rgba(255, 255, 255, 0.1);
+  --theme-input-focus-bg: rgba(15, 23, 42, 0.8);
+}
+
+:root.light {
+  /* Light Theme */
+  --theme-bg: #f8fafc;
+  --theme-surface: rgba(255, 255, 255, 0.7);
+  --theme-surface-dark: rgba(241, 245, 249, 0.9);
+  --theme-surface-light: rgba(255, 255, 255, 1);
+  --theme-text-main: #0f172a;
+  --theme-text-muted: #475569;
+  --theme-border: rgba(0, 0, 0, 0.1);
+  --theme-shadow: rgba(0, 0, 0, 0.05);
+  --theme-shadow-inset: rgba(255, 255, 255, 0.5);
+  --theme-input-bg: rgba(255, 255, 255, 0.6);
+  --theme-input-border: rgba(0, 0, 0, 0.15);
+  --theme-input-focus-bg: rgba(255, 255, 255, 1);
 }
 
 @keyframes blob {
@@ -61,13 +94,13 @@ body {
   /* Reduced from 16px for same reason */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 25px 50px -12px var(--theme-shadow), inset 0 1px 0 var(--theme-shadow-inset);
 }
 
 .input-premium {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-input-border);
   color: var(--color-text-main);
   transition: all 0.3s ease;
 }
@@ -75,7 +108,7 @@ body {
 .input-premium:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--theme-input-focus-bg);
 }
 
 .btn-premium {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate, Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Monitor, LogOut, ClipboardList, Bell, Activity, Timer } from 'lucide-react';
+import { LayoutDashboard, Users, Monitor, LogOut, ClipboardList, Bell, Activity, Timer, Sun, Moon } from 'lucide-react';
 import { notificationService } from '../services/api';
 
 const DashboardLayout = () => {
@@ -29,6 +29,20 @@ const DashboardLayout = () => {
     return <Navigate to="/tasks" replace />;
   }
 
+  const [isLight, setIsLight] = useState(() => {
+    return localStorage.getItem('theme') === 'light';
+  });
+
+  useEffect(() => {
+    if (isLight) {
+      document.documentElement.classList.add('light');
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('theme', 'dark');
+    }
+  }, [isLight]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -36,10 +50,10 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden">
+    <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-surface border-r border-surface-light flex flex-col shrink-0">
-        <div className="p-6 border-b border-surface-light">
+      <aside className="w-full md:w-64 bg-surface border-r border-surface-light flex flex-col shrink-0 transition-colors duration-300">
+        <div className="p-6 border-b border-surface-light transition-colors duration-300">
           <h1 className="text-xl font-bold text-primary tracking-tight">smmart deep work</h1>
         </div>
         
@@ -62,7 +76,7 @@ const DashboardLayout = () => {
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors font-medium text-sm ${
                   isActive
-                    ? 'text-white bg-indigo-600/30 border border-indigo-500/40'
+                    ? 'text-white bg-primary border border-primary/40 shadow-sm'
                     : 'text-text-muted hover:text-text-main hover:bg-surface-light/50'
                 }`
               }
@@ -70,7 +84,7 @@ const DashboardLayout = () => {
               <Icon className="h-5 w-5 shrink-0" />
               <span className="flex-1">{label}</span>
               {badge > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500 border border-red-500/30">
                   {badge}
                 </span>
               )}
@@ -78,16 +92,23 @@ const DashboardLayout = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-surface-light">
+        <div className="p-4 border-t border-surface-light flex flex-col gap-2 transition-colors duration-300">
+          <button 
+            onClick={() => setIsLight(!isLight)}
+            className="flex items-center space-x-3 px-4 py-2 rounded-xl text-text-muted hover:text-text-main hover:bg-surface-light/50 transition-colors w-full"
+          >
+            {isLight ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            <span className="text-sm font-medium">{isLight ? 'Dark Mode' : 'Light Mode'}</span>
+          </button>
           <div className="flex items-center space-x-3 px-4 py-3">
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 text-primary font-bold">
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 text-primary font-bold shrink-0">
               {user?.name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-medium text-text-main truncate">{user?.name}</p>
               <p className="text-xs text-text-muted truncate">{user?.role}</p>
             </div>
-            <button onClick={handleLogout} className="text-text-muted hover:text-red-400 transition-colors">
+            <button onClick={handleLogout} className="text-text-muted hover:text-red-500 transition-colors shrink-0">
               <LogOut className="h-5 w-5" />
             </button>
           </div>
