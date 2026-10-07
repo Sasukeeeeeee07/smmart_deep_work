@@ -58,13 +58,34 @@ export const createEmployee = async (req: Request, res: Response) => {
 // @access  Private (Admin/Manager)
 export const updateEmployee = async (req: Request, res: Response) => {
   try {
-    const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const { firstName, lastName, email, department, position, status, password, role } = req.body;
+    
+    const employee = await Employee.findById(req.params.id);
     
     if (!employee) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Employee not found' } });
+    }
+
+    if (firstName) employee.firstName = firstName;
+    if (lastName) employee.lastName = lastName;
+    if (email) employee.email = email;
+    if (department) employee.department = department;
+    if (position) employee.position = position;
+    if (status) employee.status = status;
+    
+    await employee.save();
+
+    if (employee.user) {
+      const user = await User.findById(employee.user);
+      if (user) {
+        if (firstName || lastName) {
+          user.name = `${employee.firstName} ${employee.lastName}`;
+        }
+        if (email) user.email = email;
+        if (password) user.passwordHash = password;
+        if (role) user.role = role;
+        await user.save();
+      }
     }
     
     res.json({ success: true, data: employee });

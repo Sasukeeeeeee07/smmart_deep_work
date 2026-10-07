@@ -40,6 +40,10 @@ export const employeeService = {
     const response = await api.post('/employees', data);
     return response.data.data;
   },
+  updateEmployee: async (id: string, data: any) => {
+    const response = await api.put(`/employees/${id}`, data);
+    return response.data.data;
+  },
   deleteEmployee: async (id: string) => {
     const response = await api.delete(`/employees/${id}`);
     return response.data.data;

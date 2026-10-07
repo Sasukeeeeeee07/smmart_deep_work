@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { employeeService } from '../services/api';
-import { Users, Plus, Trash2 } from 'lucide-react';
+import { Users, Plus, Trash2, Edit } from 'lucide-react';
 
 const Employees = () => {
   const [employees, setEmployees] = useState<any[]>([]);
@@ -15,6 +15,8 @@ const Employees = () => {
     department: '',
     position: ''
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
 
   const fetchEmployees = async () => {
     try {
@@ -52,6 +54,38 @@ const Employees = () => {
       } catch (error) {
         console.error('Failed to delete employee', error);
       }
+    }
+  };
+
+  const openEditModal = (emp: any) => {
+    setEditingEmployee({
+      id: emp._id,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      department: emp.department,
+      position: emp.position,
+      role: emp.user?.role || 'EMPLOYEE',
+      status: emp.status,
+      password: '' // empty password so it won't update unless typed
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updateData: any = { ...editingEmployee };
+      delete updateData.id;
+      if (!updateData.password) {
+        delete updateData.password;
+      }
+      await employeeService.updateEmployee(editingEmployee.id, updateData);
+      setShowEditModal(false);
+      fetchEmployees();
+    } catch (error: any) {
+      console.error('Failed to update employee', error);
+      alert(error.response?.data?.error?.message || 'Failed to update employee. Please try again.');
     }
   };
 
@@ -123,6 +157,58 @@ const Employees = () => {
         </div>
       )}
 
+      {showEditModal && editingEmployee && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="glass p-8 rounded-2xl w-full max-w-md border border-surface-light">
+            <h3 className="text-xl font-bold text-text-main mb-6">Edit Staff Member</h3>
+            <form onSubmit={handleEditEmployee} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">First Name</label>
+                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.firstName} onChange={e => setEditingEmployee({...editingEmployee, firstName: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">Last Name</label>
+                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.lastName} onChange={e => setEditingEmployee({...editingEmployee, lastName: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-text-muted mb-1">Email</label>
+                <input required type="email" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.email} onChange={e => setEditingEmployee({...editingEmployee, email: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">New Password <span className="text-xs text-text-muted/50">(optional)</span></label>
+                  <input type="password" minLength={6} placeholder="Leave blank to keep" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white placeholder-text-muted/40" value={editingEmployee.password} onChange={e => setEditingEmployee({...editingEmployee, password: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">Role</label>
+                  <select className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.role} onChange={e => setEditingEmployee({...editingEmployee, role: e.target.value})}>
+                    <option value="EMPLOYEE">Employee</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">Department</label>
+                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.department} onChange={e => setEditingEmployee({...editingEmployee, department: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">Position</label>
+                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.position} onChange={e => setEditingEmployee({...editingEmployee, position: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
+                <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 text-text-muted hover:text-white transition-colors">Cancel</button>
+                <button type="submit" className="bg-primary-main hover:bg-primary-hover text-white px-6 py-2 rounded-lg transition-colors">Update</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="glass rounded-2xl border border-surface-light overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-text-muted">Loading employees...</div>
@@ -158,7 +244,10 @@ const Employees = () => {
                       {emp.status}
                     </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right space-x-2">
+                    <button onClick={() => openEditModal(emp)} className="text-blue-400 hover:text-blue-300 transition-colors p-2">
+                      <Edit size={18} />
+                    </button>
                     <button onClick={() => handleDelete(emp._id)} className="text-red-400 hover:text-red-300 transition-colors p-2">
                       <Trash2 size={18} />
                     </button>
