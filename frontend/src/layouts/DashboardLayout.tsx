@@ -20,15 +20,6 @@ const DashboardLayout = () => {
     return () => clearInterval(interval);
   }, [token]);
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Redirect EMPLOYEE users away from the main dashboard to their tasks
-  if (user?.role === 'EMPLOYEE' && window.location.pathname === '/') {
-    return <Navigate to="/tasks" replace />;
-  }
-
   const [isLight, setIsLight] = useState(() => {
     return localStorage.getItem('theme') === 'light';
   });
@@ -42,6 +33,15 @@ const DashboardLayout = () => {
       localStorage.setItem('theme', 'dark');
     }
   }, [isLight]);
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Redirect EMPLOYEE users away from the main dashboard to their tasks
+  if (user?.role === 'EMPLOYEE' && window.location.pathname === '/') {
+    return <Navigate to="/tasks" replace />;
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token');

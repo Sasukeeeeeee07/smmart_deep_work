@@ -1,29 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
 import { deviceService, employeeService, taskService } from '../services/api';
 import RadarWidget from '../components/RadarWidget';
-import { Cpu, Users, ClipboardList, Wifi, CheckCircle, Clock } from 'lucide-react';
+import { Cpu, Users, ClipboardList, Wifi, CheckCircle, Clock, TrendingUp, Calendar, Activity, Zap } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Legend
+} from 'recharts';
 
-interface StatCardProps {
-  label: string;
-  value: number | string;
-  sub?: string;
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-}
 
-const StatCard = ({ label, value, sub, icon: Icon, iconColor, iconBg }: StatCardProps) => (
-  <div className="glass rounded-2xl border border-surface-light p-5 flex items-center gap-4 hover:border-indigo-500/30 transition-all">
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBg} shrink-0`}>
-      <Icon size={22} className={iconColor} />
-    </div>
-    <div>
-      <p className="text-text-muted text-xs font-medium uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-2xl font-bold text-text-main">{value}</p>
-      {sub && <p className="text-xs text-text-muted mt-0.5">{sub}</p>}
-    </div>
-  </div>
-);
+// Dummy Data
+const weeklyData = [
+  { name: 'Mon', focus: 75, breaks: 25 },
+  { name: 'Tue', focus: 82, breaks: 18 },
+  { name: 'Wed', focus: 60, breaks: 40 },
+  { name: 'Thu', focus: 90, breaks: 10 },
+  { name: 'Fri', focus: 85, breaks: 15 },
+  { name: 'Sat', focus: 40, breaks: 60 },
+  { name: 'Sun', focus: 55, breaks: 45 },
+];
+
+const monthlyData = [
+  { name: 'Week 1', productivity: 72 },
+  { name: 'Week 2', productivity: 81 },
+  { name: 'Week 3', productivity: 78 },
+  { name: 'Week 4', productivity: 86 },
+];
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -38,12 +39,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchAll = async () => {
-      // Only show full-screen skeleton on first fetch
-      if (isFirstFetch.current) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
+      if (isFirstFetch.current) setLoading(true);
+      else setRefreshing(true);
       try {
         const [devicesData, employeesData, tasksData] = await Promise.all([
           deviceService.getAllDevices(),
@@ -77,51 +74,104 @@ const Dashboard = () => {
     };
 
     fetchAll();
-    const interval = setInterval(fetchAll, 30000); // Background refresh every 30s
+    const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  const averageMonthlyScore = 79.25; // Dummy average
+
   return (
-    <div className="space-y-8">
-      <header className="flex items-center justify-between">
+    <div className="space-y-8 pb-10">
+      <header className="flex items-center justify-between p-6 bg-gradient-to-r from-orange-500/10 to-amber-500/5 rounded-3xl border border-orange-500/20 shadow-lg">
         <div>
-          <h2 className="text-2xl font-bold text-text-main">Overview</h2>
-          <p className="text-text-muted text-sm mt-1">Real-time smmart deep work monitoring dashboard</p>
+          <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500 flex items-center gap-3">
+            <Zap className="text-orange-500" /> Focus Command Center
+          </h2>
+          <p className="text-text-muted text-sm mt-2">Empowering deep work and eliminating distractions</p>
         </div>
-        {refreshing && (
-          <span className="text-xs text-text-muted flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse inline-block" />
-            Syncing…
-          </span>
-        )}
+        <div className="flex flex-col items-end">
+          <div className="flex items-center gap-3 text-2xl font-bold text-orange-400">
+            <TrendingUp /> {averageMonthlyScore}%
+          </div>
+          <p className="text-xs text-text-muted uppercase tracking-wider">Avg Monthly Productivity</p>
+          {refreshing && (
+            <span className="text-xs text-orange-400 flex items-center gap-1.5 mt-2">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse inline-block" /> Syncing
+            </span>
+          )}
+        </div>
       </header>
 
-      {/* Stats Grid */}
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="glass rounded-2xl border border-surface-light p-5 h-20 animate-pulse bg-surface-light/20" />
-          ))}
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Weekly Chart */}
+        <div className="glass p-6 rounded-3xl border border-surface-light shadow-md">
+          <h3 className="text-sm font-bold text-text-main uppercase tracking-wider mb-6 flex items-center gap-2">
+            <Activity size={18} className="text-orange-400" /> Weekly Focus vs Breaks
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weeklyData}>
+                <defs>
+                  <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorBreaks" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px' }}
+                  itemStyle={{ fontSize: '14px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                <Area type="monotone" dataKey="focus" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorFocus)" name="Focus Time (min)" />
+                <Area type="monotone" dataKey="breaks" stroke="#94a3b8" strokeWidth={2} fillOpacity={1} fill="url(#colorBreaks)" name="Break Time (min)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Devices"   value={stats.totalDevices}    sub={`${stats.onlineDevices} online`}        icon={Cpu}           iconColor="text-teal-400"   iconBg="bg-teal-500/15 border border-teal-500/30" />
-          <StatCard label="Online Now"      value={stats.onlineDevices}   sub="Last 60 seconds"                        icon={Wifi}          iconColor="text-green-400"  iconBg="bg-green-500/15 border border-green-500/30" />
-          <StatCard label="Total Employees" value={stats.totalEmployees}  sub={`${stats.activeEmployees} active`}      icon={Users}         iconColor="text-indigo-400" iconBg="bg-indigo-500/15 border border-indigo-500/30" />
-          <StatCard label="Total Tasks"     value={stats.totalTasks}      sub={`${stats.pendingTasks} pending`}        icon={ClipboardList} iconColor="text-amber-400"  iconBg="bg-amber-500/15 border border-amber-500/30" />
-          <StatCard label="Completed Tasks" value={stats.completedTasks}  sub="All time"                               icon={CheckCircle}   iconColor="text-emerald-400" iconBg="bg-emerald-500/15 border border-emerald-500/30" />
-          <StatCard label="Pending Tasks"   value={stats.pendingTasks}    sub="To Do + In Progress"                   icon={Clock}         iconColor="text-red-400"    iconBg="bg-red-500/15 border border-red-500/30" />
+
+        {/* Monthly Chart */}
+        <div className="glass p-6 rounded-3xl border border-surface-light shadow-md">
+          <h3 className="text-sm font-bold text-text-main uppercase tracking-wider mb-6 flex items-center gap-2">
+            <Calendar size={18} className="text-amber-400" /> Monthly Productivity Score
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', color: '#f8fafc' }}
+                  cursor={{ fill: '#334155', opacity: 0.4 }}
+                />
+                <Bar dataKey="productivity" fill="#fbbf24" radius={[6, 6, 0, 0]} name="Productivity (%)">
+                  {monthlyData.map((entry, index) => (
+                    <cell key={`cell-${index}`} fill={entry.productivity > 80 ? '#f59e0b' : '#fbbf24'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      )}
+      </div>
+
 
       {/* Device Radar Widgets */}
       <section>
         <h3 className="text-lg font-semibold text-text-main mb-4 flex items-center gap-2">
-          <Cpu size={20} className="text-teal-400" />
+          <Cpu size={20} className="text-orange-400" />
           Live Device Feed
         </h3>
         {devices.length === 0 ? (
-          <div className="glass rounded-2xl border border-dashed border-surface-light p-10 text-center text-text-muted">
+          <div className="glass rounded-3xl border border-dashed border-orange-500/30 p-12 text-center text-text-muted bg-orange-500/5">
             No devices registered yet. Power on an ESP32 to see it here.
           </div>
         ) : (

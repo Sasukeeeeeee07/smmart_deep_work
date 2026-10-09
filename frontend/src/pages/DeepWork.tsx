@@ -4,7 +4,7 @@ import api from '../services/api';
 import ModerationHistory from './ModerationHistory';
 import {
   Timer, Coffee, Star, Zap, Shield, AlertTriangle,
-  ChevronDown, RefreshCw, Award, History
+  ChevronDown, RefreshCw, Award, History, Clock
 } from 'lucide-react';
 
 
@@ -154,96 +154,220 @@ function ModeratorPanel({ device, onViewHistory }: { device: any; onViewHistory:
 // ─── Session Row ──────────────────────────────────────────────────────────────
 function SessionRow({ session }: { session: Session }) {
   const [open, setOpen] = useState(false);
+  const [intervening, setIntervening] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(120 * 60 - session.activeMinutes * 60);
+
+  // Update reverse timer if session is active
+  useEffect(() => {
+    if (session.status === 'ACTIVE' && timeLeft > 0 && open) {
+      const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [session.status, timeLeft, open]);
+
+  const formatReverseTimer = (seconds: number) => {
+    if (seconds < 0) return "00:00:00";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   const emp = session.employeeId
     ? `${session.employeeId.firstName} ${session.employeeId.lastName}`
     : '—';
 
   return (
-    <div className="glass rounded-xl border border-surface-light overflow-hidden">
+    <div className="glass rounded-xl border border-surface-light overflow-hidden mb-3 shadow-lg shadow-black/5 hover:border-orange-500/30 transition-all duration-300">
       {/* Summary row */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-light/20 transition-colors"
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-surface-light/20 transition-colors"
       >
-        {/* Status dot */}
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${statusBadge(session.status)}`}>
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${statusBadge(session.status)}`}>
           {String(session.status)}
         </span>
 
-        {/* Employee */}
-        <span className="flex-1 text-sm font-medium text-text-main truncate">{String(emp)}</span>
+        <span className="flex-1 text-base font-semibold text-text-main truncate ml-2">{String(emp)}</span>
 
-        {/* Device UID */}
-        <span className="text-xs text-text-muted font-mono">{String(session.deviceUid)}</span>
+        <span className="text-xs text-text-muted font-mono bg-surface p-1.5 rounded-lg border border-surface-light">{String(session.deviceUid)}</span>
 
-        {/* Active time */}
-        <span className="flex items-center gap-1 text-sm text-green-400">
-          <Timer size={13} /> {fmtMin(session.activeMinutes)}
+        <span className="flex items-center gap-1.5 text-sm font-medium text-green-400 bg-green-500/10 px-3 py-1 rounded-lg">
+          <Timer size={14} /> {fmtMin(session.activeMinutes)}
         </span>
 
-        {/* Breaks */}
-        <span className="flex items-center gap-1 text-sm text-yellow-400">
-          <Coffee size={13} /> {session.breakCount}
+        <span className="flex items-center gap-1.5 text-sm font-medium text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-lg">
+          <Coffee size={14} /> {session.breakCount}
         </span>
 
-        {/* Self rating */}
         <StarRating value={session.selfRating} />
 
-        {/* SDW points */}
         {session.sdwPointsEarned > 0 && (
-          <span className="flex items-center gap-1 text-xs font-bold text-yellow-300 bg-yellow-500/15 px-2 py-0.5 rounded-full border border-yellow-500/30">
-            <Award size={11} /> +{session.sdwPointsEarned} SDW
+          <span className="flex items-center gap-1 text-xs font-bold text-yellow-300 bg-yellow-500/15 px-2.5 py-1 rounded-full border border-yellow-500/30">
+            <Award size={12} /> +{session.sdwPointsEarned}
           </span>
         )}
 
-        {/* Spike */}
         {session.productivitySpike && (
-          <Zap size={14} className="text-yellow-400" />
+          <div className="relative flex items-center justify-center w-6 h-6">
+            <div className="absolute inset-0 bg-yellow-400/20 rounded-full animate-ping"></div>
+            <Zap size={14} className="text-yellow-400 relative z-10" />
+          </div>
         )}
 
         <ChevronDown
-          size={14}
-          className={`text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+          size={16}
+          className={`text-text-muted transition-transform ml-2 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {/* Expanded detail */}
+      {/* Expanded detail - Redesigned as per instructions */}
       {open && (
-        <div className="border-t border-surface-light px-4 py-3 text-sm text-text-muted space-y-2 bg-surface/50">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-0.5">Started</p>
-              <p className="text-text-main">{fmtDate(session.startTime)}</p>
+        <div className="border-t border-surface-light p-6 bg-gradient-to-b from-surface/40 to-surface/80">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* Left Column */}
+            <div className="space-y-6">
+              
+              {/* 1. Start Session with Reverse Timer */}
+              <div className="flex items-center justify-between bg-surface p-4 rounded-xl border border-surface-light shadow-sm">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                    <Timer size={14} />
+                  </div>
+                  <div>
+                    <span className="font-medium text-text-main tracking-wide uppercase text-xs block">Start Session</span>
+                    <span className="text-text-muted font-mono text-xs">{fmtDate(session.startTime)}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs uppercase text-text-muted tracking-wider mb-1">Time Remaining</div>
+                  <div className="text-xl font-mono font-bold text-orange-400">
+                    {formatReverseTimer(timeLeft)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Resume Section (Conditional) */}
+              {session.breaks.length > 0 && (
+                <div className="flex items-center gap-3 text-sm bg-surface/50 p-4 rounded-xl border border-surface-light">
+                  <div className="w-8 h-8 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
+                    <RefreshCw size={14} />
+                  </div>
+                  <div>
+                    <span className="font-medium text-text-main tracking-wide uppercase text-xs block">Resume Session</span>
+                    <span className="text-text-muted font-mono text-xs">
+                      {session.endTime ? fmtDate(session.endTime) : 'Resumed & Active'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Alarms Raised */}
+              <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle size={16} className="text-red-400" />
+                  <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Alarms Raised</h4>
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1 bg-surface-light/50 p-3 rounded-lg border border-surface-light">
+                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">No of times</p>
+                    <p className="text-lg font-bold text-text-main">0</p>
+                  </div>
+                  <div className="flex-1 bg-surface-light/50 p-3 rounded-lg border border-surface-light">
+                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Alert Type</p>
+                    <p className="text-sm font-medium text-text-main mt-1 line-clamp-1">—</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Moderator Intervention */}
+              <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <Shield size={14} /> Moderator Intervention
+                </h4>
+                <p className="text-sm text-text-muted mb-4">Trigger AI voice assistant to speak to the employee.</p>
+                <button 
+                  onClick={() => setIntervening(true)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 text-sm font-medium transition-all"
+                >
+                  {intervening ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+                  {intervening ? 'Connecting AI Voice...' : 'AI Voice Starts Talking'}
+                </button>
+              </div>
+
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-0.5">Ended</p>
-              <p className="text-text-main">{session.endTime ? fmtDate(session.endTime) : 'Ongoing'}</p>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              
+              {/* 5. Total Break Time */}
+              <div className="flex items-center justify-between p-5 rounded-2xl bg-surface border border-surface-light shadow-sm">
+                <div>
+                  <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Total Break Time</h4>
+                  <p className="text-sm text-text-muted">{session.breakCount} breaks taken</p>
+                </div>
+                <div className="text-3xl font-bold text-yellow-400 flex items-center gap-2">
+                  <Coffee size={28} className="opacity-50" />
+                  {fmtMin(session.totalBreakMinutes)}
+                </div>
+              </div>
+
+              {/* 6. Session Self Rating */}
+              <div className="p-6 rounded-2xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20">
+                <h4 className="text-xs font-bold text-orange-300 uppercase tracking-wider mb-6 flex items-center gap-2">
+                  <Star size={14} /> Session Self Rating
+                </h4>
+                <div className="flex items-center gap-8">
+                  <div className="text-center">
+                    <p className="text-5xl font-black text-text-main">
+                      {session.selfRating || '-'}
+                      <span className="text-2xl text-text-muted font-normal">/10</span>
+                    </p>
+                    <p className="text-xs text-text-muted mt-2 uppercase tracking-wider">Score</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-text-main mb-3">Current Session Productivity</p>
+                    <div className="h-3 bg-surface-light rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-400 to-amber-500" 
+                        style={{ width: `${(session.selfRating / 10) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-0.5">Total Break Time</p>
-              <p className="text-yellow-400">{fmtMin(session.totalBreakMinutes)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-0.5">SDW Points</p>
-              <p className="text-yellow-400 font-bold">{session.sdwPointsEarned} pts</p>
+          </div>
+          
+          {/* Actionable Prompts & Rules Footer */}
+          <div className="mt-8 pt-5 border-t border-surface-light/50 flex flex-col gap-3">
+            {timeLeft <= 15 * 60 && timeLeft > 0 && (
+              <div className="bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-2 text-indigo-300 text-sm">
+                  <Clock size={16} /> Session completes in under 15 mins. Extend time?
+                </div>
+                <button className="px-4 py-1.5 bg-indigo-500 text-white text-xs font-bold rounded hover:bg-indigo-600 transition-colors">
+                  Extend +15m
+                </button>
+              </div>
+            )}
+            
+            <div className="flex gap-4 flex-wrap text-xs text-text-muted">
+              <span className="flex items-center gap-1.5 bg-surface p-1.5 px-3 rounded-md border border-surface-light">
+                <Zap size={12} className="text-green-400" /> No breaks for 20m = +2 SDW pts
+              </span>
+              <span className="flex items-center gap-1.5 bg-surface p-1.5 px-3 rounded-md border border-surface-light">
+                <Award size={12} className="text-yellow-400" /> Session completed = +5 SDW pts
+              </span>
+              <span className="flex items-center gap-1.5 bg-surface p-1.5 px-3 rounded-md border border-surface-light">
+                <AlertTriangle size={12} className="text-red-400" /> 3+ breaks within 2 hrs = Invalid
+              </span>
             </div>
           </div>
 
-          {/* Break log */}
-          {session.breaks.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wider mb-1">Break Log</p>
-              <div className="space-y-1">
-                {session.breaks.map((b, i) => (
-                  <div key={i} className="flex gap-4 text-xs bg-surface-light/30 rounded-lg px-3 py-1.5">
-                    <span className="text-text-muted">Break #{i + 1}</span>
-                    <span>{fmtDate(b.startTime)}</span>
-                    <span className="text-yellow-400">{b.durationMinutes != null ? `${b.durationMinutes}m` : 'Ongoing'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -260,11 +384,6 @@ const DeepWorkPage = () => {
   const [filterDevice, setFilterDevice] = useState('ALL');
   const [modDevice, setModDevice] = useState<string | null>(null);
   const [historyDevice, setHistoryDevice] = useState<string | null>(null);
-
-  // If viewing history, render that sub-page instead
-  if (historyDevice) {
-    return <ModerationHistory deviceUid={historyDevice} onBack={() => setHistoryDevice(null)} />;
-  }
 
   const fetchSessions = async () => {
     try {
@@ -290,6 +409,11 @@ const DeepWorkPage = () => {
     const iv = setInterval(fetchSessions, 20000);
     return () => clearInterval(iv);
   }, [filterDevice]);
+
+  // If viewing history, render that sub-page instead
+  if (historyDevice) {
+    return <ModerationHistory deviceUid={historyDevice} onBack={() => setHistoryDevice(null)} />;
+  }
 
   const filtered = sessions.filter(s =>
     filterStatus === 'ALL' || s.status === filterStatus
