@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { deviceService, employeeService, taskService } from '../services/api';
 import RadarWidget from '../components/RadarWidget';
-import { Cpu, Users, ClipboardList, Wifi, CheckCircle, Clock, TrendingUp, Calendar, Activity, Zap } from 'lucide-react';
+import { Cpu, TrendingUp, Calendar, Activity, Zap } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend
@@ -27,46 +27,23 @@ const monthlyData = [
 ];
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    totalDevices: 0, onlineDevices: 0,
-    totalEmployees: 0, activeEmployees: 0,
-    totalTasks: 0, pendingTasks: 0, completedTasks: 0,
-  });
   const [devices, setDevices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const isFirstFetch = useRef(true);
 
   useEffect(() => {
     const fetchAll = async () => {
-      if (isFirstFetch.current) setLoading(true);
-      else setRefreshing(true);
+      setRefreshing(true);
       try {
-        const [devicesData, employeesData, tasksData] = await Promise.all([
+        const [devicesData] = await Promise.all([
           deviceService.getAllDevices(),
-          employeeService.getAllEmployees(),
-          taskService.getAllTasks(),
         ]);
 
-        const onlineDevices = devicesData.filter((d: any) =>
-          new Date().getTime() - new Date(d.lastHeartbeat).getTime() < 60000
-        );
-
         setDevices(devicesData);
-        setStats({
-          totalDevices: devicesData.length,
-          onlineDevices: onlineDevices.length,
-          totalEmployees: employeesData.length,
-          activeEmployees: employeesData.filter((e: any) => e.status === 'ACTIVE').length,
-          totalTasks: tasksData.length,
-          pendingTasks: tasksData.filter((t: any) => t.status !== 'COMPLETED').length,
-          completedTasks: tasksData.filter((t: any) => t.status === 'COMPLETED').length,
-        });
       } catch (err) {
         console.error('Dashboard fetch error', err);
       } finally {
         if (isFirstFetch.current) {
-          setLoading(false);
           isFirstFetch.current = false;
         }
         setRefreshing(false);
