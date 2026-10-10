@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { deviceService, employeeService, taskService } from '../services/api';
+import { deviceService } from '../services/api';
 import RadarWidget from '../components/RadarWidget';
 import { Cpu, TrendingUp, Calendar, Activity, Zap } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend
+  BarChart, Bar, Legend, Cell
 } from 'recharts';
 
 
@@ -131,7 +131,7 @@ const Dashboard = () => {
                 />
                 <Bar dataKey="productivity" fill="#fbbf24" radius={[6, 6, 0, 0]} name="Productivity (%)">
                   {monthlyData.map((entry, index) => (
-                    <cell key={`cell-${index}`} fill={entry.productivity > 80 ? '#f59e0b' : '#fbbf24'} />
+                    <Cell key={`cell-${index}`} fill={entry.productivity > 80 ? '#f59e0b' : '#fbbf24'} />
                   ))}
                 </Bar>
               </BarChart>
