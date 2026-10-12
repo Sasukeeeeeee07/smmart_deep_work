@@ -18,4 +18,5 @@ router.post('/:uid/rate', sessionController_1.rateSession);
 router.post('/:uid/command', sessionController_1.sendCommand);
 router.post('/:uid/alarm', sessionController_1.raiseAlarm);
 router.get('/:uid/sdwpoints', sessionController_1.getSDWPoints);
+router.get('/:uid/moderation-history', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), sessionController_1.getModerationHistory);
 exports.default = router;

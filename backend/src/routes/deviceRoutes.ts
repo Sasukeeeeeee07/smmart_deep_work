@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDevice, handleHeartbeat, handleActivity, getLatestActivity, getAllDevices, assignDevice, getActivityHistory, getDeviceTasks, getDeviceStats } from '../controllers/deviceController';
+import { getDevice, handleHeartbeat, handleActivity, getLatestActivity, getAllDevices, assignDevice, getActivityHistory, getDeviceTasks, getDeviceStats, getDisplayConfig, updateDisplayConfig } from '../controllers/deviceController';
 import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
@@ -9,6 +9,10 @@ router.patch('/:id/assign', protect, authorize('ADMIN', 'MANAGER'), assignDevice
 
 // Static sub-routes BEFORE /:uid wildcard
 router.get('/activity/history', protect, getActivityHistory);
+
+// Display config routes
+router.get('/:uid/display-config', getDisplayConfig);
+router.patch('/:uid/display-config', protect, authorize('ADMIN', 'MANAGER'), updateDisplayConfig);
 
 // Public routes for the ESP32 (no JWT for now)
 router.get('/:uid', getDevice);

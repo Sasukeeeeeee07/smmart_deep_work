@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDeviceStats = exports.getDeviceTasks = exports.assignDevice = exports.getLatestActivity = exports.handleActivity = exports.handleHeartbeat = exports.getAllDevices = exports.getDevice = exports.getActivityHistory = void 0;
+exports.updateDisplayConfig = exports.getDisplayConfig = exports.getDeviceStats = exports.getDeviceTasks = exports.assignDevice = exports.getLatestActivity = exports.handleActivity = exports.handleHeartbeat = exports.getAllDevices = exports.getDevice = exports.getActivityHistory = void 0;
 const Device_1 = require("../models/Device");
 const ActivitySession_1 = require("../models/ActivitySession");
 const Task_1 = require("../models/Task");
@@ -212,10 +212,10 @@ const getDeviceStats = async (req, res) => {
         const allTasks = await Task_1.Task.find({ assignedTo: device.assignedTo });
         const totalTasks = allTasks.length;
         const completedTasks = allTasks.filter(t => t.status === Task_1.TaskStatus.COMPLETED).length;
-        // If no tasks, task score is 100%. Otherwise, percentage completed.
-        const taskScore = totalTasks === 0 ? 100 : (completedTasks / totalTasks) * 100;
+        // If no tasks, task score is 0%.
+        const taskScore = totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100;
         // 2. Presence Score (Fake for now as requested, we will query ActivitySession in the future)
-        const presenceScore = 75;
+        const presenceScore = 0;
         // 3. Hybrid Score: (Task Score * 0.6) + (Presence Score * 0.4)
         const productivity = Math.round((taskScore * 0.6) + (presenceScore * 0.4));
         // Get real employee count
@@ -252,3 +252,80 @@ const getDeviceStats = async (req, res) => {
     }
 };
 exports.getDeviceStats = getDeviceStats;
+// =====================================================
+// GET /api/devices/:uid/display-config
+// Public for ESP32 and authenticated dashboard
+// =====================================================
+const getDisplayConfig = async (req, res) => {
+    try {
+        const { uid } = req.params;
+        let device = await Device_1.Device.findOne({ uid });
+        if (!device) {
+            return res.status(404).json({ success: false, error: 'Device not found' });
+        }
+        // Fallback defaults if displayConfig is not yet set
+        const defaultConfig = {
+            breakDisplayMode: 'SESSION',
+            showSessionTimer: true,
+            showBreaks: true,
+            showProdScore: true,
+            showProdSpike: true,
+            showSelfRating: true,
+            showModerator: true,
+        };
+        const config = device.displayConfig ? { ...defaultConfig, ...device.displayConfig } : defaultConfig;
+        res.json({ success: true, data: config });
+    }
+    catch (error) {
+        console.error('getDisplayConfig error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch display config' });
+    }
+};
+exports.getDisplayConfig = getDisplayConfig;
+// =====================================================
+// PATCH /api/devices/:uid/display-config
+// Admin/Manager update of device screen customization
+// =====================================================
+const updateDisplayConfig = async (req, res) => {
+    try {
+        const { uid } = req.params;
+        const { breakDisplayMode, showSessionTimer, showBreaks, showProdScore, showProdSpike, showSelfRating, showModerator, } = req.body;
+        const device = await Device_1.Device.findOne({ uid });
+        if (!device) {
+            return res.status(404).json({ success: false, error: 'Device not found' });
+        }
+        if (!device.displayConfig) {
+            device.displayConfig = {
+                breakDisplayMode: 'SESSION',
+                showSessionTimer: true,
+                showBreaks: true,
+                showProdScore: true,
+                showProdSpike: true,
+                showSelfRating: true,
+                showModerator: true,
+            };
+        }
+        if (breakDisplayMode !== undefined)
+            device.displayConfig.breakDisplayMode = breakDisplayMode;
+        if (showSessionTimer !== undefined)
+            device.displayConfig.showSessionTimer = showSessionTimer;
+        if (showBreaks !== undefined)
+            device.displayConfig.showBreaks = showBreaks;
+        if (showProdScore !== undefined)
+            device.displayConfig.showProdScore = showProdScore;
+        if (showProdSpike !== undefined)
+            device.displayConfig.showProdSpike = showProdSpike;
+        if (showSelfRating !== undefined)
+            device.displayConfig.showSelfRating = showSelfRating;
+        if (showModerator !== undefined)
+            device.displayConfig.showModerator = showModerator;
+        await device.save();
+        console.log(`[DISPLAY CONFIG] Updated for device ${uid}:`, device.displayConfig);
+        res.json({ success: true, data: device.displayConfig });
+    }
+    catch (error) {
+        console.error('updateDisplayConfig error:', error);
+        res.status(500).json({ success: false, error: 'Failed to update display config' });
+    }
+};
+exports.updateDisplayConfig = updateDisplayConfig;

@@ -27,6 +27,14 @@ export const deviceService = {
   getLatestActivity: async (uid: string) => {
     const response = await api.get(`/devices/${uid}/activity/latest`);
     return response.data.data;
+  },
+  getDisplayConfig: async (uid: string) => {
+    const response = await api.get(`/devices/${uid}/display-config`);
+    return response.data.data;
+  },
+  updateDisplayConfig: async (uid: string, config: any) => {
+    const response = await api.patch(`/devices/${uid}/display-config`, config);
+    return response.data.data;
   }
 };
 

@@ -8,6 +8,7 @@ const db_1 = require("./config/db");
 const os_1 = __importDefault(require("os"));
 const User_1 = require("./models/User");
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const cronService_1 = require("./services/cronService");
 const PORT = process.env.PORT || 3000;
 // Helper to get the LAN IP for ESP32 to connect to
 const getLanIP = () => {
@@ -23,6 +24,8 @@ const getLanIP = () => {
 const startServer = async () => {
     // Connect to database
     await (0, db_1.connectDB)();
+    // Start background cron jobs
+    (0, cronService_1.startCronJobs)();
     // Seed initial admin if empty
     if ((await User_1.User.countDocuments()) === 0) {
         const salt = await bcrypt_1.default.genSalt(10);

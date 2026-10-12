@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
+exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
@@ -51,7 +51,34 @@ const startSession = async (req, res) => {
             return res.status(404).json({ success: false, error: 'Device or employee not found' });
         }
         // Close any stale ACTIVE/BREAK session for this device
-        await DeepWorkSession_1.DeepWorkSession.updateMany({ deviceUid: req.params.uid, status: { $in: ['ACTIVE', 'BREAK', 'DYING'] } }, { $set: { status: 'COMPLETED', endTime: new Date() } });
+        const staleSessions = await DeepWorkSession_1.DeepWorkSession.find({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING'] }
+        });
+        const nowEnd = new Date();
+        for (const stale of staleSessions) {
+            stale.endTime = nowEnd;
+            stale.status = 'COMPLETED';
+            if (!stale.activeMinutes || stale.activeMinutes === 0) {
+                const diffMs = nowEnd.getTime() - new Date(stale.startTime).getTime();
+                const totalMin = Math.floor(diffMs / 60000);
+                stale.activeMinutes = Math.max(0, totalMin - (stale.totalBreakMinutes || 0));
+            }
+            if (stale.activeMinutes >= 120 && stale.sdwPointsEarned === 0) {
+                stale.sdwPointsEarned = 5;
+                await SDWPoints_1.SDWPoints.create({
+                    employeeId: stale.employeeId,
+                    sessionId: stale._id,
+                    points: 5,
+                    earnedAt: nowEnd,
+                    weekNumber: getWeekNumber(nowEnd),
+                    month: nowEnd.getMonth() + 1,
+                    year: nowEnd.getFullYear(),
+                });
+                console.log(`[SDW] +5 points earned for orphaned session ${stale._id}`);
+            }
+            await stale.save();
+        }
         const session = await DeepWorkSession_1.DeepWorkSession.create({
             deviceUid: req.params.uid,
             employeeId: device.assignedTo,
@@ -245,17 +272,93 @@ const getSDWPoints = async (req, res) => {
 exports.getSDWPoints = getSDWPoints;
 const sendCommand = async (req, res) => {
     const { command } = req.body;
-    if (command) {
-        voiceService_1.voiceService.queueMessage(req.params.uid, command);
+    if (!command)
+        return res.status(400).json({ success: false, error: 'command is required' });
+    // Queue voice message on ESP32
+    voiceService_1.voiceService.queueMessage(req.params.uid, command);
+    // Log to the active session so history is kept
+    try {
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING'] },
+        }).sort({ startTime: -1 });
+        if (session) {
+            session.moderationLog.push({ type: 'COMMAND', message: command, timestamp: new Date() });
+            await session.save();
+        }
+    }
+    catch (err) {
+        console.error('[MOD] command log error:', err);
     }
     res.json({ success: true });
 };
 exports.sendCommand = sendCommand;
 const raiseAlarm = async (req, res) => {
     const { message } = req.body;
-    if (message) {
-        voiceService_1.voiceService.queueMessage(req.params.uid, message);
+    if (!message)
+        return res.status(400).json({ success: false, error: 'message is required' });
+    // Queue voice message on ESP32
+    voiceService_1.voiceService.queueMessage(req.params.uid, message);
+    // Log to the active session
+    try {
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING'] },
+        }).sort({ startTime: -1 });
+        if (session) {
+            session.moderationLog.push({ type: 'ALARM', message, timestamp: new Date() });
+            await session.save();
+        }
+    }
+    catch (err) {
+        console.error('[MOD] alarm log error:', err);
     }
     res.json({ success: true });
 };
 exports.raiseAlarm = raiseAlarm;
+// =====================================================
+// GET /api/sessions/:uid/moderation-history?date=YYYY-MM-DD
+// Returns all moderation actions for a device on a given date
+// =====================================================
+const getModerationHistory = async (req, res) => {
+    try {
+        const { date } = req.query;
+        // Build date range — default to today
+        const targetDate = date ? new Date(date) : new Date();
+        const start = new Date(targetDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(targetDate);
+        end.setHours(23, 59, 59, 999);
+        const sessions = await DeepWorkSession_1.DeepWorkSession.find({
+            deviceUid: req.params.uid,
+            startTime: { $gte: start, $lte: end },
+        }).select('startTime endTime status moderationLog employeeId')
+            .populate('employeeId', 'firstName lastName')
+            .sort({ startTime: -1 });
+        // Flatten all moderation log entries across sessions for that day
+        const history = sessions.flatMap(s => s.moderationLog.map(log => ({
+            sessionId: s._id.toString(),
+            sessionStart: s.startTime,
+            sessionStatus: s.status,
+            employee: s.employeeId,
+            type: log.type,
+            message: log.message,
+            timestamp: log.timestamp,
+        }))).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        res.json({
+            success: true,
+            data: {
+                date: start.toISOString().split('T')[0],
+                totalActions: history.length,
+                commands: history.filter(h => h.type === 'COMMAND').length,
+                alarms: history.filter(h => h.type === 'ALARM').length,
+                history,
+            },
+        });
+    }
+    catch (err) {
+        console.error('[MOD] history error:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch moderation history' });
+    }
+};
+exports.getModerationHistory = getModerationHistory;

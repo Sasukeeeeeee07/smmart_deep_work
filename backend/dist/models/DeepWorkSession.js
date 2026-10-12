@@ -40,6 +40,11 @@ const BreakRecordSchema = new mongoose_1.Schema({
     endTime: { type: Date },
     durationMinutes: { type: Number },
 });
+const ModerationLogSchema = new mongoose_1.Schema({
+    type: { type: String, enum: ['COMMAND', 'ALARM'], required: true },
+    message: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+});
 const DeepWorkSessionSchema = new mongoose_1.Schema({
     deviceUid: { type: String, required: true },
     employeeId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee', required: true },
@@ -53,6 +58,7 @@ const DeepWorkSessionSchema = new mongoose_1.Schema({
     selfRating: { type: Number, default: 0, min: 0, max: 5 },
     sdwPointsEarned: { type: Number, default: 0 },
     productivitySpike: { type: Boolean, default: false },
+    moderationLog: { type: [ModerationLogSchema], default: [] },
 }, { timestamps: true });
 DeepWorkSessionSchema.index({ deviceUid: 1, status: 1 });
 DeepWorkSessionSchema.index({ employeeId: 1, startTime: -1 });

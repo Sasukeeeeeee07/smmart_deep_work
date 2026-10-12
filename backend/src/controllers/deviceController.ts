@@ -280,3 +280,86 @@ export const getDeviceStats = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch stats' } });
   }
 };
+
+// =====================================================
+// GET /api/devices/:uid/display-config
+// Public for ESP32 and authenticated dashboard
+// =====================================================
+export const getDisplayConfig = async (req: Request, res: Response) => {
+  try {
+    const { uid } = req.params;
+    let device = await Device.findOne({ uid });
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found' });
+    }
+
+    // Fallback defaults if displayConfig is not yet set
+    const defaultConfig = {
+      breakDisplayMode: 'SESSION',
+      showSessionTimer: true,
+      showBreaks: true,
+      showProdScore: true,
+      showProdSpike: true,
+      showSelfRating: true,
+      showModerator: true,
+    };
+
+    const config = device.displayConfig ? { ...defaultConfig, ...device.displayConfig } : defaultConfig;
+    res.json({ success: true, data: config });
+  } catch (error) {
+    console.error('getDisplayConfig error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch display config' });
+  }
+};
+
+// =====================================================
+// PATCH /api/devices/:uid/display-config
+// Admin/Manager update of device screen customization
+// =====================================================
+export const updateDisplayConfig = async (req: Request, res: Response) => {
+  try {
+    const { uid } = req.params;
+    const {
+      breakDisplayMode,
+      showSessionTimer,
+      showBreaks,
+      showProdScore,
+      showProdSpike,
+      showSelfRating,
+      showModerator,
+    } = req.body;
+
+    const device = await Device.findOne({ uid });
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found' });
+    }
+
+    if (!device.displayConfig) {
+      device.displayConfig = {
+        breakDisplayMode: 'SESSION',
+        showSessionTimer: true,
+        showBreaks: true,
+        showProdScore: true,
+        showProdSpike: true,
+        showSelfRating: true,
+        showModerator: true,
+      };
+    }
+
+    if (breakDisplayMode !== undefined) device.displayConfig.breakDisplayMode = breakDisplayMode;
+    if (showSessionTimer !== undefined) device.displayConfig.showSessionTimer = showSessionTimer;
+    if (showBreaks !== undefined) device.displayConfig.showBreaks = showBreaks;
+    if (showProdScore !== undefined) device.displayConfig.showProdScore = showProdScore;
+    if (showProdSpike !== undefined) device.displayConfig.showProdSpike = showProdSpike;
+    if (showSelfRating !== undefined) device.displayConfig.showSelfRating = showSelfRating;
+    if (showModerator !== undefined) device.displayConfig.showModerator = showModerator;
+
+    await device.save();
+    console.log(`[DISPLAY CONFIG] Updated for device ${uid}:`, device.displayConfig);
+
+    res.json({ success: true, data: device.displayConfig });
+  } catch (error) {
+    console.error('updateDisplayConfig error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update display config' });
+  }
+};

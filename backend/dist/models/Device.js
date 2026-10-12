@@ -41,6 +41,15 @@ const DeviceSchema = new mongoose_1.Schema({
     status: { type: String, enum: ['ONLINE', 'OFFLINE'], default: 'OFFLINE' },
     lastHeartbeat: { type: Date, default: Date.now },
     assignedTo: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee' },
+    displayConfig: {
+        breakDisplayMode: { type: String, enum: ['SESSION', 'DAILY'], default: 'SESSION' },
+        showSessionTimer: { type: Boolean, default: true },
+        showBreaks: { type: Boolean, default: true },
+        showProdScore: { type: Boolean, default: true },
+        showProdSpike: { type: Boolean, default: true },
+        showSelfRating: { type: Boolean, default: true },
+        showModerator: { type: Boolean, default: true },
+    },
 }, {
     timestamps: true,
 });

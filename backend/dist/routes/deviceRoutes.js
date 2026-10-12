@@ -11,6 +11,9 @@ router.get('/', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), devic
 router.patch('/:id/assign', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), deviceController_1.assignDevice);
 // Static sub-routes BEFORE /:uid wildcard
 router.get('/activity/history', auth_1.protect, deviceController_1.getActivityHistory);
+// Display config routes
+router.get('/:uid/display-config', deviceController_1.getDisplayConfig);
+router.patch('/:uid/display-config', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), deviceController_1.updateDisplayConfig);
 // Public routes for the ESP32 (no JWT for now)
 router.get('/:uid', deviceController_1.getDevice);
 router.get('/:uid/tasks', deviceController_1.getDeviceTasks); // ESP32 polls this for assigned tasks
