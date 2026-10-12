@@ -155,18 +155,43 @@ function ModeratorPanel({ device, onViewHistory }: { device: any; onViewHistory:
 function SessionRow({ session }: { session: Session }) {
   const [open, setOpen] = useState(false);
   const [intervening, setIntervening] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(120 * 60 - session.activeMinutes * 60);
+  const [now, setNow] = useState(Date.now());
 
-  // Update reverse timer if session is active
+  // Live 1-second clock ticker for active / break sessions
   useEffect(() => {
-    if (session.status === 'ACTIVE' && timeLeft > 0 && open) {
-      const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    if (session.status === 'ACTIVE' || session.status === 'BREAK' || session.status === 'DYING') {
+      const timer = setInterval(() => setNow(Date.now()), 1000);
       return () => clearInterval(timer);
     }
-  }, [session.status, timeLeft, open]);
+  }, [session.status]);
 
-  const formatReverseTimer = (seconds: number) => {
-    if (seconds < 0) return "00:00:00";
+  // Dynamically compute live active seconds
+  const computeActiveSeconds = () => {
+    if (session.status === 'COMPLETED') {
+      return (session.activeMinutes || 0) * 60;
+    }
+    const startMs = new Date(session.startTime).getTime();
+    const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000));
+    const breakSec = (session.totalBreakMinutes || 0) * 60;
+    return Math.max(0, elapsedSec - breakSec);
+  };
+
+  const activeSeconds = computeActiveSeconds();
+  const timeLeftSeconds = Math.max(0, (120 * 60) - activeSeconds);
+
+  // Formats to mm:ss (matching ESP32 desk screen) or h:mm:ss
+  const formatDeskTimer = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatCountdown = (seconds: number) => {
+    if (seconds <= 0) return "00:00:00 (Goal Met!)";
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
@@ -192,8 +217,16 @@ function SessionRow({ session }: { session: Session }) {
 
         <span className="text-xs text-text-muted font-mono bg-surface p-1.5 rounded-lg border border-surface-light">{String(session.deviceUid)}</span>
 
-        <span className="flex items-center gap-1.5 text-sm font-medium text-green-400 bg-green-500/10 px-3 py-1 rounded-lg">
-          <Timer size={14} /> {fmtMin(session.activeMinutes)}
+        {/* Live Active Focus Timer matching ESP32 */}
+        <span className={`flex items-center gap-1.5 text-sm font-mono font-bold px-3 py-1 rounded-lg ${
+          session.status === 'ACTIVE'
+            ? 'text-green-400 bg-green-500/15 border border-green-500/30'
+            : session.status === 'BREAK'
+            ? 'text-yellow-400 bg-yellow-500/15 border border-yellow-500/30'
+            : 'text-text-muted bg-surface-light/30'
+        }`}>
+          <Timer size={14} className={session.status === 'ACTIVE' ? 'animate-pulse text-green-400' : ''} />
+          {formatDeskTimer(activeSeconds)}
         </span>
 
         <span className="flex items-center gap-1.5 text-sm font-medium text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-lg">
@@ -221,7 +254,7 @@ function SessionRow({ session }: { session: Session }) {
         />
       </button>
 
-      {/* Expanded detail - Redesigned as per instructions */}
+      {/* Expanded detail */}
       {open && (
         <div className="border-t border-surface-light p-6 bg-gradient-to-b from-surface/40 to-surface/80">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -229,21 +262,28 @@ function SessionRow({ session }: { session: Session }) {
             {/* Left Column */}
             <div className="space-y-6">
               
-              {/* 1. Start Session with Reverse Timer */}
+              {/* 1. Start Session with Live Desk Timer & Target Countdown */}
               <div className="flex items-center justify-between bg-surface p-4 rounded-xl border border-surface-light shadow-sm">
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+                  <div className="w-8 h-8 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
                     <Timer size={14} />
                   </div>
                   <div>
-                    <span className="font-medium text-text-main tracking-wide uppercase text-xs block">Start Session</span>
-                    <span className="text-text-muted font-mono text-xs">{fmtDate(session.startTime)}</span>
+                    <span className="font-medium text-text-main tracking-wide uppercase text-xs block">
+                      Desk Live Timer (Matching Screen)
+                    </span>
+                    <span className="text-green-400 font-mono font-bold text-base">
+                      {formatDeskTimer(activeSeconds)} Active
+                    </span>
+                    <span className="text-text-muted font-mono text-[11px] block mt-0.5">
+                      Started: {fmtDate(session.startTime)}
+                    </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs uppercase text-text-muted tracking-wider mb-1">Time Remaining</div>
+                  <div className="text-xs uppercase text-text-muted tracking-wider mb-1">2-Hr Goal Remaining</div>
                   <div className="text-xl font-mono font-bold text-orange-400">
-                    {formatReverseTimer(timeLeft)}
+                    {formatCountdown(timeLeftSeconds)}
                   </div>
                 </div>
               </div>
@@ -344,7 +384,7 @@ function SessionRow({ session }: { session: Session }) {
           
           {/* Actionable Prompts & Rules Footer */}
           <div className="mt-8 pt-5 border-t border-surface-light/50 flex flex-col gap-3">
-            {timeLeft <= 15 * 60 && timeLeft > 0 && (
+            {timeLeftSeconds <= 15 * 60 && timeLeftSeconds > 0 && (
               <div className="bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-2 text-indigo-300 text-sm">
                   <Clock size={16} /> Session completes in under 15 mins. Extend time?

@@ -25,7 +25,7 @@ export const getAllSessions = async (req: Request, res: Response) => {
     const filter: Record<string, any> = {};
     if (uid) filter.deviceUid = uid as string;
 
-    const [sessions, total] = await Promise.all([
+    const [rawSessions, total] = await Promise.all([
       DeepWorkSession.find(filter)
         .sort({ startTime: -1 })
         .skip(skip)
@@ -33,6 +33,29 @@ export const getAllSessions = async (req: Request, res: Response) => {
         .populate('employeeId', 'firstName lastName'),
       DeepWorkSession.countDocuments(filter),
     ]);
+
+    const now = new Date();
+    const sessions = rawSessions.map((s) => {
+      const doc = s.toObject();
+      if (doc.status === 'ACTIVE' || doc.status === 'BREAK' || doc.status === 'DYING') {
+        const diffMs = Math.max(0, now.getTime() - new Date(doc.startTime).getTime());
+        const totalMin = Math.floor(diffMs / 60000);
+
+        // Include duration of currently open break if in BREAK/DYING status
+        let openBreakMinutes = 0;
+        if ((doc.status === 'BREAK' || doc.status === 'DYING') && doc.breaks && doc.breaks.length > 0) {
+          const lastBreak = doc.breaks[doc.breaks.length - 1];
+          if (!lastBreak.endTime) {
+            openBreakMinutes = Math.floor(Math.max(0, now.getTime() - new Date(lastBreak.startTime).getTime()) / 60000);
+          }
+        }
+
+        const effectiveBreakMinutes = (doc.totalBreakMinutes || 0) + openBreakMinutes;
+        doc.activeMinutes = Math.max(0, totalMin - effectiveBreakMinutes);
+        doc.totalBreakMinutes = effectiveBreakMinutes;
+      }
+      return doc;
+    });
 
     res.json({ success: true, data: { sessions, total, page: parseInt(page as string, 10), limit: lim } });
   } catch (err) {
