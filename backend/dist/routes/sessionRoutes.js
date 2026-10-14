@@ -9,7 +9,12 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 // Admin route — requires JWT
 router.get('/all', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), sessionController_1.getAllSessions);
-// ESP32 public routes
+// ESP32 and Web synchronized routes
+router.get('/:uid/current', sessionController_1.getCurrentSession);
+router.post('/:uid/extend', sessionController_1.extendSession);
+router.post('/:uid/stop-sound', sessionController_1.stopSound);
+router.post('/:uid/alarm-trigger', sessionController_1.triggerAlarm);
+// Core session lifecycle
 router.post('/:uid/start', sessionController_1.startSession);
 router.post('/:uid/break', sessionController_1.startBreak);
 router.post('/:uid/resume', sessionController_1.resumeSession);

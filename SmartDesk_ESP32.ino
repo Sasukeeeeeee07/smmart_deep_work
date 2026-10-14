@@ -74,11 +74,12 @@ bool   showModerator    = true;
 // SESSION STATE MACHINE
 // =====================================================
 enum SessionState {
-  SESSION_IDLE,   // nobody at desk
-  SESSION_ACTIVE, // person working
-  SESSION_BREAK,  // person left (break timer running)
-  SESSION_DYING,  // 2nd break ≥ 10 min — alarm!
-  SESSION_ENDED   // session completed, waiting for reset
+  SESSION_IDLE,    // nobody at desk
+  SESSION_ACTIVE,  // person working
+  SESSION_BREAK,   // person left (break timer running)
+  SESSION_DYING,   // break >= 10 min — alarm!
+  SESSION_INVALID, // took > 3 breaks in session
+  SESSION_ENDED    // session completed, waiting for reset
 };
 
 SessionState sessionState = SESSION_IDLE;
@@ -93,6 +94,18 @@ unsigned long dailyBreakMs = 0;
 int selfRating = 0; // 0 = unrated, 1-5
 bool productivitySpike = false;
 bool sessionDyingShown = false;
+
+// 2-Hour Reverse Countdown & Extension Configuration
+int targetDurationMinutes = 120; // 2 hrs default
+bool extensionPromptActive = false;
+bool extensionPromptShowOptions = false;
+bool extensionPromptDismissed = false;
+bool sessionCompletedShown = false;
+
+// Sound & Alarm System
+bool soundAlarmActive = false;
+String soundAlarmMessage = "";
+bool isInvalidSession = false;
 
 // Alarm: flash screen red when session is dying
 unsigned long dyingAlarmMs = 0;
@@ -1212,11 +1225,259 @@ void drawSettingsPage() {
   drawNavigation();
 }
 
+// Forward declarations
+void drawAlarmScreen();
+void drawExtensionPrompt();
+void drawExtensionOptions();
+void drawSessionCompletedScreen();
+void triggerSessionCompleted();
+
+// =====================================================
+// ALARM SCREEN (AWAY 30S OR INVALID SESSION)
+// =====================================================
+void drawAlarmScreen() {
+  tft.fillScreen(COLOR_BG);
+
+  // Top Warning Header
+  tft.fillRoundRect(10, 10, 300, 36, 6, isInvalidSession ? COLOR_RED : COLOR_ORANGE);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(25, 20);
+  tft.print(isInvalidSession ? "[!] SOUND: ALARM [!]" : "[!] SOUND: BEEPING [!]");
+
+  // Center Message Box
+  tft.fillRoundRect(10, 52, 300, 85, 6, COLOR_PANEL);
+  tft.setTextSize(2);
+  tft.setTextColor(isInvalidSession ? COLOR_RED : COLOR_YELLOW);
+  tft.setCursor(20, 62);
+  if (isInvalidSession) {
+    tft.print("SESSION INVALID & DIED");
+    tft.setTextSize(1);
+    tft.setTextColor(COLOR_TEXT);
+    tft.setCursor(20, 88);
+    tft.print("Exceeded limit of 3 breaks in session.");
+    tft.setCursor(20, 104);
+    tft.print("Session terminated. 0 SDW points.");
+  } else {
+    tft.print("AWAY ALERT (30s)");
+    tft.setTextSize(1);
+    tft.setTextColor(COLOR_TEXT);
+    tft.setCursor(20, 88);
+    tft.print("You left desk for 30s. Come back to study!");
+    tft.setCursor(20, 104);
+    tft.printf("Break %d of 3 max allowed breaks.", sessionBreakCount);
+  }
+
+  // BIG STOP SOUND BUTTON
+  tft.fillRoundRect(25, 145, 270, 52, 8, COLOR_RED);
+  tft.drawRoundRect(25, 145, 270, 52, 8, ILI9341_WHITE);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(75, 162);
+  tft.print("STOP SOUND");
+
+  // Notice at bottom
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_MUTED);
+  tft.setCursor(25, 208);
+  tft.print("Sound does not stop until you tap STOP SOUND");
+}
+
+// =====================================================
+// 15-MIN EXTENSION PROMPT
+// =====================================================
+void drawExtensionPrompt() {
+  tft.fillScreen(COLOR_BG);
+
+  // Modal box
+  tft.fillRoundRect(15, 15, 290, 205, 8, COLOR_PANEL);
+  tft.drawRoundRect(15, 15, 290, 205, 8, COLOR_ACCENT);
+
+  tft.setTextColor(COLOR_YELLOW);
+  tft.setTextSize(2);
+  tft.setCursor(30, 28);
+  tft.print("15 MINS REMAINING!");
+
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(1);
+  tft.setCursor(30, 54);
+  tft.print("Your 2-hr study session is almost complete.");
+  tft.setCursor(30, 68);
+  tft.print("Would you like to extend this session?");
+
+  // YES Button (Green)
+  tft.fillRoundRect(30, 92, 120, 55, 6, COLOR_GREEN);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(65, 105);
+  tft.print("YES");
+  tft.setTextSize(1);
+  tft.setCursor(45, 128);
+  tft.print("Add More Time");
+
+  // NO Button (Muted/Panel2)
+  tft.fillRoundRect(170, 92, 120, 55, 6, COLOR_PANEL2);
+  tft.drawRoundRect(170, 92, 120, 55, 6, COLOR_MUTED);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(215, 105);
+  tft.print("NO");
+  tft.setTextSize(1);
+  tft.setCursor(185, 128);
+  tft.print("Finish at 2h");
+
+  // Bottom info
+  tft.setTextColor(COLOR_MUTED);
+  tft.setTextSize(1);
+  tft.setCursor(30, 168);
+  tft.print("Can also be extended from Web Dashboard");
+}
+
+// =====================================================
+// EXTENSION OPTIONS SCREEN (+15m, +30m, +45m, +1h)
+// =====================================================
+void drawExtensionOptions() {
+  tft.fillScreen(COLOR_BG);
+
+  tft.fillRoundRect(15, 12, 290, 212, 8, COLOR_PANEL);
+  tft.drawRoundRect(15, 12, 290, 212, 8, COLOR_ACCENT);
+
+  tft.setTextColor(COLOR_ACCENT);
+  tft.setTextSize(2);
+  tft.setCursor(30, 24);
+  tft.print("CHOOSE EXTENSION:");
+
+  // [+15m] (X: 30, Y: 52, W: 120, H: 44)
+  tft.fillRoundRect(30, 52, 120, 44, 6, COLOR_PANEL2);
+  tft.drawRoundRect(30, 52, 120, 44, 6, COLOR_ACCENT);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(46, 66);
+  tft.print("+15 MIN");
+
+  // [+30m] (X: 170, Y: 52, W: 120, H: 44)
+  tft.fillRoundRect(170, 52, 120, 44, 6, COLOR_PANEL2);
+  tft.drawRoundRect(170, 52, 120, 44, 6, COLOR_ACCENT);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(186, 66);
+  tft.print("+30 MIN");
+
+  // [+45m] (X: 30, Y: 104, W: 120, H: 44)
+  tft.fillRoundRect(30, 104, 120, 44, 6, COLOR_PANEL2);
+  tft.drawRoundRect(30, 104, 120, 44, 6, COLOR_ACCENT);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(46, 118);
+  tft.print("+45 MIN");
+
+  // [+1 hr] (X: 170, Y: 104, W: 120, H: 44)
+  tft.fillRoundRect(170, 104, 120, 44, 6, COLOR_PANEL2);
+  tft.drawRoundRect(170, 104, 120, 44, 6, COLOR_ACCENT);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(2);
+  tft.setCursor(186, 118);
+  tft.print("+1 HOUR");
+
+  // CANCEL button (X: 90, Y: 160, W: 140, H: 36)
+  tft.fillRoundRect(90, 160, 140, 36, 6, COLOR_PANEL);
+  tft.drawRoundRect(90, 160, 140, 36, 6, COLOR_MUTED);
+  tft.setTextColor(COLOR_MUTED);
+  tft.setTextSize(1);
+  tft.setCursor(135, 173);
+  tft.print("CANCEL");
+}
+
+// =====================================================
+// SESSION COMPLETED & 1-5 RATING SCREEN
+// =====================================================
+void drawSessionCompletedScreen() {
+  tft.fillScreen(COLOR_BG);
+
+  // Header Box
+  tft.fillRoundRect(10, 10, 300, 48, 6, COLOR_GREEN);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(35, 18);
+  tft.print("SESSION COMPLETED!");
+  tft.setTextSize(1);
+  tft.setCursor(65, 38);
+  tft.print("+5 SDW POINTS AWARDED");
+
+  // Rating Subtitle
+  tft.setTextColor(COLOR_TEXT);
+  tft.setTextSize(1);
+  tft.setCursor(20, 68);
+  tft.print("How was your session? Tap 1 to 5 stars:");
+
+  // 5 Star Buttons
+  for (int i = 1; i <= 5; i++) {
+    int sX = 15 + (i - 1) * 60;
+    int sY = 88;
+    int sW = 50;
+    int sH = 46;
+    bool isSelected = (selfRating == i);
+    tft.fillRoundRect(sX, sY, sW, sH, 6, isSelected ? COLOR_YELLOW : COLOR_PANEL2);
+    tft.drawRoundRect(sX, sY, sW, sH, 6, isSelected ? COLOR_ORANGE : COLOR_MUTED);
+    tft.setTextColor(isSelected ? ILI9341_BLACK : COLOR_TEXT);
+    tft.setTextSize(2);
+    tft.setCursor(sX + 10, sY + 14);
+    tft.printf("*%d", i);
+  }
+
+  if (selfRating > 0) {
+    tft.setTextColor(COLOR_YELLOW);
+    tft.setTextSize(1);
+    tft.setCursor(20, 146);
+    tft.printf("Rating confirmed: %d Stars! Syncing...", selfRating);
+  }
+
+  // Finish Button
+  tft.fillRoundRect(35, 168, 250, 46, 6, COLOR_ACCENT);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(75, 182);
+  tft.print("DONE / FINISH");
+}
+
+void triggerSessionCompleted() {
+  if (sessionCompletedShown) return;
+  sessionState = SESSION_ENDED;
+  sessionCompletedShown = true;
+  Serial.println("[SESSION] 2-Hour Goal Reached! Session completed successfully (+5 SDW pts)");
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(String(sessionBaseURL) + "/end");
+    http.addHeader("Content-Type", "application/json");
+    unsigned long activeMins = sessionTotalMs / 60000;
+    http.POST("{\"activeMinutes\":" + String(activeMins) + ",\"selfRating\":" + String(selfRating) + "}");
+    http.end();
+  }
+  drawSessionCompletedScreen();
+}
+
 // =====================================================
 // HOME PAGE
 // =====================================================
 
 void drawHomePage() {
+  if (soundAlarmActive) {
+    drawAlarmScreen();
+    return;
+  }
+  if (sessionCompletedShown) {
+    drawSessionCompletedScreen();
+    return;
+  }
+  if (extensionPromptActive) {
+    if (extensionPromptShowOptions) {
+      drawExtensionOptions();
+    } else {
+      drawExtensionPrompt();
+    }
+    return;
+  }
+
   tft.fillScreen(COLOR_BG);
 
   int r1Y = 5, r1H = 55;
@@ -1285,29 +1546,54 @@ void drawHomePage() {
 void updateHomePageLiveValues() {
   if (currentPage != PAGE_HOME)
     return;
-  if (sessionState == SESSION_DYING)
-    return; // Don't draw over the red alarm screen
+  if (soundAlarmActive || sessionState == SESSION_DYING || extensionPromptActive || sessionCompletedShown)
+    return; // Don't draw over alerts / prompts
 
   unsigned long nowMs = millis();
 
-  // ── Timer ─────────────────────────────────────────────
+  // ── Reverse Timer (Counts down from 2h / target duration) ───
   int r1Y = 5;
   tft.fillRect(12, r1Y + 16, 155, 30, COLOR_PANEL); // clear timer area
   if (showSessionTimer) {
-    unsigned long displayMs = sessionTotalMs;
+    unsigned long activeSec = sessionTotalMs / 1000;
     if (sessionState == SESSION_ACTIVE && sessionStartMs > 0)
-      displayMs += (nowMs - sessionStartMs);
-    unsigned long dispSec = displayMs / 1000;
-    unsigned long dispMin = dispSec / 60;
-    dispSec = dispSec % 60;
+      activeSec += (nowMs - sessionStartMs) / 1000;
+
+    unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+    unsigned long remainingSec = (activeSec >= targetSec) ? 0 : (targetSec - activeSec);
+
+    // Goal reached: trigger session completed
+    if (remainingSec == 0 && (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK)) {
+      triggerSessionCompleted();
+      return;
+    }
+
+    // Check 15-minute extension prompt trigger
+    if (remainingSec <= 900 && remainingSec > 0 && !extensionPromptDismissed && !extensionPromptActive && (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK)) {
+      extensionPromptActive = true;
+      extensionPromptShowOptions = false;
+      drawExtensionPrompt();
+      return;
+    }
+
+    unsigned long remH = remainingSec / 3600;
+    unsigned long remM = (remainingSec % 3600) / 60;
+    unsigned long remS = remainingSec % 60;
 
     tft.setTextColor(sessionState == SESSION_ACTIVE  ? COLOR_GREEN
                      : sessionState == SESSION_BREAK ? COLOR_YELLOW
+                     : sessionState == SESSION_INVALID ? COLOR_RED
                                                      : COLOR_TEXT);
-    tft.setTextSize(3);
-    tft.setCursor(12, r1Y + 22);
-    char timeBuf[12];
-    sprintf(timeBuf, "%02lu:%02lu", dispMin, dispSec);
+    char timeBuf[16];
+    if (remH > 0) {
+      tft.setTextSize(3);
+      tft.setCursor(12, r1Y + 22);
+      sprintf(timeBuf, "%lu:%02lu:%02lu", remH, remM, remS);
+    } else {
+      tft.setTextSize(3);
+      tft.setCursor(20, r1Y + 22);
+      sprintf(timeBuf, "%02lu:%02lu", remM, remS);
+    }
     tft.print(timeBuf);
   } else {
     tft.setTextColor(COLOR_MUTED);
@@ -1322,6 +1608,8 @@ void updateHomePageLiveValues() {
     statusColor = COLOR_GREEN;
   else if (sessionState == SESSION_BREAK)
     statusColor = COLOR_YELLOW;
+  else if (sessionState == SESSION_INVALID)
+    statusColor = COLOR_RED;
   tft.fillCircle(175, r1Y + 34, 5, statusColor);
 
   // ── Breaks (right block) ─────────────────────────
@@ -1967,7 +2255,144 @@ void handleTouch() {
   int tY = map(rawY, 3800, 550, 0, 240);
 
   // ===================================================
-  // ALARM DISMISSAL
+  // 1. SOUND ALARM DISMISSAL (STOP SOUND BUTTON)
+  // The sound does NOT stop until user taps STOP SOUND
+  // ===================================================
+  if (soundAlarmActive) {
+    if (tY >= 130 && tY <= 220 && tX >= 20 && tX <= 300) {
+      soundAlarmActive = false;
+      soundAlarmMessage = "";
+      Serial.println("[SOUND] STOP SOUND pressed by user! Alarm silenced.");
+
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(String(sessionBaseURL) + "/stop-sound");
+        http.POST("{}");
+        http.end();
+      }
+
+      if (sessionState == SESSION_INVALID) {
+        sessionState = SESSION_IDLE; // Reset invalid/died session
+        Serial.println("[SESSION] Invalid session reset to IDLE.");
+      } else if (sessionState == SESSION_BREAK) {
+        if (radar.valid && radar.targetState > 0) {
+          sessionState = SESSION_ACTIVE;
+          sessionStartMs = millis();
+          if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            http.begin(String(sessionBaseURL) + "/resume");
+            http.addHeader("Content-Type", "application/json");
+            http.POST("{}");
+            http.end();
+          }
+          Serial.println("[SESSION] Resumed after away alarm.");
+        }
+      }
+
+      drawHomePage();
+      return;
+    }
+    return; // Don't process other screen buttons while sound alarm is active
+  }
+
+  // ===================================================
+  // 2. SESSION COMPLETED RATING SCREEN TOUCH
+  // ===================================================
+  if (sessionCompletedShown) {
+    // 5 Star buttons: Y: 80 to 145
+    if (tY >= 80 && tY <= 145) {
+      int tappedStar = 0;
+      for (int i = 1; i <= 5; i++) {
+        int sX = 15 + (i - 1) * 60;
+        if (tX >= sX && tX <= sX + 50) {
+          tappedStar = i;
+          break;
+        }
+      }
+      if (tappedStar > 0) {
+        selfRating = tappedStar;
+        Serial.printf("[SESSION] Star rating selected: %d\n", selfRating);
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/rate");
+          http.addHeader("Content-Type", "application/json");
+          http.POST("{\"rating\":" + String(selfRating) + "}");
+          http.end();
+        }
+        drawSessionCompletedScreen();
+        return;
+      }
+    }
+    // Done / Finish button: Y: 160 to 225
+    if (tY >= 160 && tY <= 225 && tX >= 30 && tX <= 290) {
+      sessionCompletedShown = false;
+      sessionState = SESSION_IDLE;
+      Serial.println("[SESSION] Completed screen dismissed. Returning to IDLE.");
+      drawHomePage();
+      return;
+    }
+    return;
+  }
+
+  // ===================================================
+  // 3. 15-MIN EXTENSION PROMPT TOUCH
+  // ===================================================
+  if (extensionPromptActive) {
+    if (!extensionPromptShowOptions) {
+      // YES button: X: 30-150, Y: 90-150
+      if (tX >= 30 && tX <= 150 && tY >= 90 && tY <= 150) {
+        extensionPromptShowOptions = true;
+        drawExtensionOptions();
+        return;
+      }
+      // NO button: X: 170-290, Y: 90-150
+      if (tX >= 170 && tX <= 290 && tY >= 90 && tY <= 150) {
+        extensionPromptDismissed = true;
+        extensionPromptActive = false;
+        Serial.println("[EXTENSION] User chose NO extension. Continuing 2h countdown.");
+        drawHomePage();
+        return;
+      }
+    } else {
+      int chosenMins = 0;
+      // +15m: X: 30-150, Y: 50-100
+      if (tX >= 30 && tX <= 150 && tY >= 50 && tY <= 100) chosenMins = 15;
+      // +30m: X: 170-290, Y: 50-100
+      else if (tX >= 170 && tX <= 290 && tY >= 50 && tY <= 100) chosenMins = 30;
+      // +45m: X: 30-150, Y: 100-150
+      else if (tX >= 30 && tX <= 150 && tY >= 100 && tY <= 150) chosenMins = 45;
+      // +1h:  X: 170-290, Y: 100-150
+      else if (tX >= 170 && tX <= 290 && tY >= 100 && tY <= 150) chosenMins = 60;
+      // CANCEL: X: 80-240, Y: 155-200
+      else if (tX >= 80 && tX <= 240 && tY >= 155 && tY <= 200) {
+        extensionPromptActive = false;
+        extensionPromptShowOptions = false;
+        drawHomePage();
+        return;
+      }
+
+      if (chosenMins > 0) {
+        targetDurationMinutes += chosenMins;
+        extensionPromptActive = false;
+        extensionPromptShowOptions = false;
+        extensionPromptDismissed = false; // reset so we can prompt again at the next 15-min mark
+        Serial.printf("[EXTENSION] Added +%d mins! New target: %d mins\n", chosenMins, targetDurationMinutes);
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/extend");
+          http.addHeader("Content-Type", "application/json");
+          http.POST("{\"extensionMinutes\":" + String(chosenMins) + "}");
+          http.end();
+        }
+        drawHomePage();
+        return;
+      }
+    }
+    return;
+  }
+
+  // ===================================================
+  // ALARM DISMISSAL (10 Min Grace)
   // ===================================================
   if (sessionState == SESSION_DYING) {
     // If the user touches the screen, we consider them back at the desk
@@ -2765,17 +3190,13 @@ void loop() {
   }
 
 // ===================================================
-// SESSION STATE MACHINE — with radar debounce
-// The radar sensor can flicker, so we require the signal to
-// be consistently absent for ABSENCE_DEBOUNCE_MS before
-// we trigger a break, and consistently present for
-// PRESENCE_DEBOUNCE_MS before we resume.
+// SESSION STATE MACHINE — with 30s absence debounce
 // ===================================================
-#define ABSENCE_DEBOUNCE_MS 5000UL  // 5 seconds of no-signal before break
-#define PRESENCE_DEBOUNCE_MS 3000UL // 3 seconds of signal before resume
+#define ABSENCE_DEBOUNCE_MS 30000UL // 30 seconds of absence before away alert & sound
+#define PRESENCE_DEBOUNCE_MS 3000UL // 3 seconds of sustained presence before resume
 
-  static unsigned long absenceStartMs = 0;  // when we first saw no person
-  static unsigned long presenceStartMs = 0; // when we first saw a person
+  static unsigned long absenceStartMs = 0;  // when person left
+  static unsigned long presenceStartMs = 0; // when person returned
 
   bool rawPresent = (radar.valid && radar.targetState > 0);
 
@@ -2800,7 +3221,7 @@ void loop() {
 
   case SESSION_IDLE:
     if (personPresent) {
-      // Person just sat down — start a new session
+      // Person just sat down — start a new 2-hour session
       sessionState = SESSION_ACTIVE;
       sessionStartMs = millis();
       sessionTotalMs = 0;
@@ -2809,6 +3230,13 @@ void loop() {
       selfRating = 0;
       productivitySpike = false;
       sessionDyingShown = false;
+      targetDurationMinutes = 120; // 2 hrs default
+      extensionPromptActive = false;
+      extensionPromptShowOptions = false;
+      extensionPromptDismissed = false;
+      sessionCompletedShown = false;
+      soundAlarmActive = false;
+      isInvalidSession = false;
 
       // Tell backend
       if (WiFi.status() == WL_CONNECTED) {
@@ -2818,62 +3246,88 @@ void loop() {
         http.POST("{}");
         http.end();
       }
-      Serial.println("[SESSION] Started");
+      Serial.println("[SESSION] Started 2-hour reverse countdown session");
       drawHomePage();
     }
     break;
 
   case SESSION_ACTIVE:
     if (personAbsent) {
-      // Person has been consistently absent for 5 seconds — start break
-      sessionState = SESSION_BREAK;
-      sessionTotalMs += (millis() - sessionStartMs); // accumulate active time
+      // Person has been absent for 30 seconds
+      sessionTotalMs += (absenceStartMs - sessionStartMs); // accumulate focus time up to departure
       preferences.putUInt("sessMs", sessionTotalMs);
       breakStartMs = millis();
       sessionBreakCount++;
-      dailyBreakCount++; // Increment global daily breaks
+      dailyBreakCount++;
       preferences.putInt("brkCnt", dailyBreakCount);
-      absenceStartMs = 0; // reset debounce
+      absenceStartMs = 0;
       presenceStartMs = 0;
 
-      // BEEP alarm when user leaves
-      Serial.println("\a\a\a"); // System bell sound 3 times
-      moderatorAlarms++; // Increment moderator alarms to show on dashboard
+      // RULE: More than 3 breaks in a session => SESSION BECOMES INVALID AND DIES
+      if (sessionBreakCount > 3) {
+        sessionState = SESSION_INVALID;
+        soundAlarmActive = true;
+        soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
+        isInvalidSession = true;
+        moderatorAlarms++;
+        Serial.println("\a\a\a [ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit!");
 
-      // Spike: 45+ min active with first break
-      if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
-        productivitySpike = true;
-      }
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/alarm-trigger");
+          http.addHeader("Content-Type", "application/json");
+          http.POST("{\"message\":\"SESSION INVALID: Exceeded 3 breaks limit\",\"isInvalid\":true}");
+          http.end();
+        }
+        drawAlarmScreen();
+      } else {
+        // Valid break #1, #2, or #3 (with 30s away alert & sound)
+        sessionState = SESSION_BREAK;
+        soundAlarmActive = true;
+        soundAlarmMessage = "AWAY ALERT: RETURN TO DESK!";
+        isInvalidSession = false;
+        moderatorAlarms++;
+        Serial.printf("\a\a\a [AWAY BEEP] Break #%d started. 30s Away alert triggered!\n", sessionBreakCount);
 
-      // Tell backend about the break
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin(String(sessionBaseURL) + "/break");
-        http.addHeader("Content-Type", "application/json");
-        unsigned long activeMins = sessionTotalMs / 60000;
-        String body = "{\"activeMinutes\":" + String(activeMins) + "}";
-        http.POST(body);
-        http.end();
+        // Spike: 45+ min active with first break
+        if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
+          productivitySpike = true;
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/break");
+          http.addHeader("Content-Type", "application/json");
+          unsigned long activeMins = sessionTotalMs / 60000;
+          String body = "{\"activeMinutes\":" + String(activeMins) + "}";
+          http.POST(body);
+          http.end();
+
+          HTTPClient http2;
+          http2.begin(String(sessionBaseURL) + "/alarm-trigger");
+          http2.addHeader("Content-Type", "application/json");
+          http2.POST("{\"message\":\"Away Alert: You are away from your desk!\"}");
+          http2.end();
+        }
+        drawAlarmScreen();
       }
-      Serial.printf("[SESSION] Break #%d started\n", sessionBreakCount);
-      drawHomePage();
     }
     break;
 
   case SESSION_BREAK: {
     unsigned long breakDuration = millis() - breakStartMs;
 
-    if (personPresent) {
-      // Returned from break (debounced — sustained presence)
+    // Note: sound does NOT stop until user taps STOP SOUND (or stops it on Web).
+    // Once sound is silenced, person present resumes the active study session:
+    if (!soundAlarmActive && personPresent) {
       totalBreakMs += breakDuration;
-      dailyBreakMs += breakDuration; // Accumulate global daily break time
+      dailyBreakMs += breakDuration;
       preferences.putUInt("brkMs", dailyBreakMs);
       sessionStartMs = millis(); // restart active timer
       sessionState = SESSION_ACTIVE;
-      absenceStartMs = 0; // reset debounce
+      absenceStartMs = 0;
       presenceStartMs = 0;
 
-      // Tell backend
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/resume");
@@ -2881,28 +3335,19 @@ void loop() {
         http.POST("{}");
         http.end();
       }
-      Serial.println("[SESSION] Resumed");
+      Serial.println("[SESSION] Resumed after break");
       drawHomePage();
 
     } else if (breakDuration >= BREAK_DYING_THRESHOLD_MS) {
-      // Break exceeded 10 minutes — ALARM!
+      // Break exceeded 10 minutes — trigger 10-min break alarm
       sessionState = SESSION_DYING;
       dyingAlarmMs = millis();
       dyingAlarmActive = true;
-      Serial.println("[SESSION] DYING! Alarm fired.");
-
-      // Flash screen red as alarm
-      tft.fillScreen(COLOR_RED);
-      tft.setTextColor(ILI9341_WHITE);
-      tft.setTextSize(2);
-      tft.setCursor(30, 85);
-      tft.print("10 MIN BREAK ALARM");
-      tft.setTextSize(1);
-      tft.setCursor(30, 120);
-      tft.print("Tap the screen to turn off");
-      tft.setCursor(30, 140);
-      tft.print("Or session resets in 30s...");
-      // Removed delay(2000) so touch remains responsive
+      soundAlarmActive = true;
+      soundAlarmMessage = "10 MIN BREAK EXCEEDED!";
+      isInvalidSession = false;
+      Serial.println("[SESSION] DYING! 10-Min break exceeded.");
+      drawAlarmScreen();
     }
     break;
   }
@@ -2911,13 +3356,12 @@ void loop() {
     if (personPresent) {
       // Saved! Person came back within grace period
       totalBreakMs += (millis() - breakStartMs);
-      dailyBreakMs +=
-          (millis() - breakStartMs); // Accumulate global daily break time
+      dailyBreakMs += (millis() - breakStartMs);
       sessionStartMs = millis();
       sessionState = SESSION_ACTIVE;
       dyingAlarmActive = false;
+      soundAlarmActive = false;
 
-      // Tell backend
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/resume");
@@ -2944,18 +3388,23 @@ void loop() {
 
       // Reset everything
       sessionState = SESSION_IDLE;
-
       preferences.putUInt("sessMs", sessionTotalMs);
       preferences.putUInt("brkMs", dailyBreakMs);
-
       sessionTotalMs = 0;
       sessionBreakCount = 0;
       totalBreakMs = 0;
       sessionStartMs = 0;
       breakStartMs = 0;
       dyingAlarmActive = false;
+      soundAlarmActive = false;
       drawHomePage();
     }
+    break;
+  }
+
+  case SESSION_INVALID: {
+    // Session is invalid and dead due to exceeding 3 breaks.
+    // Screen remains showing alarm with STOP SOUND button until pressed.
     break;
   }
 
@@ -2964,12 +3413,76 @@ void loop() {
   }
 
   // ===================================================
-  // HOME PAGE LIVE TIMER UPDATE (every second when active)
+  // SOUND BEEP COMMAND/AUDIO SIMULATION (Prints every 1s while active)
+  // ===================================================
+  static uint32_t lastSoundBeepMs = 0;
+  if (soundAlarmActive && millis() - lastSoundBeepMs >= 1000) {
+    lastSoundBeepMs = millis();
+    Serial.println("\a\a [SOUND BEEPING] >> ALERT: " + soundAlarmMessage + " -- Tap [STOP SOUND] on device or web to silence! <<");
+  }
+
+  // ===================================================
+  // HOME PAGE LIVE TIMER UPDATE (every second)
   // ===================================================
   static uint32_t lastHomeRefresh = 0;
   if (currentPage == PAGE_HOME && millis() - lastHomeRefresh >= 1000) {
     lastHomeRefresh = millis();
     updateHomePageLiveValues();
+  }
+
+  // ===================================================
+  // BIDIRECTIONAL SESSION SYNC WITH BACKEND (every 5 seconds)
+  // Synchronizes extensions, alarms, and ratings between Web and Device
+  // ===================================================
+  static uint32_t lastSessionSync = 0;
+  if (millis() - lastSessionSync >= 5000 && millis() > 4000) {
+    lastSessionSync = millis();
+    if (WiFi.status() == WL_CONNECTED && currentPage != PAGE_CAMERA) {
+      HTTPClient http;
+      http.begin(String(sessionBaseURL) + "/current");
+      http.setTimeout(3000);
+      int code = http.GET();
+      if (code == 200) {
+        String payload = http.getString();
+        JsonDocument doc;
+        if (!deserializeJson(doc, payload) && !doc["data"].isNull()) {
+          int beTarget = doc["data"]["targetDurationMinutes"] | 120;
+          if (beTarget > 0 && beTarget != targetDurationMinutes) {
+            targetDurationMinutes = beTarget;
+            Serial.printf("[SYNC] Target duration synced from web: %d mins\n", targetDurationMinutes);
+          }
+
+          bool beAlarm = doc["data"]["alarmActive"] | false;
+          if (!beAlarm && soundAlarmActive) {
+            // STOP SOUND was tapped on the Web!
+            soundAlarmActive = false;
+            soundAlarmMessage = "";
+            Serial.println("[SYNC] Sound alarm stopped remotely via Web!");
+            drawHomePage();
+          } else if (beAlarm && !soundAlarmActive) {
+            // Alarm was triggered from Web!
+            soundAlarmActive = true;
+            soundAlarmMessage = doc["data"]["alarmMessage"].as<String>();
+            drawAlarmScreen();
+          }
+
+          int beRating = doc["data"]["selfRating"] | 0;
+          if (beRating > 0 && beRating != selfRating) {
+            selfRating = beRating;
+          }
+
+          String beStatus = doc["data"]["status"].as<String>();
+          if (beStatus == "INVALID" && sessionState != SESSION_INVALID) {
+            sessionState = SESSION_INVALID;
+            isInvalidSession = true;
+            soundAlarmActive = true;
+            soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
+            drawAlarmScreen();
+          }
+        }
+      }
+      http.end();
+    }
   }
 
   // ===================================================

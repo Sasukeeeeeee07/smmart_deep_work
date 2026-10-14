@@ -17,14 +17,19 @@ export interface IDeepWorkSession extends Document {
   employeeId: mongoose.Types.ObjectId;
   startTime: Date;
   endTime?: Date;
-  activeMinutes: number;       // accumulated active time (excludes breaks)
+  targetDurationMinutes: number; // default 120 (2 hrs), can be extended
+  extensionMinutes: number;      // total extended minutes
+  activeMinutes: number;         // accumulated active time (excludes breaks)
   breaks: IBreakRecord[];
   breakCount: number;
   totalBreakMinutes: number;
-  status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED';
-  selfRating: number;          // 0 = unrated, 1-5
-  sdwPointsEarned: number;     // 5 if 2hr+ session, else 0
-  productivitySpike: boolean;  // true if 45+ min with < 2 breaks
+  status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED' | 'INVALID';
+  alarmActive: boolean;          // true when away/invalid alarm is sounding
+  alarmMessage: string;          // alert text to show
+  invalidReason?: string;        // e.g. "Exceeded 3 breaks limit"
+  selfRating: number;            // 0 = unrated, 1-5
+  sdwPointsEarned: number;       // 5 if target reached, else 0
+  productivitySpike: boolean;    // true if 45+ min with < 2 breaks
   moderationLog: IModerationLog[];
 }
 
@@ -42,19 +47,24 @@ const ModerationLogSchema = new Schema<IModerationLog>({
 
 const DeepWorkSessionSchema: Schema = new Schema<IDeepWorkSession>(
   {
-    deviceUid:          { type: String, required: true },
-    employeeId:         { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
-    startTime:          { type: Date, required: true, default: Date.now },
-    endTime:            { type: Date },
-    activeMinutes:      { type: Number, default: 0 },
-    breaks:             { type: [BreakRecordSchema], default: [] },
-    breakCount:         { type: Number, default: 0 },
-    totalBreakMinutes:  { type: Number, default: 0 },
-    status:             { type: String, enum: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED'], default: 'ACTIVE' },
-    selfRating:         { type: Number, default: 0, min: 0, max: 5 },
-    sdwPointsEarned:    { type: Number, default: 0 },
-    productivitySpike:  { type: Boolean, default: false },
-    moderationLog:      { type: [ModerationLogSchema], default: [] },
+    deviceUid:             { type: String, required: true },
+    employeeId:            { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
+    startTime:             { type: Date, required: true, default: Date.now },
+    endTime:               { type: Date },
+    targetDurationMinutes: { type: Number, default: 120 },
+    extensionMinutes:      { type: Number, default: 0 },
+    activeMinutes:         { type: Number, default: 0 },
+    breaks:                { type: [BreakRecordSchema], default: [] },
+    breakCount:            { type: Number, default: 0 },
+    totalBreakMinutes:     { type: Number, default: 0 },
+    status:                { type: String, enum: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'], default: 'ACTIVE' },
+    alarmActive:           { type: Boolean, default: false },
+    alarmMessage:          { type: String, default: '' },
+    invalidReason:         { type: String, default: '' },
+    selfRating:            { type: Number, default: 0, min: 0, max: 5 },
+    sdwPointsEarned:       { type: Number, default: 0 },
+    productivitySpike:     { type: Boolean, default: false },
+    moderationLog:         { type: [ModerationLogSchema], default: [] },
   },
   { timestamps: true }
 );

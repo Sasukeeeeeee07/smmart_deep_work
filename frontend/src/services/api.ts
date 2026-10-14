@@ -144,6 +144,22 @@ export const sessionService = {
     const response = await api.post(`/sessions/${uid}/alarm`, { message });
     return response.data.data;
   },
+  getCurrentSession: async (uid: string) => {
+    const response = await api.get(`/sessions/${uid}/current`);
+    return response.data.data;
+  },
+  extendSession: async (uid: string, extensionMinutes: number) => {
+    const response = await api.post(`/sessions/${uid}/extend`, { extensionMinutes });
+    return response.data.data;
+  },
+  stopSound: async (uid: string) => {
+    const response = await api.post(`/sessions/${uid}/stop-sound`);
+    return response.data;
+  },
+  rateSession: async (uid: string, rating: number) => {
+    const response = await api.post(`/sessions/${uid}/rate`, { rating });
+    return response.data.data;
+  },
 };
 
 // User Services

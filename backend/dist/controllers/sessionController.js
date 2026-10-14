@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
+exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.getCurrentSession = exports.triggerAlarm = exports.stopSound = exports.extendSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
@@ -129,15 +129,42 @@ const startBreak = async (req, res) => {
         }
         const { activeMinutes } = req.body;
         session.activeMinutes = activeMinutes || session.activeMinutes;
+        // RULE: More than 3 breaks in a session => SESSION BECOMES INVALID AND DIES
+        if (session.breaks.length >= 3) {
+            session.status = 'INVALID';
+            session.invalidReason = 'Exceeded maximum 3 breaks limit in session';
+            session.alarmActive = true;
+            session.alarmMessage = 'SESSION INVALID: EXCEEDED 3 BREAKS';
+            session.sdwPointsEarned = 0;
+            session.endTime = new Date();
+            session.breakCount = session.breaks.length + 1;
+            session.breaks.push({ startTime: new Date(), endTime: new Date(), durationMinutes: 0 });
+            session.moderationLog.push({
+                type: 'ALARM',
+                message: 'Session died: Exceeded 3 breaks limit',
+                timestamp: new Date()
+            });
+            await session.save();
+            console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit.`);
+            return res.json({
+                success: true,
+                data: {
+                    invalid: true,
+                    status: 'INVALID',
+                    breakCount: session.breakCount,
+                    message: 'SESSION INVALID: EXCEEDED 3 BREAKS'
+                }
+            });
+        }
         session.status = 'BREAK';
         session.breaks.push({ startTime: new Date() });
         session.breakCount = session.breaks.length;
-        // Productivity spike check: 45+ active minutes with 0 breaks
+        // Productivity spike check: 45+ active minutes with 0 previous breaks
         if (session.activeMinutes >= 45 && session.breakCount === 1) {
             session.productivitySpike = true;
         }
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount } });
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK' } });
     }
     catch (err) {
         console.error('[SESSION] break error:', err);
@@ -167,6 +194,8 @@ const resumeSession = async (req, res) => {
             session.totalBreakMinutes += breakMins;
         }
         session.status = 'ACTIVE';
+        session.alarmActive = false; // Dismiss any away alert sound on resume
+        session.alarmMessage = '';
         await session.save();
         res.json({ success: true, data: { totalBreakMinutes: session.totalBreakMinutes } });
     }
@@ -185,20 +214,23 @@ const endSession = async (req, res) => {
         const { activeMinutes, selfRating } = req.body;
         const session = await DeepWorkSession_1.DeepWorkSession.findOne({
             deviceUid: req.params.uid,
-            status: { $in: ['ACTIVE', 'BREAK', 'DYING'] },
-        });
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
+        }).sort({ startTime: -1 });
         if (!session) {
             return res.status(404).json({ success: false, error: 'No session to end' });
         }
         session.endTime = new Date();
         session.activeMinutes = activeMinutes || session.activeMinutes;
-        session.status = 'COMPLETED';
+        if (session.status !== 'INVALID') {
+            session.status = 'COMPLETED';
+        }
         if (selfRating && selfRating >= 1 && selfRating <= 5) {
             session.selfRating = selfRating;
         }
-        // Award SDW points if active time >= 120 minutes (2 hours)
+        // Award SDW points if active time >= target duration (default 120 minutes)
+        const targetMin = session.targetDurationMinutes || 120;
         let pointsEarned = 0;
-        if (session.activeMinutes >= 120) {
+        if (session.activeMinutes >= targetMin && session.status === 'COMPLETED') {
             session.sdwPointsEarned = 5;
             pointsEarned = 5;
             const now = new Date();
@@ -216,7 +248,7 @@ const endSession = async (req, res) => {
         await session.save();
         // Voice feedback
         if (pointsEarned > 0) {
-            voiceService_1.voiceService.queueMessage(req.params.uid, `Incredible work! You just completed a 2 hour deep work session and earned 5 points.`);
+            voiceService_1.voiceService.queueMessage(req.params.uid, `Incredible work! You completed your ${targetMin} minute deep work session and earned 5 points.`);
         }
         else {
             voiceService_1.voiceService.queueMessage(req.params.uid, `Session ended. You worked for ${session.activeMinutes} minutes.`);
@@ -230,8 +262,152 @@ const endSession = async (req, res) => {
 };
 exports.endSession = endSession;
 // =====================================================
+// POST /api/sessions/:uid/extend
+// Extends target duration (+15m, +30m, +45m, +60m)
+// =====================================================
+const extendSession = async (req, res) => {
+    try {
+        const { extensionMinutes = 15 } = req.body;
+        const mins = Number(extensionMinutes) || 15;
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK'] },
+        }).sort({ startTime: -1 });
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'No active session to extend' });
+        }
+        session.targetDurationMinutes = (session.targetDurationMinutes || 120) + mins;
+        session.extensionMinutes = (session.extensionMinutes || 0) + mins;
+        session.moderationLog.push({
+            type: 'COMMAND',
+            message: `Session extended by +${mins} minutes`,
+            timestamp: new Date(),
+        });
+        await session.save();
+        console.log(`[SESSION] Extended: ${session._id} by +${mins}m (New target: ${session.targetDurationMinutes}m)`);
+        res.json({
+            success: true,
+            data: {
+                targetDurationMinutes: session.targetDurationMinutes,
+                extensionMinutes: session.extensionMinutes,
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SESSION] extend error:', err);
+        res.status(500).json({ success: false, error: 'Failed to extend session' });
+    }
+};
+exports.extendSession = extendSession;
+// =====================================================
+// POST /api/sessions/:uid/stop-sound
+// Stop sound / dismiss active alarm from device or web
+// =====================================================
+const stopSound = async (req, res) => {
+    try {
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
+        }).sort({ startTime: -1 });
+        if (session) {
+            session.alarmActive = false;
+            session.alarmMessage = '';
+            await session.save();
+        }
+        res.json({ success: true, message: 'Sound stopped and alarm dismissed' });
+    }
+    catch (err) {
+        console.error('[SESSION] stop-sound error:', err);
+        res.status(500).json({ success: false, error: 'Failed to stop sound' });
+    }
+};
+exports.stopSound = stopSound;
+// =====================================================
+// POST /api/sessions/:uid/alarm-trigger
+// Device or backend signals an active alarm/sound state
+// =====================================================
+const triggerAlarm = async (req, res) => {
+    try {
+        const { message, isInvalid } = req.body;
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
+        }).sort({ startTime: -1 });
+        if (session) {
+            session.alarmActive = true;
+            session.alarmMessage = message || 'Alert triggered';
+            if (isInvalid) {
+                session.status = 'INVALID';
+                session.invalidReason = message;
+                session.sdwPointsEarned = 0;
+                session.endTime = new Date();
+            }
+            session.moderationLog.push({
+                type: 'ALARM',
+                message: message || 'Alarm sound started',
+                timestamp: new Date(),
+            });
+            await session.save();
+        }
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error('[SESSION] triggerAlarm error:', err);
+        res.status(500).json({ success: false, error: 'Failed to trigger alarm' });
+    }
+};
+exports.triggerAlarm = triggerAlarm;
+// =====================================================
+// GET /api/sessions/:uid/current
+// Fetch active/latest session state for ESP32 and Web sync
+// =====================================================
+const getCurrentSession = async (req, res) => {
+    try {
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'] }
+        }).sort({ startTime: -1 });
+        if (!session) {
+            return res.json({ success: true, data: null });
+        }
+        const now = Date.now();
+        let liveActiveMinutes = session.activeMinutes || 0;
+        let liveTotalBreakMinutes = session.totalBreakMinutes || 0;
+        if (session.status === 'ACTIVE' || session.status === 'BREAK' || session.status === 'DYING') {
+            const diffMs = Math.max(0, now - new Date(session.startTime).getTime());
+            const totalMin = Math.floor(diffMs / 60000);
+            let openBreakMinutes = 0;
+            if ((session.status === 'BREAK' || session.status === 'DYING') && session.breaks && session.breaks.length > 0) {
+                const lastBreak = session.breaks[session.breaks.length - 1];
+                if (!lastBreak.endTime) {
+                    openBreakMinutes = Math.floor(Math.max(0, now - new Date(lastBreak.startTime).getTime()) / 60000);
+                }
+            }
+            liveTotalBreakMinutes = (session.totalBreakMinutes || 0) + openBreakMinutes;
+            liveActiveMinutes = Math.max(0, totalMin - liveTotalBreakMinutes);
+        }
+        const targetMin = session.targetDurationMinutes || 120;
+        const remainingSeconds = Math.max(0, (targetMin * 60) - (liveActiveMinutes * 60));
+        res.json({
+            success: true,
+            data: {
+                ...session.toObject(),
+                activeMinutes: liveActiveMinutes,
+                totalBreakMinutes: liveTotalBreakMinutes,
+                targetDurationMinutes: targetMin,
+                remainingSeconds,
+            }
+        });
+    }
+    catch (err) {
+        console.error('[SESSION] current error:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch current session' });
+    }
+};
+exports.getCurrentSession = getCurrentSession;
+// =====================================================
 // POST /api/sessions/:uid/rate
-// ESP32 calls this when user taps a self-rating star
+// ESP32 or Web calls this when user taps a self-rating star (1-5)
 // =====================================================
 const rateSession = async (req, res) => {
     try {
@@ -241,13 +417,14 @@ const rateSession = async (req, res) => {
         }
         const session = await DeepWorkSession_1.DeepWorkSession.findOne({
             deviceUid: req.params.uid,
-            status: { $in: ['ACTIVE', 'BREAK', 'COMPLETED'] },
+            status: { $in: ['ACTIVE', 'BREAK', 'COMPLETED', 'INVALID'] },
         }).sort({ startTime: -1 });
         if (!session) {
             return res.status(404).json({ success: false, error: 'No session found' });
         }
         session.selfRating = rating;
         await session.save();
+        console.log(`[SESSION] Rated ${rating} stars for session ${session._id}`);
         res.json({ success: true, data: { selfRating: rating } });
     }
     catch (err) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { deviceService } from '../services/api';
+import { deviceService, sessionService } from '../services/api';
 import api from '../services/api';
 import ModerationHistory from './ModerationHistory';
 import {
@@ -21,11 +21,16 @@ interface Session {
   employeeId?: { firstName: string; lastName: string };
   startTime: string;
   endTime?: string;
+  targetDurationMinutes?: number;
+  extensionMinutes?: number;
   activeMinutes: number;
   breaks: BreakRecord[];
   breakCount: number;
   totalBreakMinutes: number;
-  status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED';
+  status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED' | 'INVALID';
+  alarmActive?: boolean;
+  alarmMessage?: string;
+  invalidReason?: string;
   selfRating: number;
   sdwPointsEarned: number;
   productivitySpike: boolean;
@@ -48,8 +53,9 @@ function statusBadge(status: Session['status']) {
   const map: Record<string, string> = {
     ACTIVE:    'bg-green-500/15 text-green-400 border-green-500/30',
     BREAK:     'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-    DYING:     'bg-red-500/20 text-red-400 border-red-500/40',
+    DYING:     'bg-orange-500/20 text-orange-400 border-orange-500/40',
     COMPLETED: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+    INVALID:   'bg-red-500/20 text-red-400 border-red-500/40 font-bold',
   };
   return map[status] ?? 'bg-surface-light text-text-muted';
 }
@@ -152,9 +158,12 @@ function ModeratorPanel({ device, onViewHistory }: { device: any; onViewHistory:
 }
 
 // ─── Session Row ──────────────────────────────────────────────────────────────
-function SessionRow({ session }: { session: Session }) {
+function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => void }) {
   const [open, setOpen] = useState(false);
   const [intervening, setIntervening] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [stoppingSound, setStoppingSound] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   // Live 1-second clock ticker for active / break sessions
@@ -167,7 +176,7 @@ function SessionRow({ session }: { session: Session }) {
 
   // Dynamically compute live active seconds
   const computeActiveSeconds = () => {
-    if (session.status === 'COMPLETED') {
+    if (session.status === 'COMPLETED' || session.status === 'INVALID') {
       return (session.activeMinutes || 0) * 60;
     }
     const startMs = new Date(session.startTime).getTime();
@@ -177,7 +186,9 @@ function SessionRow({ session }: { session: Session }) {
   };
 
   const activeSeconds = computeActiveSeconds();
-  const timeLeftSeconds = Math.max(0, (120 * 60) - activeSeconds);
+  const targetMinutes = session.targetDurationMinutes || 120;
+  const targetSeconds = targetMinutes * 60;
+  const timeLeftSeconds = Math.max(0, targetSeconds - activeSeconds);
 
   // Formats to mm:ss (matching ESP32 desk screen) or h:mm:ss
   const formatDeskTimer = (sec: number) => {
@@ -191,6 +202,7 @@ function SessionRow({ session }: { session: Session }) {
   };
 
   const formatCountdown = (seconds: number) => {
+    if (session.status === 'INVALID') return "00:00:00 (Invalid / Died)";
     if (seconds <= 0) return "00:00:00 (Goal Met!)";
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -198,12 +210,72 @@ function SessionRow({ session }: { session: Session }) {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleStopSound = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStoppingSound(true);
+    try {
+      await sessionService.stopSound(session.deviceUid);
+      onUpdate?.();
+    } catch (err) {
+      console.error('Failed to stop sound', err);
+    } finally {
+      setStoppingSound(false);
+    }
+  };
+
+  const handleExtend = async (mins: number) => {
+    setExtending(true);
+    try {
+      await sessionService.extendSession(session.deviceUid, mins);
+      onUpdate?.();
+    } catch (err) {
+      console.error('Failed to extend session', err);
+      alert('Failed to extend session');
+    } finally {
+      setExtending(false);
+    }
+  };
+
+  const handleRate = async (star: number) => {
+    setRatingLoading(true);
+    try {
+      await sessionService.rateSession(session.deviceUid, star);
+      onUpdate?.();
+    } catch (err) {
+      console.error('Failed to rate session', err);
+    } finally {
+      setRatingLoading(false);
+    }
+  };
+
   const emp = session.employeeId
     ? `${session.employeeId.firstName} ${session.employeeId.lastName}`
     : '—';
 
   return (
-    <div className="glass rounded-xl border border-surface-light overflow-hidden mb-3 shadow-lg shadow-black/5 hover:border-orange-500/30 transition-all duration-300">
+    <div className={`glass rounded-xl border ${session.alarmActive ? 'border-red-500 shadow-red-500/20' : session.status === 'INVALID' ? 'border-red-500/40' : 'border-surface-light'} overflow-hidden mb-3 shadow-lg shadow-black/5 hover:border-orange-500/30 transition-all duration-300`}>
+      {/* Active Alarm Banner if sounding */}
+      {session.alarmActive && (
+        <div className="bg-red-600/25 border-b border-red-500/50 px-5 py-3 flex items-center justify-between flex-wrap gap-2 animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🔊</span>
+            <div>
+              <span className="text-xs uppercase tracking-wider font-black text-red-300 block">Sound Alert Active</span>
+              <span className="text-sm font-semibold text-white">
+                {session.alarmMessage || 'Away Alert: Person is away from desk!'}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={handleStopSound}
+            disabled={stoppingSound}
+            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-red-600/40 transition-all"
+          >
+            🛑 Stop Sound
+          </button>
+        </div>
+      )}
+
       {/* Summary row */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -223,6 +295,8 @@ function SessionRow({ session }: { session: Session }) {
             ? 'text-green-400 bg-green-500/15 border border-green-500/30'
             : session.status === 'BREAK'
             ? 'text-yellow-400 bg-yellow-500/15 border border-yellow-500/30'
+            : session.status === 'INVALID'
+            ? 'text-red-400 bg-red-500/15 border border-red-500/30'
             : 'text-text-muted bg-surface-light/30'
         }`}>
           <Timer size={14} className={session.status === 'ACTIVE' ? 'animate-pulse text-green-400' : ''} />
@@ -281,8 +355,10 @@ function SessionRow({ session }: { session: Session }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs uppercase text-text-muted tracking-wider mb-1">2-Hr Goal Remaining</div>
-                  <div className="text-xl font-mono font-bold text-orange-400">
+                  <div className="text-xs uppercase text-text-muted tracking-wider mb-1">
+                    {targetMinutes}m Goal Remaining
+                  </div>
+                  <div className={`text-xl font-mono font-bold ${session.status === 'INVALID' ? 'text-red-400' : 'text-orange-400'}`}>
                     {formatCountdown(timeLeftSeconds)}
                   </div>
                 </div>
@@ -303,25 +379,54 @@ function SessionRow({ session }: { session: Session }) {
                 </div>
               )}
 
-              {/* 3. Alarms Raised */}
+              {/* 3. Session Invalidation Banner if session died */}
+              {session.status === 'INVALID' && (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle size={16} className="text-red-400" />
+                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Session Died / Invalid</h4>
+                  </div>
+                  <p className="text-sm text-red-300 font-medium">
+                    {session.invalidReason || 'Exceeded 3 breaks within the 2-hour session.'}
+                  </p>
+                  <p className="text-xs text-text-muted mt-1">0 SDW points awarded for invalid sessions.</p>
+                </div>
+              )}
+
+              {/* 4. Alarms Raised & Sound Stop */}
               <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/10">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle size={16} className="text-red-400" />
-                  <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Alarms Raised</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-red-400" />
+                    <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider">Sound & Alarm Controls</h4>
+                  </div>
+                  {session.alarmActive && (
+                    <button
+                      onClick={handleStopSound}
+                      disabled={stoppingSound}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      🛑 Stop Sound
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1 bg-surface-light/50 p-3 rounded-lg border border-surface-light">
-                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">No of times</p>
-                    <p className="text-lg font-bold text-text-main">0</p>
+                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Alarm Status</p>
+                    <p className={`text-sm font-bold ${session.alarmActive ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>
+                      {session.alarmActive ? 'Sound Beeping' : 'Silent'}
+                    </p>
                   </div>
                   <div className="flex-1 bg-surface-light/50 p-3 rounded-lg border border-surface-light">
-                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Alert Type</p>
-                    <p className="text-sm font-medium text-text-main mt-1 line-clamp-1">—</p>
+                    <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Breaks Taken</p>
+                    <p className={`text-sm font-bold ${session.breakCount > 3 ? 'text-red-400' : 'text-text-main'}`}>
+                      {session.breakCount} / 3 Max
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* 4. Moderator Intervention */}
+              {/* 5. Moderator Intervention */}
               <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-500/5 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
                 <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -342,56 +447,105 @@ function SessionRow({ session }: { session: Session }) {
             {/* Right Column */}
             <div className="space-y-6">
               
-              {/* 5. Total Break Time */}
+              {/* 6. Total Break Time */}
               <div className="flex items-center justify-between p-5 rounded-2xl bg-surface border border-surface-light shadow-sm">
                 <div>
                   <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1">Total Break Time</h4>
-                  <p className="text-sm text-text-muted">{session.breakCount} breaks taken</p>
+                  <p className="text-sm text-text-muted">{session.breakCount} of 3 allowable breaks</p>
                 </div>
-                <div className="text-3xl font-bold text-yellow-400 flex items-center gap-2">
+                <div className={`text-3xl font-bold flex items-center gap-2 ${session.breakCount > 3 ? 'text-red-400' : 'text-yellow-400'}`}>
                   <Coffee size={28} className="opacity-50" />
                   {fmtMin(session.totalBreakMinutes)}
                 </div>
               </div>
 
-              {/* 6. Session Self Rating */}
+              {/* 7. Session Self Rating (Interactive 1 to 5) */}
               <div className="p-6 rounded-2xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20">
-                <h4 className="text-xs font-bold text-orange-300 uppercase tracking-wider mb-6 flex items-center gap-2">
-                  <Star size={14} /> Session Self Rating
-                </h4>
-                <div className="flex items-center gap-8">
-                  <div className="text-center">
-                    <p className="text-5xl font-black text-text-main">
-                      {session.selfRating || '-'}
-                      <span className="text-2xl text-text-muted font-normal">/10</span>
-                    </p>
-                    <p className="text-xs text-text-muted mt-2 uppercase tracking-wider">Score</p>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-bold text-orange-300 uppercase tracking-wider flex items-center gap-2">
+                    <Star size={14} /> Rate Session (1 to 5 Stars)
+                  </h4>
+                  {session.selfRating > 0 && (
+                    <span className="text-xs font-bold text-yellow-400">
+                      ★ {session.selfRating} / 5
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-3 p-4 bg-surface-light/40 rounded-xl border border-surface-light mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      disabled={ratingLoading}
+                      onClick={() => handleRate(star)}
+                      className={`p-2 rounded-lg transition-transform hover:scale-125 ${
+                        star <= (session.selfRating || 0)
+                          ? 'text-yellow-400 fill-yellow-400'
+                          : 'text-surface-light hover:text-yellow-300'
+                      }`}
+                    >
+                      <Star size={24} className={star <= (session.selfRating || 0) ? 'fill-yellow-400' : ''} />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-text-main mb-3">Current Session Productivity</p>
-                    <div className="h-3 bg-surface-light rounded-full overflow-hidden">
+                    <div className="flex justify-between text-xs text-text-muted mb-1.5">
+                      <span>Productivity score</span>
+                      <span>{((session.selfRating || 0) * 20)}%</span>
+                    </div>
+                    <div className="h-2.5 bg-surface-light rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-orange-400 to-amber-500" 
-                        style={{ width: `${(session.selfRating / 10) * 100}%` }}
+                        className="h-full bg-gradient-to-r from-orange-400 to-amber-500 transition-all duration-500" 
+                        style={{ width: `${((session.selfRating || 0) / 5) * 100}%` }}
                       ></div>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Completion Banner */}
+              {(session.status === 'COMPLETED' || timeLeftSeconds === 0) && session.status !== 'INVALID' && (
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-green-500/15 to-emerald-500/15 border border-green-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-lg">
+                      🎉
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-green-400">Session Completed Successfully!</h4>
+                      <p className="text-xs text-text-muted">Target goal met. +5 SDW Points awarded.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
           
-          {/* Actionable Prompts & Rules Footer */}
-          <div className="mt-8 pt-5 border-t border-surface-light/50 flex flex-col gap-3">
-            {timeLeftSeconds <= 15 * 60 && timeLeftSeconds > 0 && (
-              <div className="bg-indigo-500/10 border border-indigo-500/30 p-3 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2 text-indigo-300 text-sm">
-                  <Clock size={16} /> Session completes in under 15 mins. Extend time?
+          {/* Actionable Extension Prompts (Before 15 mins) & Rules Footer */}
+          <div className="mt-8 pt-5 border-t border-surface-light/50 flex flex-col gap-4">
+            {timeLeftSeconds <= 15 * 60 && timeLeftSeconds > 0 && session.status !== 'COMPLETED' && session.status !== 'INVALID' && (
+              <div className="bg-gradient-to-r from-indigo-500/15 via-purple-500/15 to-indigo-500/15 border-2 border-indigo-500/40 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg shadow-indigo-500/10">
+                <div className="flex items-center gap-3">
+                  <Clock size={20} className="text-indigo-400 animate-pulse" />
+                  <div>
+                    <h5 className="text-sm font-bold text-white">Under 15 minutes remaining!</h5>
+                    <p className="text-xs text-indigo-300">Would you like to extend this deep work session?</p>
+                  </div>
                 </div>
-                <button className="px-4 py-1.5 bg-indigo-500 text-white text-xs font-bold rounded hover:bg-indigo-600 transition-colors">
-                  Extend +15m
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {[15, 30, 45, 60].map((mins) => (
+                    <button
+                      key={mins}
+                      disabled={extending}
+                      onClick={() => handleExtend(mins)}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-md transition-all hover:scale-105"
+                    >
+                      {extending ? '...' : mins === 60 ? '+1 hr' : `+${mins}m`}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             
@@ -403,7 +557,7 @@ function SessionRow({ session }: { session: Session }) {
                 <Award size={12} className="text-yellow-400" /> Session completed = +5 SDW pts
               </span>
               <span className="flex items-center gap-1.5 bg-surface p-1.5 px-3 rounded-md border border-surface-light">
-                <AlertTriangle size={12} className="text-red-400" /> 3+ breaks within 2 hrs = Invalid
+                <AlertTriangle size={12} className="text-red-400" /> More than 3 breaks = Session Invalid & Dies
               </span>
             </div>
           </div>
@@ -577,7 +731,7 @@ const DeepWorkPage = () => {
       ) : (
         <div className="space-y-2">
           {filtered.map(s => (
-            <SessionRow key={s._id} session={s} />
+            <SessionRow key={s._id} session={s} onUpdate={fetchSessions} />
           ))}
         </div>
       )}
