@@ -132,6 +132,12 @@ export const sessionService = {
     const response = await api.get('/sessions/all', { params });
     return response.data.data;
   },
+  getAnalytics: async (uid?: string) => {
+    const params: Record<string, any> = {};
+    if (uid) params.uid = uid;
+    const response = await api.get('/sessions/analytics', { params });
+    return response.data.data;
+  },
   getSDWPoints: async (uid: string) => {
     const response = await api.get(`/sessions/${uid}/sdwpoints`);
     return response.data.data;

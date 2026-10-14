@@ -9,6 +9,7 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 // Authenticated users route — requires JWT
 router.get('/all', auth_1.protect, sessionController_1.getAllSessions);
+router.get('/analytics', auth_1.protect, sessionController_1.getDashboardAnalytics);
 // ESP32 and Web synchronized routes
 router.get('/:uid/current', sessionController_1.getCurrentSession);
 router.post('/:uid/extend', sessionController_1.extendSession);

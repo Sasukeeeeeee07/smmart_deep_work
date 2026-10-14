@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getAllSessions,
+  getDashboardAnalytics,
   startSession,
   startBreak,
   countBreak,
@@ -25,6 +26,7 @@ const router = express.Router();
 
 // Authenticated users route — requires JWT
 router.get('/all', protect, getAllSessions);
+router.get('/analytics', protect, getDashboardAnalytics);
 
 // ESP32 and Web synchronized routes
 router.get( '/:uid/current',        getCurrentSession);

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unlockDevice = exports.testLockout = exports.getLockoutStatus = exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.getCurrentSession = exports.triggerAlarm = exports.stopSound = exports.extendSession = exports.endSession = exports.resumeSession = exports.countBreak = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
+exports.getDashboardAnalytics = exports.unlockDevice = exports.testLockout = exports.getLockoutStatus = exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.getCurrentSession = exports.triggerAlarm = exports.stopSound = exports.extendSession = exports.endSession = exports.resumeSession = exports.countBreak = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
@@ -798,3 +798,139 @@ const unlockDevice = async (req, res) => {
     }
 };
 exports.unlockDevice = unlockDevice;
+// =====================================================
+// GET /api/sessions/analytics
+// Returns aggregated real weekly, monthly, and overall stats for dashboard charts
+// =====================================================
+const getDashboardAnalytics = async (req, res) => {
+    try {
+        const { uid } = req.query;
+        const filter = {};
+        if (uid)
+            filter.deviceUid = uid;
+        const rawSessions = await DeepWorkSession_1.DeepWorkSession.find(filter).sort({ startTime: -1 }).limit(1000);
+        const now = new Date();
+        // Map sessions to adjust open active/break sessions
+        const sessions = rawSessions.map((s) => {
+            const doc = s.toObject();
+            if (doc.status === 'ACTIVE' || doc.status === 'BREAK' || doc.status === 'DYING') {
+                const diffMs = Math.max(0, now.getTime() - new Date(doc.startTime).getTime());
+                const totalMin = Math.floor(diffMs / 60000);
+                let openBreakMinutes = 0;
+                if ((doc.status === 'BREAK' || doc.status === 'DYING') && doc.breaks && doc.breaks.length > 0) {
+                    const lastBreak = doc.breaks[doc.breaks.length - 1];
+                    if (!lastBreak.endTime) {
+                        openBreakMinutes = Math.floor(Math.max(0, now.getTime() - new Date(lastBreak.startTime).getTime()) / 60000);
+                    }
+                }
+                const effectiveBreakMinutes = (doc.totalBreakMinutes || 0) + openBreakMinutes;
+                doc.activeMinutes = Math.max(0, totalMin - effectiveBreakMinutes);
+                doc.totalBreakMinutes = effectiveBreakMinutes;
+            }
+            return doc;
+        });
+        // 1. Weekly Data (Last 7 Days)
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const weeklyData = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+            const dayName = dayNames[d.getDay()];
+            const daySessions = sessions.filter(s => {
+                const sDate = new Date(s.startTime).toISOString().slice(0, 10);
+                return sDate === dateStr;
+            });
+            const focus = daySessions.reduce((acc, s) => acc + (s.activeMinutes || 0), 0);
+            const breaks = daySessions.reduce((acc, s) => acc + (s.totalBreakMinutes || 0), 0);
+            weeklyData.push({
+                name: i === 0 ? 'Today' : dayName,
+                day: dayName,
+                date: dateStr,
+                focus,
+                breaks,
+                sessions: daySessions.length
+            });
+        }
+        // 2. Active Days (Dates with recorded sessions for extended graph viewing)
+        const activeDatesMap = {};
+        sessions.forEach(s => {
+            const dateStr = new Date(s.startTime).toISOString().slice(0, 10);
+            const d = new Date(s.startTime);
+            const dayName = dayNames[d.getDay()];
+            if (!activeDatesMap[dateStr]) {
+                activeDatesMap[dateStr] = { date: dateStr, day: dayName, focus: 0, breaks: 0, sessions: 0 };
+            }
+            activeDatesMap[dateStr].focus += (s.activeMinutes || 0);
+            activeDatesMap[dateStr].breaks += (s.totalBreakMinutes || 0);
+            activeDatesMap[dateStr].sessions += 1;
+        });
+        const activeDaysData = Object.values(activeDatesMap)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-14)
+            .map(d => ({
+            name: d.date.slice(5),
+            day: d.day,
+            date: d.date,
+            focus: d.focus,
+            breaks: d.breaks,
+            sessions: d.sessions
+        }));
+        // 3. Monthly Data (Last 4 Weeks)
+        const monthlyData = [];
+        for (let w = 3; w >= 0; w--) {
+            const start = new Date(now);
+            start.setDate(start.getDate() - ((w + 1) * 7) + 1);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(now);
+            end.setDate(end.getDate() - (w * 7));
+            end.setHours(23, 59, 59, 999);
+            const weekSessions = sessions.filter(s => {
+                const t = new Date(s.startTime).getTime();
+                return t >= start.getTime() && t <= end.getTime();
+            });
+            const focus = weekSessions.reduce((acc, s) => acc + (s.activeMinutes || 0), 0);
+            const breaks = weekSessions.reduce((acc, s) => acc + (s.totalBreakMinutes || 0), 0);
+            const total = focus + breaks;
+            const productivity = total > 0 ? Math.round((focus / total) * 100) : 0;
+            monthlyData.push({
+                name: `Week ${4 - w}`,
+                focus,
+                breaks,
+                productivity,
+                sessions: weekSessions.length
+            });
+        }
+        // 4. Totals and Monthly Score
+        const totalFocusMinutes = sessions.reduce((acc, s) => acc + (s.activeMinutes || 0), 0);
+        const totalBreakMinutes = sessions.reduce((acc, s) => acc + (s.totalBreakMinutes || 0), 0);
+        const totalSessionsCount = sessions.length;
+        const completedSessionsCount = sessions.filter(s => s.status === 'COMPLETED').length;
+        const monthStart = new Date(now);
+        monthStart.setDate(monthStart.getDate() - 30);
+        const monthlySessions = sessions.filter(s => new Date(s.startTime).getTime() >= monthStart.getTime());
+        const mFocus = monthlySessions.reduce((acc, s) => acc + (s.activeMinutes || 0), 0);
+        const mBreaks = monthlySessions.reduce((acc, s) => acc + (s.totalBreakMinutes || 0), 0);
+        const averageMonthlyScore = (mFocus + mBreaks) > 0 ? parseFloat(((mFocus / (mFocus + mBreaks)) * 100).toFixed(1)) : 0;
+        res.json({
+            success: true,
+            data: {
+                weeklyData,
+                activeDaysData,
+                monthlyData,
+                averageMonthlyScore,
+                summary: {
+                    totalFocusMinutes,
+                    totalBreakMinutes,
+                    totalSessionsCount,
+                    completedSessionsCount,
+                }
+            }
+        });
+    }
+    catch (err) {
+        console.error('[ANALYTICS] getDashboardAnalytics error:', err);
+        res.status(500).json({ success: false, error: 'Failed to generate analytics' });
+    }
+};
+exports.getDashboardAnalytics = getDashboardAnalytics;

@@ -283,20 +283,13 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Instant Testing Buttons */}
+            {/* Test 2-Min Lockout */}
             <button
               onClick={() => handleTestLockout(120)}
               disabled={isUnlocking}
               className="px-3 py-2 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-300 text-xs font-semibold transition-all"
             >
               🧪 Test 2-Min Lockout
-            </button>
-            <button
-              onClick={() => handleTestLockout(172800)}
-              disabled={isUnlocking}
-              className="px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-300 text-xs font-semibold transition-all"
-            >
-              🔒 48-Hour Lockout
             </button>
 
             {/* Admin Override Unlock */}
