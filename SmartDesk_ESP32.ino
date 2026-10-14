@@ -106,6 +106,8 @@ bool sessionCompletedShown = false;
 bool soundAlarmActive = false;
 String soundAlarmMessage = "";
 bool isInvalidSession = false;
+bool alarmScreenDrawn = false;
+unsigned long alarmTriggeredAtMs = 0;
 
 // Alarm: flash screen red when session is dying
 unsigned long dyingAlarmMs = 0;
@@ -1237,6 +1239,7 @@ void triggerSessionCompleted();
 // =====================================================
 void drawAlarmScreen() {
   tft.fillScreen(COLOR_BG);
+  alarmScreenDrawn = true;
 
   // Top Warning Header
   tft.fillRoundRect(10, 10, 300, 36, 6, isInvalidSession ? COLOR_RED : COLOR_ORANGE);
@@ -1444,16 +1447,18 @@ void triggerSessionCompleted() {
   if (sessionCompletedShown) return;
   sessionState = SESSION_ENDED;
   sessionCompletedShown = true;
+  drawSessionCompletedScreen(); // Render screen immediately with zero lag
   Serial.println("[SESSION] 2-Hour Goal Reached! Session completed successfully (+5 SDW pts)");
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(String(sessionBaseURL) + "/end");
+    http.setTimeout(1500);
     http.addHeader("Content-Type", "application/json");
     unsigned long activeMins = sessionTotalMs / 60000;
     http.POST("{\"activeMinutes\":" + String(activeMins) + ",\"selfRating\":" + String(selfRating) + "}");
     http.end();
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
-  drawSessionCompletedScreen();
 }
 
 // =====================================================
@@ -1462,9 +1467,12 @@ void triggerSessionCompleted() {
 
 void drawHomePage() {
   if (soundAlarmActive) {
-    drawAlarmScreen();
+    if (!alarmScreenDrawn) {
+      drawAlarmScreen();
+    }
     return;
   }
+  alarmScreenDrawn = false;
   if (sessionCompletedShown) {
     drawSessionCompletedScreen();
     return;
@@ -1749,7 +1757,7 @@ void fetchTasksFromBackend() {
 
   HTTPClient http;
   http.begin(taskServerURL);
-  http.setTimeout(4000);
+  http.setTimeout(2000);
 
   int httpCode = http.GET();
 
@@ -1841,6 +1849,7 @@ void fetchTasksFromBackend() {
   }
 
   http.end();
+  vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 // =====================================================
@@ -1853,7 +1862,7 @@ void fetchStatsFromBackend() {
 
   HTTPClient http;
   http.begin(statsServerURL);
-  http.setTimeout(4000);
+  http.setTimeout(2000);
 
   int httpCode = http.GET();
 
@@ -1910,6 +1919,7 @@ void fetchStatsFromBackend() {
   }
 
   http.end();
+  vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 // =====================================================
@@ -2261,16 +2271,11 @@ void handleTouch() {
   if (soundAlarmActive) {
     if (tY >= 130 && tY <= 220 && tX >= 20 && tX <= 300) {
       soundAlarmActive = false;
+      alarmScreenDrawn = false;
       soundAlarmMessage = "";
       Serial.println("[SOUND] STOP SOUND pressed by user! Alarm silenced.");
 
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin(String(sessionBaseURL) + "/stop-sound");
-        http.POST("{}");
-        http.end();
-      }
-
+      bool shouldResume = false;
       if (sessionState == SESSION_INVALID) {
         sessionState = SESSION_IDLE; // Reset invalid/died session
         Serial.println("[SESSION] Invalid session reset to IDLE.");
@@ -2278,18 +2283,31 @@ void handleTouch() {
         if (radar.valid && radar.targetState > 0) {
           sessionState = SESSION_ACTIVE;
           sessionStartMs = millis();
-          if (WiFi.status() == WL_CONNECTED) {
-            HTTPClient http;
-            http.begin(String(sessionBaseURL) + "/resume");
-            http.addHeader("Content-Type", "application/json");
-            http.POST("{}");
-            http.end();
-          }
+          shouldResume = true;
           Serial.println("[SESSION] Resumed after away alarm.");
         }
       }
 
-      drawHomePage();
+      drawHomePage(); // Immediate UI feedback!
+
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(String(sessionBaseURL) + "/stop-sound");
+        http.setTimeout(1500);
+        http.POST("{}");
+        http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
+
+        if (shouldResume) {
+          HTTPClient http2;
+          http2.begin(String(sessionBaseURL) + "/resume");
+          http2.setTimeout(1500);
+          http2.addHeader("Content-Type", "application/json");
+          http2.POST("{}");
+          http2.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
+        }
+      }
       return;
     }
     return; // Don't process other screen buttons while sound alarm is active
@@ -2312,14 +2330,16 @@ void handleTouch() {
       if (tappedStar > 0) {
         selfRating = tappedStar;
         Serial.printf("[SESSION] Star rating selected: %d\n", selfRating);
+        drawSessionCompletedScreen(); // Immediate UI update
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/rate");
+          http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           http.POST("{\"rating\":" + String(selfRating) + "}");
           http.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
         }
-        drawSessionCompletedScreen();
         return;
       }
     }
@@ -2377,14 +2397,16 @@ void handleTouch() {
         extensionPromptShowOptions = false;
         extensionPromptDismissed = false; // reset so we can prompt again at the next 15-min mark
         Serial.printf("[EXTENSION] Added +%d mins! New target: %d mins\n", chosenMins, targetDurationMinutes);
+        drawHomePage(); // Immediate UI update
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/extend");
+          http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           http.POST("{\"extensionMinutes\":" + String(chosenMins) + "}");
           http.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
         }
-        drawHomePage();
         return;
       }
     }
@@ -2401,18 +2423,21 @@ void handleTouch() {
     sessionStartMs = millis();
     sessionState = SESSION_ACTIVE;
     dyingAlarmActive = false;
+    soundAlarmActive = false;
+    alarmScreenDrawn = false;
     Serial.println("[SESSION] Saved by TOUCH! Resumed after alarm.");
+    drawHomePage(); // Immediate UI update
 
     // Tell backend
     if (WiFi.status() == WL_CONNECTED) {
       HTTPClient http;
       http.begin(String(sessionBaseURL) + "/resume");
+      http.setTimeout(1500);
       http.addHeader("Content-Type", "application/json");
       http.POST("{}");
       http.end();
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
-
-    drawHomePage();
     return;
   }
 
@@ -2695,6 +2720,7 @@ void pollVoiceAgent() {
     HTTPClient http;
     // URL matching your backend setup
     http.begin("https://backend-kwid.onrender.com/api/voice/ESP32-S3-01/next");
+    http.setTimeout(1500);
     int httpCode = http.GET();
 
     if (httpCode == 200) {
@@ -2709,6 +2735,7 @@ void pollVoiceAgent() {
       }
     }
     http.end();
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
 
@@ -2740,7 +2767,7 @@ void fetchDisplayConfig() {
   if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   http.begin(displayConfigURL);
-  http.setTimeout(4000);
+  http.setTimeout(2000);
   int code = http.GET();
   if (code == 200) {
     String payload = http.getString();
@@ -2782,13 +2809,14 @@ void fetchDisplayConfig() {
         Serial.printf("[DISPLAY CONFIG] Synced from backend. Mode: %s, Breaks: %d, Timer: %d\n",
                       breakDisplayMode.c_str(), showBreaks, showSessionTimer);
 
-        if (changed && currentPage == PAGE_HOME) {
+        if (changed && currentPage == PAGE_HOME && !soundAlarmActive) {
           drawHomePage();
         }
       }
     }
   }
   http.end();
+  vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 // =====================================================
@@ -2796,6 +2824,10 @@ void fetchDisplayConfig() {
 void setup() {
   preferences.begin("sdw", false);
   sessionTotalMs   = preferences.getUInt("sessMs", 0);
+  if (sessionTotalMs > 86400000UL) {
+    sessionTotalMs = 0; // Fix any previous corrupt underflow
+    preferences.putUInt("sessMs", 0);
+  }
   dailyBreakMs     = preferences.getUInt("brkMs", 0);
   dailyBreakCount  = preferences.getInt("brkCnt", 0);
   breakDisplayMode = preferences.getString("brkMode", "SESSION");
@@ -2812,7 +2844,32 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(15); // 0-21
 
-  delay(500);
+  // ===================================================
+  // TFT SPI & TOUCH — INITIALIZE IMMEDIATELY
+  // Prevents any uninitialized white screen flash on boot
+  // ===================================================
+  SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
+  tft.begin(40000000);
+  tft.setRotation(1);
+  tft.fillScreen(COLOR_BG);
+
+  tft.setTextColor(COLOR_ACCENT);
+  tft.setTextSize(2);
+  tft.setCursor(35, 80);
+  tft.print("SMART DESK S3");
+  tft.setTextColor(COLOR_MUTED);
+  tft.setTextSize(1);
+  tft.setCursor(35, 115);
+  tft.print("Starting up & connecting to WiFi...");
+
+  if (touch.begin()) {
+    Serial.println("Touch initialized!");
+  } else {
+    Serial.println("Touch initialization failed!");
+  }
+  touch.setRotation(1);
+
+  delay(200);
 
   Serial.println();
 
@@ -2911,36 +2968,6 @@ void setup() {
     }
     Serial.println("[WIFI] Continuing boot in offline mode...");
   }
-
-  // ===================================================
-  // TFT SPI
-  // ===================================================
-
-  SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
-
-  // ===================================================
-  // TFT
-  // ===================================================
-
-  tft.begin(40000000);
-
-  // Landscape
-
-  tft.setRotation(1);
-
-  tft.fillScreen(COLOR_BG);
-
-  // ===================================================
-  // TOUCH
-  // ===================================================
-
-  if (touch.begin()) {
-    Serial.println("Touch initialized!");
-  } else {
-    Serial.println("Touch initialization failed!");
-  }
-
-  touch.setRotation(1);
 
   // ===================================================
   // JPEG DECODER
@@ -3157,7 +3184,7 @@ void loop() {
     // If a new task just triggered an alert, refresh the UI instantly to show
     // the red dot!
     if (hasUnreadAlerts && !hadUnread) {
-      if (currentPage == PAGE_HOME)
+      if (currentPage == PAGE_HOME && !soundAlarmActive)
         drawHomePage();
       else if (currentPage == PAGE_TASKS)
         drawTasksPage();
@@ -3184,7 +3211,7 @@ void loop() {
     fetchStatsFromBackend();
 
     // Redraw home page to show updated stats if active
-    if (currentPage == PAGE_HOME) {
+    if (currentPage == PAGE_HOME && !soundAlarmActive) {
       drawHomePage();
     }
   }
@@ -3236,25 +3263,32 @@ void loop() {
       extensionPromptDismissed = false;
       sessionCompletedShown = false;
       soundAlarmActive = false;
+      alarmScreenDrawn = false;
       isInvalidSession = false;
+
+      Serial.println("[SESSION] Started 2-hour reverse countdown session");
+      drawHomePage(); // Immediate UI update!
 
       // Tell backend
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/start");
+        http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.POST("{}");
         http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
-      Serial.println("[SESSION] Started 2-hour reverse countdown session");
-      drawHomePage();
     }
     break;
 
   case SESSION_ACTIVE:
     if (personAbsent) {
       // Person has been absent for 30 seconds
-      sessionTotalMs += (absenceStartMs - sessionStartMs); // accumulate focus time up to departure
+      if (absenceStartMs >= sessionStartMs) {
+        sessionTotalMs += (absenceStartMs - sessionStartMs); // accumulate focus time up to departure
+      }
+      if (sessionTotalMs > 86400000UL) sessionTotalMs = 0; // Sanity cap at 24h
       preferences.putUInt("sessMs", sessionTotalMs);
       breakStartMs = millis();
       sessionBreakCount++;
@@ -3267,49 +3301,51 @@ void loop() {
       if (sessionBreakCount > 3) {
         sessionState = SESSION_INVALID;
         soundAlarmActive = true;
+        alarmTriggeredAtMs = millis();
         soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
         isInvalidSession = true;
         moderatorAlarms++;
-        Serial.println("\a\a\a [ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit!");
+        Serial.println("[ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit!");
+
+        drawAlarmScreen(); // Render screen IMMEDIATELY so display is responsive with zero lag!
 
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/alarm-trigger");
+          http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           http.POST("{\"message\":\"SESSION INVALID: Exceeded 3 breaks limit\",\"isInvalid\":true}");
           http.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
         }
-        drawAlarmScreen();
       } else {
         // Valid break #1, #2, or #3 (with 30s away alert & sound)
         sessionState = SESSION_BREAK;
         soundAlarmActive = true;
+        alarmTriggeredAtMs = millis();
         soundAlarmMessage = "AWAY ALERT: RETURN TO DESK!";
         isInvalidSession = false;
         moderatorAlarms++;
-        Serial.printf("\a\a\a [AWAY BEEP] Break #%d started. 30s Away alert triggered!\n", sessionBreakCount);
+        Serial.printf("[AWAY BEEP] Break #%d started. 30s Away alert triggered!\n", sessionBreakCount);
 
         // Spike: 45+ min active with first break
         if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
           productivitySpike = true;
         }
 
+        drawAlarmScreen(); // Render screen IMMEDIATELY so display is responsive with zero lag!
+
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/break");
+          http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           unsigned long activeMins = sessionTotalMs / 60000;
           String body = "{\"activeMinutes\":" + String(activeMins) + "}";
           http.POST(body);
           http.end();
-
-          HTTPClient http2;
-          http2.begin(String(sessionBaseURL) + "/alarm-trigger");
-          http2.addHeader("Content-Type", "application/json");
-          http2.POST("{\"message\":\"Away Alert: You are away from your desk!\"}");
-          http2.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
         }
-        drawAlarmScreen();
       }
     }
     break;
@@ -3327,16 +3363,20 @@ void loop() {
       sessionState = SESSION_ACTIVE;
       absenceStartMs = 0;
       presenceStartMs = 0;
+      alarmScreenDrawn = false;
+
+      Serial.println("[SESSION] Resumed after break");
+      drawHomePage(); // Immediate UI update!
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/resume");
+        http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.POST("{}");
         http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
-      Serial.println("[SESSION] Resumed after break");
-      drawHomePage();
 
     } else if (breakDuration >= BREAK_DYING_THRESHOLD_MS) {
       // Break exceeded 10 minutes — trigger 10-min break alarm
@@ -3344,6 +3384,7 @@ void loop() {
       dyingAlarmMs = millis();
       dyingAlarmActive = true;
       soundAlarmActive = true;
+      alarmTriggeredAtMs = millis();
       soundAlarmMessage = "10 MIN BREAK EXCEEDED!";
       isInvalidSession = false;
       Serial.println("[SESSION] DYING! 10-Min break exceeded.");
@@ -3361,33 +3402,43 @@ void loop() {
       sessionState = SESSION_ACTIVE;
       dyingAlarmActive = false;
       soundAlarmActive = false;
+      alarmScreenDrawn = false;
+
+      Serial.println("[SESSION] Saved! Resumed after dying.");
+      drawHomePage(); // Immediate UI update!
 
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/resume");
+        http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.POST("{}");
         http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
-
-      Serial.println("[SESSION] Saved! Resumed after dying.");
-      drawHomePage();
     } else if (millis() - dyingAlarmMs >= DYING_GRACE_MS) {
       // Grace period expired — end session, reset
       unsigned long activeMins = sessionTotalMs / 60000;
+      sessionState = SESSION_IDLE;
+      soundAlarmActive = false;
+      alarmScreenDrawn = false;
+      dyingAlarmActive = false;
+      drawHomePage(); // Immediate UI update!
+
       if (WiFi.status() == WL_CONNECTED && activeMins > 0) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/end");
+        http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         String body = "{\"activeMinutes\":" + String(activeMins) +
                       ",\"selfRating\":" + String(selfRating) + "}";
         http.POST(body);
         http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
       Serial.printf("[SESSION] Ended after dying. Active: %lum\n", activeMins);
 
       // Reset everything
-      sessionState = SESSION_IDLE;
       preferences.putUInt("sessMs", sessionTotalMs);
       preferences.putUInt("brkMs", dailyBreakMs);
       sessionTotalMs = 0;
@@ -3395,9 +3446,6 @@ void loop() {
       totalBreakMs = 0;
       sessionStartMs = 0;
       breakStartMs = 0;
-      dyingAlarmActive = false;
-      soundAlarmActive = false;
-      drawHomePage();
     }
     break;
   }
@@ -3418,7 +3466,7 @@ void loop() {
   static uint32_t lastSoundBeepMs = 0;
   if (soundAlarmActive && millis() - lastSoundBeepMs >= 1000) {
     lastSoundBeepMs = millis();
-    Serial.println("\a\a [SOUND BEEPING] >> ALERT: " + soundAlarmMessage + " -- Tap [STOP SOUND] on device or web to silence! <<");
+    Serial.println("[SOUND BEEPING] >> ALERT: " + soundAlarmMessage + " -- Tap [STOP SOUND] on device or web to silence! <<");
   }
 
   // ===================================================
@@ -3440,7 +3488,7 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED && currentPage != PAGE_CAMERA) {
       HTTPClient http;
       http.begin(String(sessionBaseURL) + "/current");
-      http.setTimeout(3000);
+      http.setTimeout(2000);
       int code = http.GET();
       if (code == 200) {
         String payload = http.getString();
@@ -3453,15 +3501,18 @@ void loop() {
           }
 
           bool beAlarm = doc["data"]["alarmActive"] | false;
-          if (!beAlarm && soundAlarmActive) {
+          // Only dismiss if alarm was NOT triggered in the last 8 seconds to prevent race condition
+          if (!beAlarm && soundAlarmActive && (millis() - alarmTriggeredAtMs > 8000)) {
             // STOP SOUND was tapped on the Web!
             soundAlarmActive = false;
+            alarmScreenDrawn = false;
             soundAlarmMessage = "";
             Serial.println("[SYNC] Sound alarm stopped remotely via Web!");
             drawHomePage();
           } else if (beAlarm && !soundAlarmActive) {
             // Alarm was triggered from Web!
             soundAlarmActive = true;
+            alarmTriggeredAtMs = millis();
             soundAlarmMessage = doc["data"]["alarmMessage"].as<String>();
             drawAlarmScreen();
           }
@@ -3476,12 +3527,14 @@ void loop() {
             sessionState = SESSION_INVALID;
             isInvalidSession = true;
             soundAlarmActive = true;
+            alarmTriggeredAtMs = millis();
             soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
             drawAlarmScreen();
           }
         }
       }
       http.end();
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
 
@@ -3512,7 +3565,7 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED) {
       HTTPClient http;
       http.begin(sdwPointsURL);
-      http.setTimeout(4000);
+      http.setTimeout(2000);
       int code = http.GET();
       if (code == 200) {
         String payload = http.getString();
@@ -3524,6 +3577,7 @@ void loop() {
         }
       }
       http.end();
+      vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
 

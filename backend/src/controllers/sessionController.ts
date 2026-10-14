@@ -171,6 +171,8 @@ export const startBreak = async (req: Request, res: Response) => {
     }
 
     session.status = 'BREAK';
+    session.alarmActive = true;
+    session.alarmMessage = 'Away Alert: You are away from your desk!';
     session.breaks.push({ startTime: new Date() });
     session.breakCount = session.breaks.length;
 
@@ -180,7 +182,7 @@ export const startBreak = async (req: Request, res: Response) => {
     }
 
     await session.save();
-    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK' } });
+    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
   } catch (err) {
     console.error('[SESSION] break error:', err);
     res.status(500).json({ success: false, error: 'Failed to log break' });

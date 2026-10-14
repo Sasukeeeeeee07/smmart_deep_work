@@ -157,6 +157,8 @@ const startBreak = async (req, res) => {
             });
         }
         session.status = 'BREAK';
+        session.alarmActive = true;
+        session.alarmMessage = 'Away Alert: You are away from your desk!';
         session.breaks.push({ startTime: new Date() });
         session.breakCount = session.breaks.length;
         // Productivity spike check: 45+ active minutes with 0 previous breaks
@@ -164,7 +166,7 @@ const startBreak = async (req, res) => {
             session.productivitySpike = true;
         }
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK' } });
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
     }
     catch (err) {
         console.error('[SESSION] break error:', err);
