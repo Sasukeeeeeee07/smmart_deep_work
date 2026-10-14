@@ -261,7 +261,8 @@ enum Page {
   PAGE_STATS,
   PAGE_CAMERA,
   PAGE_ALERTS,
-  PAGE_SETTINGS
+  PAGE_SETTINGS,
+  PAGE_LOCKOUT
 };
 
 volatile Page currentPage = PAGE_HOME;
@@ -1077,6 +1078,10 @@ void drawTopBar(const char *title) {
 // =====================================================
 
 void drawNavigation() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT || currentPage == PAGE_LOCKOUT) {
+    return;
+  }
+
   const int navY = 195;
   const int navH = 45;
   const int itemW = 53;
@@ -1132,6 +1137,10 @@ void drawNavigation() {
 // =====================================================
 
 void drawSettingsPage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
   tft.fillScreen(COLOR_BG);
   drawTopBar("SETTINGS & SDW POINTS");
 
@@ -1302,6 +1311,7 @@ void drawAlarmScreen() {
 // 48-HOUR HARD LOCKOUT SCREEN (Exceeded 10 invalid sessions)
 // =====================================================
 void drawLockoutScreen() {
+  currentPage = PAGE_LOCKOUT;
   tft.fillScreen(COLOR_BG);
 
   // Red Lockout Header Banner
@@ -1360,7 +1370,7 @@ void drawLockoutScreen() {
 }
 
 void updateLockoutCountdown() {
-  if (!lockoutScreenDrawn) {
+  if (!lockoutScreenDrawn || currentPage != PAGE_LOCKOUT) {
     drawLockoutScreen();
     return;
   }
@@ -1566,6 +1576,11 @@ void triggerSessionCompleted() {
 // =====================================================
 
 void drawHomePage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
+
   if (soundAlarmActive) {
     if (!alarmScreenDrawn) {
       drawAlarmScreen();
@@ -1652,7 +1667,7 @@ void drawHomePage() {
 }
 
 void updateHomePageLiveValues() {
-  if (currentPage != PAGE_HOME)
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT || currentPage != PAGE_HOME)
     return;
   if (soundAlarmActive || sessionState == SESSION_DYING || extensionPromptActive || sessionCompletedShown)
     return; // Don't draw over alerts / prompts
@@ -1850,6 +1865,7 @@ void updateHomePageLiveValues() {
 // FETCH TASKS FROM BACKEND
 // =====================================================
 void fetchTasksFromBackend() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) return;
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[TASKS] WiFi not connected.");
     return;
@@ -1956,6 +1972,7 @@ void fetchTasksFromBackend() {
 // FETCH STATS FROM BACKEND
 // =====================================================
 void fetchStatsFromBackend() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) return;
   if (WiFi.status() != WL_CONNECTED) {
     return;
   }
@@ -2026,6 +2043,10 @@ void fetchStatsFromBackend() {
 // TASK PAGE (LIVE FROM BACKEND)
 // =====================================================
 void drawTasksPage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
   tft.fillScreen(COLOR_BG);
   drawTopBar("TASKS");
 
@@ -2097,6 +2118,10 @@ void drawTasksPage() {
 // =====================================================
 
 void drawStatsPage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
   tft.fillScreen(COLOR_BG);
 
   drawTopBar("PRODUCTIVITY");
@@ -2188,6 +2213,10 @@ void drawStatsPage() {
 // =====================================================
 
 void drawAlertsPage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
   tft.fillScreen(COLOR_BG);
   drawTopBar("ALERTS");
 
@@ -2283,6 +2312,10 @@ void drawAlertsPage() {
 // =====================================================
 
 void drawCameraPage() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+    return;
+  }
   tft.fillScreen(ILI9341_BLACK);
 
   // ===================================================
@@ -2838,6 +2871,7 @@ void sendRadarDataToBackend() {
 // VOICE AGENT POLLING
 // =====================================================
 void pollVoiceAgent() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) return;
   if (WiFi.status() == WL_CONNECTED &&
       (millis() - lastVoicePollMs >= VOICE_POLL_INTERVAL)) {
     lastVoicePollMs = millis();
@@ -2888,6 +2922,7 @@ void checkDailyReset() {
 // FETCH DISPLAY CONFIGURATION FROM BACKEND
 // =====================================================
 void fetchDisplayConfig() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) return;
   if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   http.begin(displayConfigURL);
@@ -3419,6 +3454,7 @@ void loop() {
           if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
             isDeviceLockedOut = true;
             sessionState = SESSION_LOCKED_OUT;
+            currentPage = PAGE_LOCKOUT;
             lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
             preferences.putUInt("lockSec", lockoutRemainingSec);
             soundAlarmActive = false;
@@ -3713,30 +3749,34 @@ void loop() {
           // Synchronize Hard Lockout from server
           if (!doc["lockout"].isNull()) {
             bool beLocked = doc["lockout"]["lockedOut"] | false;
+            bool beAdminUnlocked = doc["lockout"]["adminUnlocked"] | false;
             uint32_t beSec = doc["lockout"]["remainingSeconds"] | 0;
 
-            if (beLocked && !isDeviceLockedOut) {
-              isDeviceLockedOut = true;
-              sessionState = SESSION_LOCKED_OUT;
-              lockoutRemainingSec = beSec > 0 ? beSec : 172800UL;
-              preferences.putUInt("lockSec", lockoutRemainingSec);
-              soundAlarmActive = false;
-              Serial.printf("[LOCKOUT] Server activated 48h Lockout! Remaining: %u sec\n", lockoutRemainingSec);
-              drawLockoutScreen();
-            } else if (beLocked && isDeviceLockedOut && beSec > 0) {
-              if (abs((long)lockoutRemainingSec - (long)beSec) > 5) {
-                lockoutRemainingSec = beSec;
-                preferences.putUInt("lockSec", lockoutRemainingSec);
-                updateLockoutCountdown();
-              }
-            } else if (!beLocked && isDeviceLockedOut) {
+            if (beAdminUnlocked && isDeviceLockedOut) {
+              // Admin explicitly clicked Unlock on Web!
               isDeviceLockedOut = false;
               sessionState = SESSION_IDLE;
               lockoutRemainingSec = 0;
               preferences.putUInt("lockSec", 0);
               lockoutScreenDrawn = false;
-              Serial.println("[LOCKOUT] Admin unlocked device via Web!");
+              currentPage = PAGE_HOME;
+              Serial.println("[LOCKOUT] Admin explicitly unlocked device via Web!");
               drawHomePage();
+            } else if (beLocked) {
+              if (!isDeviceLockedOut) {
+                isDeviceLockedOut = true;
+                sessionState = SESSION_LOCKED_OUT;
+                currentPage = PAGE_LOCKOUT;
+                lockoutRemainingSec = beSec > 0 ? beSec : 172800UL;
+                preferences.putUInt("lockSec", lockoutRemainingSec);
+                soundAlarmActive = false;
+                Serial.printf("[LOCKOUT] Server activated Lockout! Remaining: %u sec\n", lockoutRemainingSec);
+                drawLockoutScreen();
+              } else if (beSec > 0 && abs((long)lockoutRemainingSec - (long)beSec) > 5) {
+                lockoutRemainingSec = beSec;
+                preferences.putUInt("lockSec", lockoutRemainingSec);
+                updateLockoutCountdown();
+              }
             }
           }
 
@@ -3786,8 +3826,10 @@ void loop() {
         if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
           isDeviceLockedOut = true;
           sessionState = SESSION_LOCKED_OUT;
+          currentPage = PAGE_LOCKOUT;
           lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
           preferences.putUInt("lockSec", lockoutRemainingSec);
+          soundAlarmActive = false;
           drawLockoutScreen();
         }
       }

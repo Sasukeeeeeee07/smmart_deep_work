@@ -55,6 +55,16 @@ exports.getDevice = getDevice;
 const getAllDevices = async (req, res) => {
     try {
         const devices = await Device_1.Device.find().populate('assignedTo', 'firstName lastName email');
+        const now = new Date();
+        for (const d of devices) {
+            if (d.isLockedOut && d.lockoutUntil && new Date(d.lockoutUntil) <= now) {
+                d.isLockedOut = false;
+                d.lockoutUntil = null;
+                d.invalidSessionCount = 0;
+                d.adminUnlocked = true;
+                await d.save();
+            }
+        }
         res.json({ success: true, data: devices });
     }
     catch (error) {

@@ -56,6 +56,16 @@ export const getDevice = async (req: Request, res: Response) => {
 export const getAllDevices = async (req: Request, res: Response) => {
   try {
     const devices = await Device.find().populate('assignedTo', 'firstName lastName email');
+    const now = new Date();
+    for (const d of devices) {
+      if (d.isLockedOut && d.lockoutUntil && new Date(d.lockoutUntil) <= now) {
+        d.isLockedOut = false;
+        d.lockoutUntil = null;
+        d.invalidSessionCount = 0;
+        d.adminUnlocked = true;
+        await d.save();
+      }
+    }
     res.json({ success: true, data: devices });
   } catch (error) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch devices' } });

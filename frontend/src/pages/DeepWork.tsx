@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { deviceService, sessionService } from '../services/api';
 import api from '../services/api';
 import ModerationHistory from './ModerationHistory';
+import { LockoutScreen } from '../components/LockoutScreen';
 import {
   Timer, Coffee, Star, Zap, Shield, AlertTriangle,
   ChevronDown, RefreshCw, Award, History, Clock
@@ -643,6 +644,28 @@ const DeepWorkPage = () => {
     const iv = setInterval(fetchSessions, 20000);
     return () => clearInterval(iv);
   }, [filterDevice]);
+
+  // If system or device is locked out, show LOCK SCREEN ONLY (No dashboard)
+  const lockedDevice = devices.find(
+    (d: any) => d.isLockedOut && d.lockoutUntil && new Date(d.lockoutUntil) > new Date()
+  );
+
+  if (lockedDevice) {
+    return (
+      <LockoutScreen
+        deviceUid={lockedDevice.uid}
+        deviceName={lockedDevice.name}
+        lockoutUntil={lockedDevice.lockoutUntil}
+        reason={lockedDevice.lockoutReason}
+        invalidCount={lockedDevice.invalidSessionCount}
+        onUnlocked={async () => {
+          const updated = await deviceService.getAllDevices();
+          setDevices(updated);
+          fetchSessions();
+        }}
+      />
+    );
+  }
 
   // If viewing history, render that sub-page instead
   if (historyDevice) {

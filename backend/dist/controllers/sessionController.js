@@ -23,6 +23,7 @@ async function handleSessionInvalidation(deviceUid) {
                 device.isLockedOut = true;
                 device.lockoutUntil = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
                 device.lockoutReason = `Exceeded 10 invalid sessions (${device.invalidSessionCount}). 48-hour penalty lockout.`;
+                device.adminUnlocked = false;
                 console.log(`[LOCKOUT] Device ${device.uid} locked out for 48h! Total invalid sessions: ${device.invalidSessionCount}`);
             }
             await device.save();
@@ -460,7 +461,8 @@ const getCurrentSession = async (req, res) => {
             remainingSeconds: 0,
             lockoutUntil: null,
             invalidSessionCount: device?.invalidSessionCount || 0,
-            reason: ''
+            reason: '',
+            adminUnlocked: device?.adminUnlocked || false,
         };
         if (device) {
             if (device.lockoutUntil && new Date(device.lockoutUntil) > new Date()) {
@@ -468,11 +470,14 @@ const getCurrentSession = async (req, res) => {
                 lockoutData.remainingSeconds = Math.max(0, Math.round((new Date(device.lockoutUntil).getTime() - Date.now()) / 1000));
                 lockoutData.lockoutUntil = device.lockoutUntil;
                 lockoutData.reason = device.lockoutReason || 'Exceeded 10 invalid sessions';
+                lockoutData.adminUnlocked = false;
             }
             else if (device.isLockedOut) {
                 device.isLockedOut = false;
                 device.lockoutUntil = null;
                 device.invalidSessionCount = 0;
+                device.adminUnlocked = true;
+                lockoutData.adminUnlocked = true;
                 await device.save();
             }
         }
@@ -693,6 +698,7 @@ const getLockoutStatus = async (req, res) => {
             device.isLockedOut = false;
             device.lockoutUntil = null;
             device.invalidSessionCount = 0;
+            device.adminUnlocked = true;
             await device.save();
         }
         res.json({
@@ -728,6 +734,7 @@ const testLockout = async (req, res) => {
         device.lockoutUntil = new Date(Date.now() + durationSec * 1000);
         device.invalidSessionCount = invalidCount || 10;
         device.lockoutReason = reason || `TEST LOCKOUT: ${durationSec}s penalty lock`;
+        device.adminUnlocked = false;
         await device.save();
         console.log(`[TEST LOCKOUT] Device ${device.uid} locked for ${durationSec}s for testing.`);
         res.json({
@@ -761,6 +768,7 @@ const unlockDevice = async (req, res) => {
         device.lockoutUntil = null;
         device.invalidSessionCount = 0;
         device.lockoutReason = '';
+        device.adminUnlocked = true;
         await device.save();
         // Silence any active alarm
         const session = await DeepWorkSession_1.DeepWorkSession.findOne({

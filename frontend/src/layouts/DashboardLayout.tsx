@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Navigate, Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Monitor, LogOut, ClipboardList, Bell, Activity, Timer, Sun, Moon } from 'lucide-react';
-import { notificationService } from '../services/api';
+import { notificationService, deviceService } from '../services/api';
+import { LockoutScreen } from '../components/LockoutScreen';
 
 const DashboardLayout = () => {
   const token = localStorage.getItem('token');
@@ -9,6 +10,26 @@ const DashboardLayout = () => {
   const user = userStr ? JSON.parse(userStr) : null;
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lockedDevice, setLockedDevice] = useState<any>(null);
+
+  const checkLockout = async () => {
+    try {
+      const devices = await deviceService.getAllDevices();
+      const locked = devices.find(
+        (d: any) => d.isLockedOut && d.lockoutUntil && new Date(d.lockoutUntil) > new Date()
+      );
+      setLockedDevice(locked || null);
+    } catch {
+      // non-fatal
+    }
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    checkLockout();
+    const interval = setInterval(checkLockout, 4000);
+    return () => clearInterval(interval);
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -48,6 +69,23 @@ const DashboardLayout = () => {
     localStorage.removeItem('user');
     window.location.href = '/login';
   };
+
+  // If system or device is locked out, show LOCK SCREEN ONLY (No dashboard)
+  if (lockedDevice) {
+    return (
+      <LockoutScreen
+        deviceUid={lockedDevice.uid}
+        deviceName={lockedDevice.name}
+        lockoutUntil={lockedDevice.lockoutUntil}
+        reason={lockedDevice.lockoutReason}
+        invalidCount={lockedDevice.invalidSessionCount}
+        onUnlocked={() => {
+          setLockedDevice(null);
+          checkLockout();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-screen bg-background flex flex-col md:flex-row overflow-hidden transition-colors duration-300">
