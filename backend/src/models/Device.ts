@@ -17,6 +17,10 @@ export interface IDevice extends Document {
   lastHeartbeat: Date;
   assignedTo?: mongoose.Types.ObjectId;
   displayConfig: IDisplayConfig;
+  invalidSessionCount: number;
+  isLockedOut: boolean;
+  lockoutUntil?: Date | null;
+  lockoutReason?: string;
 }
 
 const DeviceSchema: Schema = new Schema(
@@ -26,6 +30,10 @@ const DeviceSchema: Schema = new Schema(
     status: { type: String, enum: ['ONLINE', 'OFFLINE'], default: 'OFFLINE' },
     lastHeartbeat: { type: Date, default: Date.now },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee' },
+    invalidSessionCount: { type: Number, default: 0 },
+    isLockedOut: { type: Boolean, default: false },
+    lockoutUntil: { type: Date, default: null },
+    lockoutReason: { type: String, default: '' },
     displayConfig: {
       breakDisplayMode: { type: String, enum: ['SESSION', 'DAILY'], default: 'SESSION' },
       showSessionTimer: { type: Boolean, default: true },

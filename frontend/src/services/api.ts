@@ -160,6 +160,18 @@ export const sessionService = {
     const response = await api.post(`/sessions/${uid}/rate`, { rating });
     return response.data.data;
   },
+  getLockoutStatus: async (uid: string) => {
+    const response = await api.get(`/sessions/${uid}/lockout-status`);
+    return response.data.data;
+  },
+  testLockout: async (uid: string, seconds: number = 120) => {
+    const response = await api.post(`/sessions/${uid}/test-lockout`, { seconds });
+    return response.data.data;
+  },
+  unlockDevice: async (uid: string) => {
+    const response = await api.post(`/sessions/${uid}/unlock`);
+    return response.data.data;
+  },
 };
 
 // User Services

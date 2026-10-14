@@ -41,6 +41,10 @@ const DeviceSchema = new mongoose_1.Schema({
     status: { type: String, enum: ['ONLINE', 'OFFLINE'], default: 'OFFLINE' },
     lastHeartbeat: { type: Date, default: Date.now },
     assignedTo: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee' },
+    invalidSessionCount: { type: Number, default: 0 },
+    isLockedOut: { type: Boolean, default: false },
+    lockoutUntil: { type: Date, default: null },
+    lockoutReason: { type: String, default: '' },
     displayConfig: {
         breakDisplayMode: { type: String, enum: ['SESSION', 'DAILY'], default: 'SESSION' },
         showSessionTimer: { type: Boolean, default: true },

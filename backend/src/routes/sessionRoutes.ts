@@ -15,6 +15,9 @@ import {
   extendSession,
   stopSound,
   triggerAlarm,
+  getLockoutStatus,
+  testLockout,
+  unlockDevice,
 } from '../controllers/sessionController';
 import { protect, authorize } from '../middleware/auth';
 
@@ -24,10 +27,15 @@ const router = express.Router();
 router.get('/all', protect, authorize('ADMIN', 'MANAGER'), getAllSessions);
 
 // ESP32 and Web synchronized routes
-router.get( '/:uid/current',       getCurrentSession);
-router.post('/:uid/extend',        extendSession);
-router.post('/:uid/stop-sound',    stopSound);
-router.post('/:uid/alarm-trigger', triggerAlarm);
+router.get( '/:uid/current',        getCurrentSession);
+router.post('/:uid/extend',         extendSession);
+router.post('/:uid/stop-sound',     stopSound);
+router.post('/:uid/alarm-trigger',  triggerAlarm);
+
+// 48-Hour Hard Lockout & Test Controls
+router.get( '/:uid/lockout-status', getLockoutStatus);
+router.post('/:uid/test-lockout',   testLockout);
+router.post('/:uid/unlock',         unlockDevice);
 
 // Core session lifecycle
 router.post('/:uid/start',         startSession);

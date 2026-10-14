@@ -14,6 +14,10 @@ router.get('/:uid/current', sessionController_1.getCurrentSession);
 router.post('/:uid/extend', sessionController_1.extendSession);
 router.post('/:uid/stop-sound', sessionController_1.stopSound);
 router.post('/:uid/alarm-trigger', sessionController_1.triggerAlarm);
+// 48-Hour Hard Lockout & Test Controls
+router.get('/:uid/lockout-status', sessionController_1.getLockoutStatus);
+router.post('/:uid/test-lockout', sessionController_1.testLockout);
+router.post('/:uid/unlock', sessionController_1.unlockDevice);
 // Core session lifecycle
 router.post('/:uid/start', sessionController_1.startSession);
 router.post('/:uid/break', sessionController_1.startBreak);

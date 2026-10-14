@@ -14,6 +14,31 @@ function getWeekNumber(d: Date): number {
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+// Helper: handles invalid session count and triggers 48-hour lockout if >= 10 invalid sessions
+async function handleSessionInvalidation(deviceUid: string) {
+  try {
+    const device = await Device.findOne({ uid: deviceUid });
+    if (device) {
+      device.invalidSessionCount = (device.invalidSessionCount || 0) + 1;
+      if (device.invalidSessionCount >= 10) {
+        device.isLockedOut = true;
+        device.lockoutUntil = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+        device.lockoutReason = `Exceeded 10 invalid sessions (${device.invalidSessionCount}). 48-hour penalty lockout.`;
+        console.log(`[LOCKOUT] Device ${device.uid} locked out for 48h! Total invalid sessions: ${device.invalidSessionCount}`);
+      }
+      await device.save();
+      return {
+        isLockedOut: device.isLockedOut,
+        lockoutUntil: device.lockoutUntil,
+        invalidSessionCount: device.invalidSessionCount,
+      };
+    }
+  } catch (err) {
+    console.error('[LOCKOUT] handleSessionInvalidation error:', err);
+  }
+  return null;
+}
+
 // =====================================================
 // GET /api/sessions/all (Admin view of all sessions)
 // =====================================================
@@ -73,6 +98,29 @@ export const startSession = async (req: Request, res: Response) => {
     const device = await Device.findOne({ uid: req.params.uid });
     if (!device || !device.assignedTo) {
       return res.status(404).json({ success: false, error: 'Device or employee not found' });
+    }
+
+    // HARD LOCKOUT ENFORCEMENT: If device is locked out, refuse to start session!
+    if (device.lockoutUntil && new Date(device.lockoutUntil) > new Date()) {
+      const remainingSeconds = Math.max(0, Math.round((new Date(device.lockoutUntil).getTime() - Date.now()) / 1000));
+      return res.status(403).json({
+        success: false,
+        error: 'DEVICE_LOCKED_OUT',
+        message: 'System locked out for 48 hours due to exceeding 10 invalid sessions.',
+        data: {
+          lockedOut: true,
+          remainingSeconds,
+          lockoutUntil: device.lockoutUntil,
+          invalidSessionCount: device.invalidSessionCount || 10,
+          reason: device.lockoutReason || 'Exceeded 10 invalid sessions'
+        }
+      });
+    } else if (device.isLockedOut) {
+      // Penalty lockout expired! Automatically restore device
+      device.isLockedOut = false;
+      device.lockoutUntil = null;
+      device.invalidSessionCount = 0;
+      await device.save();
     }
 
     // Close any stale ACTIVE/BREAK session for this device
@@ -187,14 +235,19 @@ export const countBreak = async (req: Request, res: Response) => {
       });
       await session.save();
 
-      console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit (5m+ each).`);
+      const lockRes = await handleSessionInvalidation(session.deviceUid);
+
+      console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit (5m+ each). Lockout status: ${lockRes?.isLockedOut}`);
       return res.json({
         success: true,
         data: {
           invalid: true,
           status: 'INVALID',
           breakCount: session.breakCount,
-          message: 'SESSION INVALID: EXCEEDED 3 BREAKS'
+          message: 'SESSION INVALID: EXCEEDED 3 BREAKS',
+          lockedOut: lockRes?.isLockedOut || false,
+          remainingSeconds: lockRes?.isLockedOut ? 48 * 3600 : 0,
+          invalidSessionCount: lockRes?.invalidSessionCount || 0
         }
       });
     }
@@ -420,6 +473,10 @@ export const triggerAlarm = async (req: Request, res: Response) => {
         timestamp: new Date(),
       });
       await session.save();
+
+      if (isInvalid) {
+        await handleSessionInvalidation(req.params.uid as string);
+      }
     }
 
     res.json({ success: true });
@@ -435,13 +492,37 @@ export const triggerAlarm = async (req: Request, res: Response) => {
 // =====================================================
 export const getCurrentSession = async (req: Request, res: Response) => {
   try {
+    // Check device lockout state
+    const device = await Device.findOne({ uid: req.params.uid });
+    let lockoutData = {
+      lockedOut: false,
+      remainingSeconds: 0,
+      lockoutUntil: null as Date | null,
+      invalidSessionCount: device?.invalidSessionCount || 0,
+      reason: ''
+    };
+
+    if (device) {
+      if (device.lockoutUntil && new Date(device.lockoutUntil) > new Date()) {
+        lockoutData.lockedOut = true;
+        lockoutData.remainingSeconds = Math.max(0, Math.round((new Date(device.lockoutUntil).getTime() - Date.now()) / 1000));
+        lockoutData.lockoutUntil = device.lockoutUntil;
+        lockoutData.reason = device.lockoutReason || 'Exceeded 10 invalid sessions';
+      } else if (device.isLockedOut) {
+        device.isLockedOut = false;
+        device.lockoutUntil = null;
+        device.invalidSessionCount = 0;
+        await device.save();
+      }
+    }
+
     const session = await DeepWorkSession.findOne({
       deviceUid: req.params.uid,
       status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'] }
     }).sort({ startTime: -1 });
 
     if (!session) {
-      return res.json({ success: true, data: null });
+      return res.json({ success: true, data: null, lockout: lockoutData });
     }
 
     const now = Date.now();
@@ -475,7 +556,8 @@ export const getCurrentSession = async (req: Request, res: Response) => {
         totalBreakMinutes: liveTotalBreakMinutes,
         targetDurationMinutes: targetMin,
         remainingSeconds,
-      }
+      },
+      lockout: lockoutData
     });
   } catch (err) {
     console.error('[SESSION] current error:', err);
@@ -648,5 +730,126 @@ export const getModerationHistory = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[MOD] history error:', err);
     res.status(500).json({ success: false, error: 'Failed to fetch moderation history' });
+  }
+};
+
+// =====================================================
+// GET /api/sessions/:uid/lockout-status
+// Returns current 48-hour lockout state
+// =====================================================
+export const getLockoutStatus = async (req: Request, res: Response) => {
+  try {
+    const device = await Device.findOne({ uid: req.params.uid });
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found' });
+    }
+
+    let isLocked = false;
+    let remainingSeconds = 0;
+    if (device.lockoutUntil && new Date(device.lockoutUntil) > new Date()) {
+      isLocked = true;
+      remainingSeconds = Math.max(0, Math.round((new Date(device.lockoutUntil).getTime() - Date.now()) / 1000));
+    } else if (device.isLockedOut) {
+      device.isLockedOut = false;
+      device.lockoutUntil = null;
+      device.invalidSessionCount = 0;
+      await device.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        isLockedOut: isLocked,
+        remainingSeconds,
+        lockoutUntil: device.lockoutUntil,
+        invalidSessionCount: device.invalidSessionCount || 0,
+        lockoutReason: device.lockoutReason || ''
+      }
+    });
+  } catch (err) {
+    console.error('[LOCKOUT] getLockoutStatus error:', err);
+    res.status(500).json({ success: false, error: 'Failed to get lockout status' });
+  }
+};
+
+// =====================================================
+// POST /api/sessions/:uid/test-lockout
+// For instant testing: triggers lockout without waiting for 10 sessions or 48 hours
+// =====================================================
+export const testLockout = async (req: Request, res: Response) => {
+  try {
+    const { seconds = 120, invalidCount = 10, reason } = req.body as { seconds?: number; invalidCount?: number; reason?: string };
+    const device = await Device.findOne({ uid: req.params.uid });
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found' });
+    }
+
+    const durationSec = Number(seconds) || 120;
+    device.isLockedOut = true;
+    device.lockoutUntil = new Date(Date.now() + durationSec * 1000);
+    device.invalidSessionCount = invalidCount || 10;
+    device.lockoutReason = reason || `TEST LOCKOUT: ${durationSec}s penalty lock`;
+    await device.save();
+
+    console.log(`[TEST LOCKOUT] Device ${device.uid} locked for ${durationSec}s for testing.`);
+    res.json({
+      success: true,
+      data: {
+        isLockedOut: true,
+        remainingSeconds: durationSec,
+        lockoutUntil: device.lockoutUntil,
+        invalidSessionCount: device.invalidSessionCount,
+        reason: device.lockoutReason
+      }
+    });
+  } catch (err) {
+    console.error('[LOCKOUT] testLockout error:', err);
+    res.status(500).json({ success: false, error: 'Failed to trigger test lockout' });
+  }
+};
+
+// =====================================================
+// POST /api/sessions/:uid/unlock
+// Admin unlock: immediately clears lockout and invalid session count
+// =====================================================
+export const unlockDevice = async (req: Request, res: Response) => {
+  try {
+    const device = await Device.findOne({ uid: req.params.uid });
+    if (!device) {
+      return res.status(404).json({ success: false, error: 'Device not found' });
+    }
+
+    device.isLockedOut = false;
+    device.lockoutUntil = null;
+    device.invalidSessionCount = 0;
+    device.lockoutReason = '';
+    await device.save();
+
+    // Silence any active alarm
+    const session = await DeepWorkSession.findOne({
+      deviceUid: req.params.uid,
+      status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] }
+    }).sort({ startTime: -1 });
+
+    if (session) {
+      session.alarmActive = false;
+      session.alarmMessage = '';
+      if (session.status === 'INVALID') {
+        session.status = 'COMPLETED';
+      }
+      await session.save();
+    }
+
+    console.log(`[LOCKOUT] Device ${device.uid} unlocked by Admin!`);
+    res.json({
+      success: true,
+      data: {
+        isLockedOut: false,
+        message: 'Device unlocked successfully'
+      }
+    });
+  } catch (err) {
+    console.error('[LOCKOUT] unlockDevice error:', err);
+    res.status(500).json({ success: false, error: 'Failed to unlock device' });
   }
 };

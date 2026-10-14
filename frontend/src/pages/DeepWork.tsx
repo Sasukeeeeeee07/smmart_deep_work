@@ -153,6 +153,46 @@ function ModeratorPanel({ device, onViewHistory }: { device: any; onViewHistory:
           {alarmSent ? 'Raised!' : 'Alarm'}
         </button>
       </div>
+
+      {/* 48-Hour Hard Lockout System & Instant Testing */}
+      <div className="pt-2 border-t border-surface-light flex items-center justify-between flex-wrap gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-red-400 flex items-center gap-1">
+            🔒 Hard Lockout (10 Invalids):
+          </span>
+          <span className="text-text-muted">
+            {device.isLockedOut ? (
+              <span className="text-red-400 font-semibold animate-pulse">LOCKED OUT (48h)</span>
+            ) : (
+              <span className="text-green-400">Normal (0-10 invalid: {device.invalidSessionCount || 0}/10)</span>
+            )}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              if (confirm(`Trigger 2-Minute TEST Lockout on ${device.uid}?`)) {
+                await sessionService.testLockout(device.uid, 120);
+                alert(`Test lockout activated for 2 minutes on ${device.uid}! Check the device LCD screen.`);
+                window.location.reload();
+              }
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-orange-600/30 border border-orange-500/40 text-orange-300 hover:bg-orange-600/50 transition-colors font-medium"
+          >
+            🧪 Test 2-Min Lockout
+          </button>
+          <button
+            onClick={async () => {
+              await sessionService.unlockDevice(device.uid);
+              alert(`Device ${device.uid} unlocked successfully!`);
+              window.location.reload();
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-green-600/30 border border-green-500/40 text-green-300 hover:bg-green-600/50 transition-colors font-medium"
+          >
+            🔓 Admin Unlock
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -74,15 +74,21 @@ bool   showModerator    = true;
 // SESSION STATE MACHINE
 // =====================================================
 enum SessionState {
-  SESSION_IDLE,    // nobody at desk
-  SESSION_ACTIVE,  // person working
-  SESSION_BREAK,   // person left (break timer running)
-  SESSION_DYING,   // break >= 10 min — alarm!
-  SESSION_INVALID, // took > 3 breaks in session
-  SESSION_ENDED    // session completed, waiting for reset
+  SESSION_IDLE,       // nobody at desk
+  SESSION_ACTIVE,     // person working
+  SESSION_BREAK,      // person left (break timer running)
+  SESSION_DYING,      // break >= 10 min — alarm!
+  SESSION_INVALID,    // took > 3 breaks in session
+  SESSION_ENDED,      // session completed, waiting for reset
+  SESSION_LOCKED_OUT  // exceeded 10 invalid sessions — 48 hr lockout!
 };
 
 SessionState sessionState = SESSION_IDLE;
+
+// 48-Hour Hard Lockout System (Exceeding 10 invalid sessions)
+bool isDeviceLockedOut = false;
+uint32_t lockoutRemainingSec = 0;
+bool lockoutScreenDrawn = false;
 
 unsigned long sessionStartMs = 0; // millis() when current active period began
 unsigned long sessionTotalMs = 0; // accumulated active time (ms) across breaks
@@ -1293,6 +1299,94 @@ void drawAlarmScreen() {
 }
 
 // =====================================================
+// 48-HOUR HARD LOCKOUT SCREEN (Exceeded 10 invalid sessions)
+// =====================================================
+void drawLockoutScreen() {
+  tft.fillScreen(COLOR_BG);
+
+  // Red Lockout Header Banner
+  tft.fillRoundRect(15, 12, 290, 42, 6, COLOR_RED);
+  tft.drawRoundRect(15, 12, 290, 42, 6, ILI9341_WHITE);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(35, 24);
+  tft.print("SYSTEM LOCKED OUT");
+
+  // Warning text
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_YELLOW);
+  tft.setCursor(25, 66);
+  tft.print("Exceeded 10 Invalid Sessions (>3 breaks)");
+  tft.setTextColor(COLOR_TEXT);
+  tft.setCursor(25, 82);
+  tft.print("Access restricted for 48 Hours.");
+
+  // Center Countdown Card Box
+  tft.fillRoundRect(20, 102, 280, 68, 8, COLOR_PANEL);
+  tft.drawRoundRect(20, 102, 280, 68, 8, COLOR_RED);
+
+  tft.setTextColor(COLOR_MUTED);
+  tft.setTextSize(1);
+  tft.setCursor(35, 112);
+  tft.print("REVERSE COUNTDOWN REMAINING:");
+
+  // Big Timer
+  uint32_t sec = lockoutRemainingSec;
+  uint32_t hours = sec / 3600;
+  uint32_t mins = (sec % 3600) / 60;
+  uint32_t secs = sec % 60;
+
+  char timeBuf[32];
+  if (hours > 0) {
+    snprintf(timeBuf, sizeof(timeBuf), "%02uh %02um %02us", hours, mins, secs);
+  } else {
+    snprintf(timeBuf, sizeof(timeBuf), "%02um %02us", mins, secs);
+  }
+
+  tft.setTextColor(COLOR_RED);
+  tft.setTextSize(3);
+  tft.setCursor(hours > 0 ? 35 : 75, 132);
+  tft.print(timeBuf);
+
+  // Bottom Notice
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_MUTED);
+  tft.setCursor(25, 185);
+  tft.print("Power cycling or reset will NOT bypass.");
+  tft.setCursor(25, 202);
+  tft.print("Contact administrator to unlock desk.");
+
+  lockoutScreenDrawn = true;
+}
+
+void updateLockoutCountdown() {
+  if (!lockoutScreenDrawn) {
+    drawLockoutScreen();
+    return;
+  }
+
+  // Overwrite only the timer text area in the center card box
+  tft.fillRect(25, 130, 270, 32, COLOR_PANEL);
+
+  uint32_t sec = lockoutRemainingSec;
+  uint32_t hours = sec / 3600;
+  uint32_t mins = (sec % 3600) / 60;
+  uint32_t secs = sec % 60;
+
+  char timeBuf[32];
+  if (hours > 0) {
+    snprintf(timeBuf, sizeof(timeBuf), "%02uh %02um %02us", hours, mins, secs);
+  } else {
+    snprintf(timeBuf, sizeof(timeBuf), "%02um %02us", mins, secs);
+  }
+
+  tft.setTextColor(COLOR_RED);
+  tft.setTextSize(3);
+  tft.setCursor(hours > 0 ? 35 : 75, 132);
+  tft.print(timeBuf);
+}
+
+// =====================================================
 // 15-MIN EXTENSION PROMPT
 // =====================================================
 void drawExtensionPrompt() {
@@ -2259,6 +2353,15 @@ void handleTouch() {
 
   lastTouchTime = now;
 
+  // ===================================================
+  // 0. HARD LOCKOUT ENFORCEMENT
+  // Touch is completely disabled while device is locked out!
+  // ===================================================
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    Serial.println("[LOCKOUT] Touch blocked: Device is in 48h hard lockout.");
+    return;
+  }
+
   Serial.print("RAW TOUCH X=");
 
   Serial.print(rawX);
@@ -2859,6 +2962,14 @@ void setup() {
   showSelfRating   = preferences.getBool("shRating", true);
   showModerator    = preferences.getBool("shMod",    true);
 
+  // 48-Hour Hard Lockout Check
+  lockoutRemainingSec = preferences.getUInt("lockSec", 0);
+  if (lockoutRemainingSec > 0) {
+    isDeviceLockedOut = true;
+    sessionState = SESSION_LOCKED_OUT;
+    Serial.printf("[LOCKOUT] Booted in HARD LOCKOUT state! Remaining: %u sec\n", lockoutRemainingSec);
+  }
+
   Serial.begin(115200);
 
   // Init Audio
@@ -3044,7 +3155,11 @@ void setup() {
 
   currentPage = PAGE_HOME;
 
-  drawHomePage();
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    drawLockoutScreen();
+  } else {
+    drawHomePage();
+  }
 
   // ===================================================
   // START CAMERA TASK
@@ -3268,7 +3383,7 @@ void loop() {
   switch (sessionState) {
 
   case SESSION_IDLE:
-    if (personPresent) {
+    if (!isDeviceLockedOut && personPresent) {
       // Person just sat down — start a new 2-hour session
       sessionState = SESSION_ACTIVE;
       sessionStartMs = millis();
@@ -3297,7 +3412,19 @@ void loop() {
         http.begin(String(sessionBaseURL) + "/start");
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
-        http.POST("{}");
+        int startCode = http.POST("{}");
+        if (startCode == 403) {
+          String payload = http.getString();
+          JsonDocument doc;
+          if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
+            isDeviceLockedOut = true;
+            sessionState = SESSION_LOCKED_OUT;
+            lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
+            preferences.putUInt("lockSec", lockoutRemainingSec);
+            soundAlarmActive = false;
+            drawLockoutScreen();
+          }
+        }
         http.end();
         vTaskDelay(pdMS_TO_TICKS(1));
       }
@@ -3511,8 +3638,42 @@ void loop() {
     break;
   }
 
+  case SESSION_LOCKED_OUT: {
+    // Exceeded 10 invalid sessions. Desk is locked out for 48 hours.
+    // Reverse countdown ticks and screen is locked.
+    break;
+  }
+
   default:
     break;
+  }
+
+  // ===================================================
+  // 48-HOUR HARD LOCKOUT LIVE COUNTDOWN TICK (every 1s)
+  // ===================================================
+  static uint32_t lastLockoutTick = 0;
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    if (millis() - lastLockoutTick >= 1000) {
+      lastLockoutTick = millis();
+      if (lockoutRemainingSec > 0) {
+        lockoutRemainingSec--;
+        updateLockoutCountdown();
+
+        static uint8_t nvsTick = 0;
+        if (++nvsTick >= 10) {
+          nvsTick = 0;
+          preferences.putUInt("lockSec", lockoutRemainingSec);
+        }
+      } else {
+        // Lockout expired!
+        isDeviceLockedOut = false;
+        sessionState = SESSION_IDLE;
+        preferences.putUInt("lockSec", 0);
+        lockoutScreenDrawn = false;
+        Serial.println("[LOCKOUT] 48-Hour penalty expired! Device restored to normal.");
+        drawHomePage();
+      }
+    }
   }
 
   // ===================================================
@@ -3528,7 +3689,7 @@ void loop() {
   // HOME PAGE LIVE TIMER UPDATE (every second)
   // ===================================================
   static uint32_t lastHomeRefresh = 0;
-  if (currentPage == PAGE_HOME && millis() - lastHomeRefresh >= 1000) {
+  if (!isDeviceLockedOut && currentPage == PAGE_HOME && millis() - lastHomeRefresh >= 1000) {
     lastHomeRefresh = millis();
     updateHomePageLiveValues();
   }
@@ -3548,44 +3709,86 @@ void loop() {
       if (code == 200) {
         String payload = http.getString();
         JsonDocument doc;
-        if (!deserializeJson(doc, payload) && !doc["data"].isNull()) {
-          int beTarget = doc["data"]["targetDurationMinutes"] | 120;
-          if (beTarget > 0 && beTarget != targetDurationMinutes) {
-            targetDurationMinutes = beTarget;
-            Serial.printf("[SYNC] Target duration synced from web: %d mins\n", targetDurationMinutes);
+        if (!deserializeJson(doc, payload)) {
+          // Synchronize Hard Lockout from server
+          if (!doc["lockout"].isNull()) {
+            bool beLocked = doc["lockout"]["lockedOut"] | false;
+            uint32_t beSec = doc["lockout"]["remainingSeconds"] | 0;
+
+            if (beLocked && !isDeviceLockedOut) {
+              isDeviceLockedOut = true;
+              sessionState = SESSION_LOCKED_OUT;
+              lockoutRemainingSec = beSec > 0 ? beSec : 172800UL;
+              preferences.putUInt("lockSec", lockoutRemainingSec);
+              soundAlarmActive = false;
+              Serial.printf("[LOCKOUT] Server activated 48h Lockout! Remaining: %u sec\n", lockoutRemainingSec);
+              drawLockoutScreen();
+            } else if (beLocked && isDeviceLockedOut && beSec > 0) {
+              if (abs((long)lockoutRemainingSec - (long)beSec) > 5) {
+                lockoutRemainingSec = beSec;
+                preferences.putUInt("lockSec", lockoutRemainingSec);
+                updateLockoutCountdown();
+              }
+            } else if (!beLocked && isDeviceLockedOut) {
+              isDeviceLockedOut = false;
+              sessionState = SESSION_IDLE;
+              lockoutRemainingSec = 0;
+              preferences.putUInt("lockSec", 0);
+              lockoutScreenDrawn = false;
+              Serial.println("[LOCKOUT] Admin unlocked device via Web!");
+              drawHomePage();
+            }
           }
 
-          bool beAlarm = doc["data"]["alarmActive"] | false;
-          // Only dismiss if alarm was NOT triggered in the last 8 seconds to prevent race condition
-          if (!beAlarm && soundAlarmActive && (millis() - alarmTriggeredAtMs > 8000)) {
-            // STOP SOUND was tapped on the Web!
-            soundAlarmActive = false;
-            alarmScreenDrawn = false;
-            soundAlarmMessage = "";
-            Serial.println("[SYNC] Sound alarm stopped remotely via Web!");
-            drawHomePage();
-          } else if (beAlarm && !soundAlarmActive) {
-            // Alarm was triggered from Web!
-            soundAlarmActive = true;
-            alarmTriggeredAtMs = millis();
-            soundAlarmMessage = doc["data"]["alarmMessage"].as<String>();
-            drawAlarmScreen();
-          }
+          if (!doc["data"].isNull() && !isDeviceLockedOut) {
+            int beTarget = doc["data"]["targetDurationMinutes"] | 120;
+            if (beTarget > 0 && beTarget != targetDurationMinutes) {
+              targetDurationMinutes = beTarget;
+              Serial.printf("[SYNC] Target duration synced from web: %d mins\n", targetDurationMinutes);
+            }
 
-          int beRating = doc["data"]["selfRating"] | 0;
-          if (beRating > 0 && beRating != selfRating) {
-            selfRating = beRating;
-          }
+            bool beAlarm = doc["data"]["alarmActive"] | false;
+            // Only dismiss if alarm was NOT triggered in the last 8 seconds to prevent race condition
+            if (!beAlarm && soundAlarmActive && (millis() - alarmTriggeredAtMs > 8000)) {
+              // STOP SOUND was tapped on the Web!
+              soundAlarmActive = false;
+              alarmScreenDrawn = false;
+              soundAlarmMessage = "";
+              Serial.println("[SYNC] Sound alarm stopped remotely via Web!");
+              drawHomePage();
+            } else if (beAlarm && !soundAlarmActive) {
+              // Alarm was triggered from Web!
+              soundAlarmActive = true;
+              alarmTriggeredAtMs = millis();
+              soundAlarmMessage = doc["data"]["alarmMessage"].as<String>();
+              drawAlarmScreen();
+            }
 
-          String beStatus = doc["data"]["status"].as<String>();
-          if (beStatus == "INVALID" && sessionState != SESSION_INVALID) {
-            sessionState = SESSION_INVALID;
-            isInvalidSession = true;
-            soundAlarmActive = true;
-            alarmTriggeredAtMs = millis();
-            soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
-            drawAlarmScreen();
+            int beRating = doc["data"]["selfRating"] | 0;
+            if (beRating > 0 && beRating != selfRating) {
+              selfRating = beRating;
+            }
+
+            String beStatus = doc["data"]["status"].as<String>();
+            if (beStatus == "INVALID" && sessionState != SESSION_INVALID) {
+              sessionState = SESSION_INVALID;
+              isInvalidSession = true;
+              soundAlarmActive = true;
+              alarmTriggeredAtMs = millis();
+              soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
+              drawAlarmScreen();
+            }
           }
+        }
+      } else if (code == 403) {
+        String payload = http.getString();
+        JsonDocument doc;
+        if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
+          isDeviceLockedOut = true;
+          sessionState = SESSION_LOCKED_OUT;
+          lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
+          preferences.putUInt("lockSec", lockoutRemainingSec);
+          drawLockoutScreen();
         }
       }
       http.end();
