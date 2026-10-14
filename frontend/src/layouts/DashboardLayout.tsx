@@ -59,11 +59,6 @@ const DashboardLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect EMPLOYEE users away from the main dashboard to their tasks
-  if (user?.role === 'EMPLOYEE' && window.location.pathname === '/') {
-    return <Navigate to="/tasks" replace />;
-  }
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -97,15 +92,18 @@ const DashboardLayout = () => {
         
         <nav className="flex-1 p-4 space-y-1">
           {([
-            { to: '/',               icon: LayoutDashboard, label: 'Dashboard',     badge: 0,           roles: ['ADMIN', 'MANAGER'] },
+            { to: '/',               icon: LayoutDashboard, label: 'Dashboard',     badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
             { to: '/employees',      icon: Users,           label: 'Staff & Users', badge: 0,           roles: ['ADMIN', 'MANAGER'] },
-            { to: '/tasks',          icon: ClipboardList,   label: 'Tasks',         badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-            { to: '/devices',        icon: Monitor,         label: 'Devices',       badge: 0,           roles: ['ADMIN'] },
-            { to: '/activity',       icon: Activity,        label: 'Activity',      badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-            { to: '/deepwork',       icon: Timer,           label: 'Deep Work',     badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
-            { to: '/notifications',  icon: Bell,            label: 'Notifications', badge: unreadCount, roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+            { to: '/tasks',          icon: ClipboardList,   label: 'Tasks',         badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
+            { to: '/devices',        icon: Monitor,         label: 'Devices',       badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
+            { to: '/activity',       icon: Activity,        label: 'Activity',      badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
+            { to: '/deepwork',       icon: Timer,           label: 'Deep Work',     badge: 0,           roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
+            { to: '/notifications',  icon: Bell,            label: 'Notifications', badge: unreadCount, roles: ['ADMIN', 'MANAGER', 'EMPLOYEE', 'USER'] },
           ] as const)
-          .filter(item => item.roles.includes(user?.role || 'EMPLOYEE'))
+          .filter(item => {
+            const role = (user?.role || 'EMPLOYEE').toUpperCase();
+            return item.roles.includes(role as any);
+          })
           .map(({ to, icon: Icon, label, badge }) => (
             <NavLink
               key={to}

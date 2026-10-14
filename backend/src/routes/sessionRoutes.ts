@@ -23,8 +23,8 @@ import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-// Admin route — requires JWT
-router.get('/all', protect, authorize('ADMIN', 'MANAGER'), getAllSessions);
+// Authenticated users route — requires JWT
+router.get('/all', protect, getAllSessions);
 
 // ESP32 and Web synchronized routes
 router.get( '/:uid/current',        getCurrentSession);

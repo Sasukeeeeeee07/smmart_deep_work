@@ -7,7 +7,7 @@ const express_1 = __importDefault(require("express"));
 const deviceController_1 = require("../controllers/deviceController");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
-router.get('/', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), deviceController_1.getAllDevices);
+router.get('/', auth_1.protect, deviceController_1.getAllDevices);
 router.patch('/:id/assign', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), deviceController_1.assignDevice);
 // Static sub-routes BEFORE /:uid wildcard
 router.get('/activity/history', auth_1.protect, deviceController_1.getActivityHistory);

@@ -103,9 +103,9 @@ function TaskCard({
       {task.assignedTo && (
         <div className="flex items-center gap-1.5 text-xs text-text-muted">
           <div className="h-5 w-5 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-[10px]">
-            {task.assignedTo.firstName.charAt(0)}
+            {task.assignedTo.firstName ? task.assignedTo.firstName.charAt(0) : 'U'}
           </div>
-          <span>{task.assignedTo.firstName} {task.assignedTo.lastName}</span>
+          <span>{task.assignedTo.firstName || ''} {task.assignedTo.lastName || ''}</span>
         </div>
       )}
 
@@ -154,11 +154,11 @@ const Tasks = () => {
     try {
       setError(null);
       const [tasksData, empData] = await Promise.all([
-        taskService.getAllTasks(),
-        employeeService.getAllEmployees(),
+        taskService.getAllTasks().catch(() => []),
+        employeeService.getAllEmployees().catch(() => []),
       ]);
-      setTasks(tasksData);
-      setEmployees(empData);
+      setTasks(tasksData || []);
+      setEmployees(empData || []);
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'Failed to load tasks');
     } finally {

@@ -7,8 +7,8 @@ const express_1 = __importDefault(require("express"));
 const sessionController_1 = require("../controllers/sessionController");
 const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
-// Admin route — requires JWT
-router.get('/all', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), sessionController_1.getAllSessions);
+// Authenticated users route — requires JWT
+router.get('/all', auth_1.protect, sessionController_1.getAllSessions);
 // ESP32 and Web synchronized routes
 router.get('/:uid/current', sessionController_1.getCurrentSession);
 router.post('/:uid/extend', sessionController_1.extendSession);

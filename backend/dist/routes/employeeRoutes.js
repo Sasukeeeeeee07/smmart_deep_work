@@ -9,11 +9,10 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 // Apply auth middleware to all employee routes
 router.use(auth_1.protect);
-router.use((0, auth_1.authorize)('ADMIN', 'MANAGER'));
 router.route('/')
     .get(employeeController_1.getEmployees)
-    .post(employeeController_1.createEmployee);
+    .post((0, auth_1.authorize)('ADMIN', 'MANAGER'), employeeController_1.createEmployee);
 router.route('/:id')
-    .put(employeeController_1.updateEmployee)
-    .delete(employeeController_1.deleteEmployee);
+    .put((0, auth_1.authorize)('ADMIN', 'MANAGER'), employeeController_1.updateEmployee)
+    .delete((0, auth_1.authorize)('ADMIN', 'MANAGER'), employeeController_1.deleteEmployee);
 exports.default = router;

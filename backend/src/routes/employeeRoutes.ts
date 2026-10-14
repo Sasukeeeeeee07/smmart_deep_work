@@ -6,14 +6,13 @@ const router = express.Router();
 
 // Apply auth middleware to all employee routes
 router.use(protect);
-router.use(authorize('ADMIN', 'MANAGER'));
 
 router.route('/')
   .get(getEmployees)
-  .post(createEmployee);
+  .post(authorize('ADMIN', 'MANAGER'), createEmployee);
 
 router.route('/:id')
-  .put(updateEmployee)
-  .delete(deleteEmployee);
+  .put(authorize('ADMIN', 'MANAGER'), updateEmployee)
+  .delete(authorize('ADMIN', 'MANAGER'), deleteEmployee);
 
 export default router;

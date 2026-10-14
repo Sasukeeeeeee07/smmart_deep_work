@@ -4,7 +4,7 @@ import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('ADMIN', 'MANAGER'), getAllDevices);
+router.get('/', protect, getAllDevices);
 router.patch('/:id/assign', protect, authorize('ADMIN', 'MANAGER'), assignDevice);
 
 // Static sub-routes BEFORE /:uid wildcard
