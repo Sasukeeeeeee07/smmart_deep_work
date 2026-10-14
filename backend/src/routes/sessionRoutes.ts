@@ -3,6 +3,7 @@ import {
   getAllSessions,
   startSession,
   startBreak,
+  countBreak,
   resumeSession,
   endSession,
   rateSession,
@@ -29,9 +30,10 @@ router.post('/:uid/stop-sound',    stopSound);
 router.post('/:uid/alarm-trigger', triggerAlarm);
 
 // Core session lifecycle
-router.post('/:uid/start',   startSession);
-router.post('/:uid/break',   startBreak);
-router.post('/:uid/resume',  resumeSession);
+router.post('/:uid/start',         startSession);
+router.post('/:uid/break',         startBreak);
+router.post('/:uid/break-counted', countBreak);
+router.post('/:uid/resume',        resumeSession);
 router.post('/:uid/end',     endSession);
 router.post('/:uid/rate',    rateSession);
 router.post('/:uid/command', sendCommand);

@@ -88,7 +88,8 @@ unsigned long sessionStartMs = 0; // millis() when current active period began
 unsigned long sessionTotalMs = 0; // accumulated active time (ms) across breaks
 unsigned long breakStartMs = 0;   // millis() when current break began
 unsigned long totalBreakMs = 0;   // accumulated break time (ms)
-int sessionBreakCount = 0;        // how many breaks taken this session
+int sessionBreakCount = 0;        // how many 5m+ breaks taken this session
+bool currentBreakCounted = false; // true once current absence has reached 5 minutes
 int dailyBreakCount = 0;
 unsigned long dailyBreakMs = 0;
 int selfRating = 0; // 0 = unrated, 1-5
@@ -122,7 +123,8 @@ bool sdwFetched = false;
 int moderatorCommands = 0;
 int moderatorAlarms = 0;
 
-// Break threshold = 10 minutes in ms
+// Break thresholds: 5 minutes to count as a break; 10 minutes to trigger dying alert
+#define BREAK_COUNT_THRESHOLD_MS (5UL * 60UL * 1000UL) // 5 minutes before counting as break
 #define BREAK_DYING_THRESHOLD_MS (10UL * 60UL * 1000UL)
 #define DYING_GRACE_MS (30UL * 1000UL) // 30s to return after dying alarm
 
@@ -1258,7 +1260,7 @@ void drawAlarmScreen() {
     tft.setTextSize(1);
     tft.setTextColor(COLOR_TEXT);
     tft.setCursor(20, 88);
-    tft.print("Exceeded limit of 3 breaks in session.");
+    tft.print("Exceeded limit of 3 breaks (5m+ each).");
     tft.setCursor(20, 104);
     tft.print("Session terminated. 0 SDW points.");
   } else {
@@ -1268,7 +1270,11 @@ void drawAlarmScreen() {
     tft.setCursor(20, 88);
     tft.print("You left desk for 30s. Come back to study!");
     tft.setCursor(20, 104);
-    tft.printf("Break %d of 3 max allowed breaks.", sessionBreakCount);
+    if (currentBreakCounted) {
+      tft.printf("Break %d of 3 max allowed (crossed 5m).", sessionBreakCount);
+    } else {
+      tft.printf("Away < 5m (Breaks: %d/3 max. Not a break yet)", sessionBreakCount);
+    }
   }
 
   // BIG STOP SOUND BUTTON
@@ -1634,7 +1640,7 @@ void updateHomePageLiveValues() {
       displayBreakCount = sessionBreakCount;
     }
 
-    if (sessionState == SESSION_BREAK && breakStartMs > 0)
+    if (sessionState == SESSION_BREAK && breakStartMs > 0 && currentBreakCounted)
       breakDispMs += (nowMs - breakStartMs);
     unsigned long bkMins = breakDispMs / 60000;
 
@@ -2276,15 +2282,28 @@ void handleTouch() {
       Serial.println("[SOUND] STOP SOUND pressed by user! Alarm silenced.");
 
       bool shouldResume = false;
+      bool wasCounted = false;
       if (sessionState == SESSION_INVALID) {
         sessionState = SESSION_IDLE; // Reset invalid/died session
         Serial.println("[SESSION] Invalid session reset to IDLE.");
       } else if (sessionState == SESSION_BREAK) {
         if (radar.valid && radar.targetState > 0) {
+          unsigned long breakDuration = millis() - breakStartMs;
+          if (currentBreakCounted) {
+            totalBreakMs += breakDuration;
+            dailyBreakMs += breakDuration;
+            preferences.putUInt("brkMs", dailyBreakMs);
+          }
           sessionState = SESSION_ACTIVE;
           sessionStartMs = millis();
           shouldResume = true;
-          Serial.println("[SESSION] Resumed after away alarm.");
+          wasCounted = currentBreakCounted;
+          currentBreakCounted = false;
+          if (wasCounted) {
+            Serial.printf("[SESSION] Resumed after 5m+ Break #%d via STOP SOUND.\n", sessionBreakCount);
+          } else {
+            Serial.printf("[SESSION] Resumed within 5 mins (%lu sec) via STOP SOUND. NOT counted as a break.\n", breakDuration / 1000);
+          }
         }
       }
 
@@ -2303,7 +2322,7 @@ void handleTouch() {
           http2.begin(String(sessionBaseURL) + "/resume");
           http2.setTimeout(1500);
           http2.addHeader("Content-Type", "application/json");
-          http2.POST("{}");
+          http2.POST("{\"isCountedBreak\":" + String(wasCounted ? "true" : "false") + "}");
           http2.end();
           vTaskDelay(pdMS_TO_TICKS(1));
         }
@@ -2420,11 +2439,13 @@ void handleTouch() {
     // If the user touches the screen, we consider them back at the desk
     totalBreakMs += (millis() - breakStartMs);
     dailyBreakMs += (millis() - breakStartMs);
+    preferences.putUInt("brkMs", dailyBreakMs);
     sessionStartMs = millis();
     sessionState = SESSION_ACTIVE;
     dyingAlarmActive = false;
     soundAlarmActive = false;
     alarmScreenDrawn = false;
+    currentBreakCounted = false;
     Serial.println("[SESSION] Saved by TOUCH! Resumed after alarm.");
     drawHomePage(); // Immediate UI update
 
@@ -3265,6 +3286,7 @@ void loop() {
       soundAlarmActive = false;
       alarmScreenDrawn = false;
       isInvalidSession = false;
+      currentBreakCounted = false;
 
       Serial.println("[SESSION] Started 2-hour reverse countdown session");
       drawHomePage(); // Immediate UI update!
@@ -3284,68 +3306,38 @@ void loop() {
 
   case SESSION_ACTIVE:
     if (personAbsent) {
-      // Person has been absent for 30 seconds
+      // Person has been absent for 30 seconds — sound away alert, but do NOT count as a break yet!
       if (absenceStartMs >= sessionStartMs) {
         sessionTotalMs += (absenceStartMs - sessionStartMs); // accumulate focus time up to departure
       }
       if (sessionTotalMs > 86400000UL) sessionTotalMs = 0; // Sanity cap at 24h
       preferences.putUInt("sessMs", sessionTotalMs);
       breakStartMs = millis();
-      sessionBreakCount++;
-      dailyBreakCount++;
-      preferences.putInt("brkCnt", dailyBreakCount);
+      currentBreakCounted = false; // NOT a break yet; only crosses 5 minutes counts as a break!
       absenceStartMs = 0;
       presenceStartMs = 0;
 
-      // RULE: More than 3 breaks in a session => SESSION BECOMES INVALID AND DIES
-      if (sessionBreakCount > 3) {
-        sessionState = SESSION_INVALID;
-        soundAlarmActive = true;
-        alarmTriggeredAtMs = millis();
-        soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
-        isInvalidSession = true;
-        moderatorAlarms++;
-        Serial.println("[ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit!");
+      // Start Away Alert & sound (30s)
+      sessionState = SESSION_BREAK;
+      soundAlarmActive = true;
+      alarmTriggeredAtMs = millis();
+      soundAlarmMessage = "AWAY ALERT: RETURN TO DESK!";
+      isInvalidSession = false;
+      moderatorAlarms++;
+      Serial.println("[AWAY ALERT] Away for 30s. Alarm sounding. (Not a break yet; only >5m counts as a break).");
 
-        drawAlarmScreen(); // Render screen IMMEDIATELY so display is responsive with zero lag!
+      drawAlarmScreen(); // Render screen IMMEDIATELY so display is responsive with zero lag!
 
-        if (WiFi.status() == WL_CONNECTED) {
-          HTTPClient http;
-          http.begin(String(sessionBaseURL) + "/alarm-trigger");
-          http.setTimeout(1500);
-          http.addHeader("Content-Type", "application/json");
-          http.POST("{\"message\":\"SESSION INVALID: Exceeded 3 breaks limit\",\"isInvalid\":true}");
-          http.end();
-          vTaskDelay(pdMS_TO_TICKS(1));
-        }
-      } else {
-        // Valid break #1, #2, or #3 (with 30s away alert & sound)
-        sessionState = SESSION_BREAK;
-        soundAlarmActive = true;
-        alarmTriggeredAtMs = millis();
-        soundAlarmMessage = "AWAY ALERT: RETURN TO DESK!";
-        isInvalidSession = false;
-        moderatorAlarms++;
-        Serial.printf("[AWAY BEEP] Break #%d started. 30s Away alert triggered!\n", sessionBreakCount);
-
-        // Spike: 45+ min active with first break
-        if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
-          productivitySpike = true;
-        }
-
-        drawAlarmScreen(); // Render screen IMMEDIATELY so display is responsive with zero lag!
-
-        if (WiFi.status() == WL_CONNECTED) {
-          HTTPClient http;
-          http.begin(String(sessionBaseURL) + "/break");
-          http.setTimeout(1500);
-          http.addHeader("Content-Type", "application/json");
-          unsigned long activeMins = sessionTotalMs / 60000;
-          String body = "{\"activeMinutes\":" + String(activeMins) + "}";
-          http.POST(body);
-          http.end();
-          vTaskDelay(pdMS_TO_TICKS(1));
-        }
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(String(sessionBaseURL) + "/break");
+        http.setTimeout(1500);
+        http.addHeader("Content-Type", "application/json");
+        unsigned long activeMins = sessionTotalMs / 60000;
+        String body = "{\"activeMinutes\":" + String(activeMins) + "}";
+        http.POST(body);
+        http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
       }
     }
     break;
@@ -3353,19 +3345,78 @@ void loop() {
   case SESSION_BREAK: {
     unsigned long breakDuration = millis() - breakStartMs;
 
+    // RULE: Only count as a break once absence crosses 5 minutes (300,000 ms)
+    if (!currentBreakCounted && breakDuration >= BREAK_COUNT_THRESHOLD_MS) {
+      currentBreakCounted = true;
+      sessionBreakCount++;
+      dailyBreakCount++;
+      preferences.putInt("brkCnt", dailyBreakCount);
+      Serial.printf("[BREAK COUNTED] Absence crossed 5 minutes! Counted as Break #%d of 3.\n", sessionBreakCount);
+
+      // Spike: 45+ min active with first 5m+ break
+      if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
+        productivitySpike = true;
+      }
+
+      // Notify backend that this break crossed 5m and is an officially counted break
+      if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin(String(sessionBaseURL) + "/break-counted");
+        http.setTimeout(1500);
+        http.addHeader("Content-Type", "application/json");
+        http.POST("{\"breakCount\":" + String(sessionBreakCount) + "}");
+        http.end();
+        vTaskDelay(pdMS_TO_TICKS(1));
+      }
+
+      // RULE: More than 3 breaks (5m+ each) => SESSION BECOMES INVALID AND DIES
+      if (sessionBreakCount > 3) {
+        sessionState = SESSION_INVALID;
+        soundAlarmActive = true;
+        alarmTriggeredAtMs = millis();
+        soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS (5M+)!";
+        isInvalidSession = true;
+        moderatorAlarms++;
+        Serial.println("[ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit (5m+ each)!");
+
+        drawAlarmScreen();
+
+        if (WiFi.status() == WL_CONNECTED) {
+          HTTPClient http;
+          http.begin(String(sessionBaseURL) + "/alarm-trigger");
+          http.setTimeout(1500);
+          http.addHeader("Content-Type", "application/json");
+          http.POST("{\"message\":\"SESSION INVALID: Exceeded 3 breaks limit (5m+)\",\"isInvalid\":true}");
+          http.end();
+          vTaskDelay(pdMS_TO_TICKS(1));
+        }
+      } else if (soundAlarmActive) {
+        drawAlarmScreen(); // Update screen to reflect Break X of 3
+      }
+    }
+
     // Note: sound does NOT stop until user taps STOP SOUND (or stops it on Web).
     // Once sound is silenced, person present resumes the active study session:
     if (!soundAlarmActive && personPresent) {
-      totalBreakMs += breakDuration;
-      dailyBreakMs += breakDuration;
-      preferences.putUInt("brkMs", dailyBreakMs);
+      bool wasCounted = currentBreakCounted;
+      if (wasCounted) {
+        totalBreakMs += breakDuration;
+        dailyBreakMs += breakDuration;
+        preferences.putUInt("brkMs", dailyBreakMs);
+      }
       sessionStartMs = millis(); // restart active timer
       sessionState = SESSION_ACTIVE;
       absenceStartMs = 0;
       presenceStartMs = 0;
       alarmScreenDrawn = false;
+      currentBreakCounted = false;
 
-      Serial.println("[SESSION] Resumed after break");
+      if (wasCounted) {
+        Serial.printf("[SESSION] Resumed after 5m+ Break #%d (Duration: %lu mins).\n", sessionBreakCount, breakDuration / 60000);
+      } else {
+        Serial.printf("[SESSION] Resumed within 5 mins (%lu sec). NOT counted as a break. Total breaks: %d\n", breakDuration / 1000, sessionBreakCount);
+      }
+
       drawHomePage(); // Immediate UI update!
 
       if (WiFi.status() == WL_CONNECTED) {
@@ -3373,7 +3424,7 @@ void loop() {
         http.begin(String(sessionBaseURL) + "/resume");
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
-        http.POST("{}");
+        http.POST("{\"isCountedBreak\":" + String(wasCounted ? "true" : "false") + "}");
         http.end();
         vTaskDelay(pdMS_TO_TICKS(1));
       }
@@ -3398,11 +3449,13 @@ void loop() {
       // Saved! Person came back within grace period
       totalBreakMs += (millis() - breakStartMs);
       dailyBreakMs += (millis() - breakStartMs);
+      preferences.putUInt("brkMs", dailyBreakMs);
       sessionStartMs = millis();
       sessionState = SESSION_ACTIVE;
       dyingAlarmActive = false;
       soundAlarmActive = false;
       alarmScreenDrawn = false;
+      currentBreakCounted = false;
 
       Serial.println("[SESSION] Saved! Resumed after dying.");
       drawHomePage(); // Immediate UI update!
@@ -3412,7 +3465,7 @@ void loop() {
         http.begin(String(sessionBaseURL) + "/resume");
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
-        http.POST("{}");
+        http.POST("{\"isCountedBreak\":true}");
         http.end();
         vTaskDelay(pdMS_TO_TICKS(1));
       }
@@ -3423,6 +3476,7 @@ void loop() {
       soundAlarmActive = false;
       alarmScreenDrawn = false;
       dyingAlarmActive = false;
+      currentBreakCounted = false;
       drawHomePage(); // Immediate UI update!
 
       if (WiFi.status() == WL_CONNECTED && activeMins > 0) {
@@ -3446,6 +3500,7 @@ void loop() {
       totalBreakMs = 0;
       sessionStartMs = 0;
       breakStartMs = 0;
+      currentBreakCounted = false;
     }
     break;
   }

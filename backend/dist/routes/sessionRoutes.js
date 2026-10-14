@@ -17,6 +17,7 @@ router.post('/:uid/alarm-trigger', sessionController_1.triggerAlarm);
 // Core session lifecycle
 router.post('/:uid/start', sessionController_1.startSession);
 router.post('/:uid/break', sessionController_1.startBreak);
+router.post('/:uid/break-counted', sessionController_1.countBreak);
 router.post('/:uid/resume', sessionController_1.resumeSession);
 router.post('/:uid/end', sessionController_1.endSession);
 router.post('/:uid/rate', sessionController_1.rateSession);

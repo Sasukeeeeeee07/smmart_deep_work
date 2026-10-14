@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.getCurrentSession = exports.triggerAlarm = exports.stopSound = exports.extendSession = exports.endSession = exports.resumeSession = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
+exports.getModerationHistory = exports.raiseAlarm = exports.sendCommand = exports.getSDWPoints = exports.rateSession = exports.getCurrentSession = exports.triggerAlarm = exports.stopSound = exports.extendSession = exports.endSession = exports.resumeSession = exports.countBreak = exports.startBreak = exports.startSession = exports.getAllSessions = void 0;
 const Device_1 = require("../models/Device");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const SDWPoints_1 = require("../models/SDWPoints");
@@ -129,23 +129,49 @@ const startBreak = async (req, res) => {
         }
         const { activeMinutes } = req.body;
         session.activeMinutes = activeMinutes || session.activeMinutes;
-        // RULE: More than 3 breaks in a session => SESSION BECOMES INVALID AND DIES
-        if (session.breaks.length >= 3) {
+        session.status = 'BREAK';
+        session.alarmActive = true;
+        session.alarmMessage = 'Away Alert: You are away from your desk!';
+        session.breaks.push({ startTime: new Date() });
+        // Note: breakCount is NOT incremented yet! Only absences crossing 5 minutes count as a break.
+        await session.save();
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
+    }
+    catch (err) {
+        console.error('[SESSION] break error:', err);
+        res.status(500).json({ success: false, error: 'Failed to log break' });
+    }
+};
+exports.startBreak = startBreak;
+// =====================================================
+// POST /api/sessions/:uid/break-counted
+// Called when an absence crosses 5 minutes to officially count as a break
+// =====================================================
+const countBreak = async (req, res) => {
+    try {
+        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: 'BREAK',
+        });
+        if (!session) {
+            return res.status(404).json({ success: false, error: 'No session in break' });
+        }
+        session.breakCount = (session.breakCount || 0) + 1;
+        // RULE: More than 3 breaks (5+ mins each) => SESSION BECOMES INVALID AND DIES
+        if (session.breakCount > 3) {
             session.status = 'INVALID';
-            session.invalidReason = 'Exceeded maximum 3 breaks limit in session';
+            session.invalidReason = 'Exceeded maximum 3 breaks (5m+ each) limit in session';
             session.alarmActive = true;
             session.alarmMessage = 'SESSION INVALID: EXCEEDED 3 BREAKS';
             session.sdwPointsEarned = 0;
             session.endTime = new Date();
-            session.breakCount = session.breaks.length + 1;
-            session.breaks.push({ startTime: new Date(), endTime: new Date(), durationMinutes: 0 });
             session.moderationLog.push({
                 type: 'ALARM',
-                message: 'Session died: Exceeded 3 breaks limit',
+                message: 'Session died: Exceeded 3 breaks limit (5m+ each)',
                 timestamp: new Date()
             });
             await session.save();
-            console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit.`);
+            console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit (5m+ each).`);
             return res.json({
                 success: true,
                 data: {
@@ -156,24 +182,19 @@ const startBreak = async (req, res) => {
                 }
             });
         }
-        session.status = 'BREAK';
-        session.alarmActive = true;
-        session.alarmMessage = 'Away Alert: You are away from your desk!';
-        session.breaks.push({ startTime: new Date() });
-        session.breakCount = session.breaks.length;
-        // Productivity spike check: 45+ active minutes with 0 previous breaks
+        // Productivity spike check: 45+ active minutes with 1 break
         if (session.activeMinutes >= 45 && session.breakCount === 1) {
             session.productivitySpike = true;
         }
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK' } });
     }
     catch (err) {
-        console.error('[SESSION] break error:', err);
-        res.status(500).json({ success: false, error: 'Failed to log break' });
+        console.error('[SESSION] break-counted error:', err);
+        res.status(500).json({ success: false, error: 'Failed to count break' });
     }
 };
-exports.startBreak = startBreak;
+exports.countBreak = countBreak;
 // =====================================================
 // POST /api/sessions/:uid/resume
 // ESP32 calls this when radar re-detects person
@@ -187,19 +208,31 @@ const resumeSession = async (req, res) => {
         if (!session) {
             return res.status(404).json({ success: false, error: 'No session in break' });
         }
+        const { isCountedBreak } = req.body;
         // Close the last open break record
         const lastBreak = session.breaks[session.breaks.length - 1];
         if (lastBreak && !lastBreak.endTime) {
             lastBreak.endTime = new Date();
             const breakMins = Math.round((lastBreak.endTime.getTime() - lastBreak.startTime.getTime()) / 60000);
             lastBreak.durationMinutes = breakMins;
-            session.totalBreakMinutes += breakMins;
+            // RULE: Only count as a break if duration >= 5 minutes
+            const counted = isCountedBreak !== undefined ? isCountedBreak : (breakMins >= 5);
+            if (counted) {
+                if (session.breakCount < session.breaks.length) {
+                    session.breakCount = (session.breakCount || 0) + 1;
+                }
+                session.totalBreakMinutes += breakMins;
+            }
+            else {
+                // Under 5 minutes: Remove from breaks list so it does not count as a break
+                session.breaks.pop();
+            }
         }
         session.status = 'ACTIVE';
         session.alarmActive = false; // Dismiss any away alert sound on resume
         session.alarmMessage = '';
         await session.save();
-        res.json({ success: true, data: { totalBreakMinutes: session.totalBreakMinutes } });
+        res.json({ success: true, data: { breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
     }
     catch (err) {
         console.error('[SESSION] resume error:', err);
