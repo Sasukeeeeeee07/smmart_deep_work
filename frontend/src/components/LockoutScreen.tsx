@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, Clock, AlertTriangle, RefreshCw, Cpu, Globe, CheckCircle2 } from 'lucide-react';
+import { Lock, Unlock, AlertTriangle, CheckCircle2, Cpu, Globe, Loader2 } from 'lucide-react';
 import { sessionService } from '../services/api';
 
 interface LockoutScreenProps {
@@ -17,302 +17,338 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
   deviceName,
   lockoutUntil,
   initialRemainingSeconds = 172800,
-  reason = 'Exceeded 10 invalid sessions (>3 breaks per session)',
+  reason = 'Exceeded 10 invalid sessions (> 3 breaks per session)',
   invalidCount = 10,
   onUnlocked,
 }) => {
-  // Compute initial remaining seconds from lockoutUntil or initialRemainingSeconds
   const calculateRemaining = () => {
     if (lockoutUntil) {
-      const diff = Math.max(0, Math.floor((new Date(lockoutUntil).getTime() - Date.now()) / 1000));
-      return diff;
+      return Math.max(0, Math.floor((new Date(lockoutUntil).getTime() - Date.now()) / 1000));
     }
     return initialRemainingSeconds;
   };
 
-  const [secondsLeft, setSecondsLeft] = useState<number>(calculateRemaining);
-  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [secondsLeft, setSecondsLeft]   = useState<number>(calculateRemaining);
+  const [isUnlocking, setIsUnlocking]   = useState(false);
   const [unlockSuccess, setUnlockSuccess] = useState(false);
-  const [actionError, setActionError] = useState('');
+  const [actionError, setActionError]   = useState('');
 
-  // 1-second countdown ticker
+  // 1-second countdown
   useEffect(() => {
     const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          onUnlocked();
-          return 0;
-        }
+      setSecondsLeft(prev => {
+        if (prev <= 1) { clearInterval(timer); onUnlocked(); return 0; }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [onUnlocked]);
 
-  // Periodic status poll (every 4s) to check if unlocked by hardware or another admin
+  // Poll backend every 4s for early unlock
   useEffect(() => {
-    const pollInterval = setInterval(async () => {
+    const poll = setInterval(async () => {
       try {
         const status = await sessionService.getLockoutStatus(deviceUid);
-        if (!status.isLockedOut) {
-          clearInterval(pollInterval);
-          onUnlocked();
-        } else if (status.remainingSeconds > 0) {
-          // Sync drift if difference is more than 3 seconds
-          setSecondsLeft((curr) => {
-            if (Math.abs(curr - status.remainingSeconds) > 3) {
-              return status.remainingSeconds;
-            }
-            return curr;
-          });
+        if (!status.isLockedOut) { clearInterval(poll); onUnlocked(); }
+        else if (status.remainingSeconds > 0) {
+          setSecondsLeft(curr => Math.abs(curr - status.remainingSeconds) > 3 ? status.remainingSeconds : curr);
         }
-      } catch (err) {
-        console.warn('[LOCKOUT SCREEN] Polling status failed', err);
-      }
+      } catch {}
     }, 4000);
-
-    return () => clearInterval(pollInterval);
+    return () => clearInterval(poll);
   }, [deviceUid, onUnlocked]);
 
-  // Format digital countdown string matching the hardware LCD
-  const formatCountdown = (totalSec: number) => {
-    const hours = Math.floor(totalSec / 3600);
-    const minutes = Math.floor((totalSec % 3600) / 60);
-    const seconds = totalSec % 60;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const h = Math.floor(secondsLeft / 3600);
+  const m = Math.floor((secondsLeft % 3600) / 60);
+  const s = secondsLeft % 60;
 
-    const pad = (n: number) => n.toString().padStart(2, '0');
-
-    if (hours > 0) {
-      return {
-        formatted: `${pad(hours)}h : ${pad(minutes)}m : ${pad(seconds)}s`,
-        hours: pad(hours),
-        minutes: pad(minutes),
-        seconds: pad(seconds),
-      };
-    }
-    return {
-      formatted: `${pad(minutes)}m : ${pad(seconds)}s`,
-      hours: '00',
-      minutes: pad(minutes),
-      seconds: pad(seconds),
-    };
-  };
-
-  const { hours, minutes, seconds } = formatCountdown(secondsLeft);
-
-  // Target unlock date
-  const targetUnlockDate = lockoutUntil
-    ? new Date(lockoutUntil).toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
-    : new Date(Date.now() + secondsLeft * 1000).toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+  const unlockTime = lockoutUntil
+    ? new Date(lockoutUntil).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : new Date(Date.now() + secondsLeft * 1000).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const handleAdminUnlock = async () => {
-    if (!confirm(`Are you sure you want to perform an ADMIN OVERRIDE and unlock ${deviceUid}?`)) {
-      return;
-    }
+    if (!confirm(`Admin override: unlock ${deviceUid}?`)) return;
     setIsUnlocking(true);
     setActionError('');
     try {
       await sessionService.unlockDevice(deviceUid);
       setUnlockSuccess(true);
-      setTimeout(() => {
-        onUnlocked();
-      }, 1000);
+      setTimeout(() => onUnlocked(), 1200);
     } catch (err: any) {
-      console.error('Failed to unlock device', err);
-      setActionError(err.response?.data?.error || 'Failed to unlock device. Please try again.');
+      setActionError(err.response?.data?.error || 'Failed to unlock. Please try again.');
       setIsUnlocking(false);
     }
   };
 
-  const handleTestLockout = async (sec: number) => {
+  const handleTestLockout = async () => {
     setIsUnlocking(true);
     setActionError('');
     try {
-      await sessionService.testLockout(deviceUid, sec);
-      setSecondsLeft(sec);
-      setIsUnlocking(false);
-    } catch (err: any) {
-      console.error('Test lockout failed', err);
+      await sessionService.testLockout(deviceUid, 120);
+      setSecondsLeft(120);
+    } catch {
       setActionError('Failed to trigger test lockout');
-      setIsUnlocking(false);
-    }
+    } finally { setIsUnlocking(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#020617] text-slate-100 flex flex-col justify-center items-center p-4 md:p-8 overflow-y-auto select-none">
-      {/* Ambient glowing radial lights */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-red-600/15 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-[400px] h-[250px] bg-orange-600/10 blur-[100px] rounded-full pointer-events-none" />
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto select-none"
+      style={{ background: '#1A1812' }}
+    >
+      {/* Subtle red ambient glow */}
+      <div
+        style={{
+          position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: 500, height: 300,
+          background: 'rgba(182, 83, 75, 0.12)',
+          filter: 'blur(100px)',
+          borderRadius: '50%',
+          pointerEvents: 'none',
+        }}
+      />
 
-      {/* Main Lockout Container */}
-      <div className="relative w-full max-w-3xl bg-slate-900/90 border border-red-500/40 rounded-3xl p-6 md:p-10 shadow-2xl shadow-red-950/60 backdrop-blur-xl flex flex-col items-center text-center space-y-6">
-        
-        {/* Glowing Lockout Icon with Pulse Ring */}
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-28 h-28 bg-red-500/20 rounded-full animate-ping pointer-events-none" />
-          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 border-2 border-red-400/80 shadow-lg shadow-red-600/50 flex items-center justify-center">
-            <Lock size={44} className="text-white drop-shadow-md animate-pulse" />
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: 660,
+          background: 'rgba(26, 24, 18, 0.95)',
+          border: '1px solid rgba(182, 83, 75, 0.35)',
+          borderRadius: 24,
+          boxShadow: '0 24px 80px rgba(182, 83, 75, 0.2), 0 8px 24px rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(20px)',
+          padding: '40px 40px 32px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 28,
+          textAlign: 'center',
+        }}
+      >
+        {/* Lock icon */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            style={{
+              position: 'absolute',
+              width: 80, height: 80,
+              borderRadius: '50%',
+              background: 'rgba(182, 83, 75, 0.15)',
+              animation: 'pulse-gentle 3s ease infinite',
+            }}
+          />
+          <div
+            style={{
+              width: 64, height: 64,
+              borderRadius: 16,
+              background: 'rgba(182, 83, 75, 0.2)',
+              border: '1px solid rgba(182, 83, 75, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Lock size={28} style={{ color: '#E57B73' }} />
           </div>
         </div>
 
-        {/* Header Badges & Title */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-black tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            CRITICAL SYSTEM LOCKOUT
-          </div>
-          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight drop-shadow-sm">
-            SYSTEM LOCKED OUT
+        {/* Status badge */}
+        <div
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 12px',
+            borderRadius: 99,
+            background: 'rgba(182, 83, 75, 0.12)',
+            border: '1px solid rgba(182, 83, 75, 0.3)',
+            color: '#E57B73',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#E57B73', display: 'block', animation: 'pulse-gentle 2s ease infinite' }} />
+          System locked
+        </div>
+
+        {/* Heading */}
+        <div>
+          <h1
+            style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 32,
+              fontWeight: 700,
+              color: '#F5F3ED',
+              letterSpacing: '-0.02em',
+              margin: '0 0 8px',
+            }}
+          >
+            Access Restricted
           </h1>
-          <p className="text-sm md:text-base text-red-300/90 font-medium max-w-xl mx-auto">
+          <p style={{ color: 'rgba(245, 243, 237, 0.5)', fontSize: 14, maxWidth: 460, margin: '0 auto', lineHeight: 1.6 }}>
             {reason}
           </p>
         </div>
 
-        {/* Digital Reverse Countdown Display */}
-        <div className="w-full bg-black/60 border-2 border-red-500/50 rounded-2xl p-6 shadow-inner relative overflow-hidden">
-          <div className="text-xs uppercase tracking-widest text-red-400 font-bold mb-3 flex items-center justify-center gap-2">
-            <Clock size={14} className="animate-spin text-red-400" />
-            REVERSE COUNTDOWN REMAINING
-          </div>
-
-          {/* Large Digital Clocks */}
-          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-            <div className="bg-slate-950/80 border border-red-500/30 rounded-xl p-3 md:p-4 text-center">
-              <span className="block text-3xl md:text-5xl font-mono font-black text-red-500 tracking-tight">
-                {hours}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 uppercase font-semibold mt-1">Hours</span>
-            </div>
-            <div className="bg-slate-950/80 border border-red-500/30 rounded-xl p-3 md:p-4 text-center">
-              <span className="block text-3xl md:text-5xl font-mono font-black text-red-500 tracking-tight">
-                {minutes}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 uppercase font-semibold mt-1">Minutes</span>
-            </div>
-            <div className="bg-slate-950/80 border border-red-500/30 rounded-xl p-3 md:p-4 text-center">
-              <span className="block text-3xl md:text-5xl font-mono font-black text-red-500 tracking-tight">
-                {seconds}
-              </span>
-              <span className="text-[10px] md:text-xs text-slate-400 uppercase font-semibold mt-1">Seconds</span>
-            </div>
-          </div>
-
-          <div className="mt-4 text-xs text-slate-400 flex items-center justify-center gap-2">
-            <span>Scheduled Automatic Unlock:</span>
-            <span className="text-slate-200 font-bold">{targetUnlockDate}</span>
-          </div>
-        </div>
-
-        {/* Hardware & Web Synchronization Badges */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-xs">
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3 text-left">
-            <div className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
-              <Cpu size={18} />
-            </div>
-            <div>
-              <div className="font-bold text-white flex items-center gap-1.5">
-                Hardware Device: {deviceName ? `${deviceName} (${deviceUid})` : deviceUid}
-                <span className="w-2 h-2 rounded-full bg-red-500" />
+        {/* Countdown */}
+        <div
+          style={{
+            width: '100%',
+            background: 'rgba(0, 0, 0, 0.4)',
+            border: '1px solid rgba(182, 83, 75, 0.25)',
+            borderRadius: 16,
+            padding: '24px 20px',
+          }}
+        >
+          <p style={{ color: 'rgba(245, 243, 237, 0.4)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
+            Time remaining until unlock
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, maxWidth: 340, margin: '0 auto' }}>
+            {[
+              { val: pad(h), label: 'Hours' },
+              { val: pad(m), label: 'Minutes' },
+              { val: pad(s), label: 'Seconds' },
+            ].map(({ val, label }) => (
+              <div
+                key={label}
+                style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(182, 83, 75, 0.2)',
+                  borderRadius: 12,
+                  padding: '14px 10px',
+                  textAlign: 'center',
+                }}
+              >
+                <span
+                  className="tabular-nums"
+                  style={{ display: 'block', fontSize: 40, fontWeight: 800, color: '#E57B73', fontFamily: 'DM Sans, monospace', letterSpacing: '-0.02em', lineHeight: 1 }}
+                >
+                  {val}
+                </span>
+                <span style={{ display: 'block', fontSize: 10, color: 'rgba(245,243,237,0.35)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 6 }}>
+                  {label}
+                </span>
               </div>
-              <p className="text-slate-400 text-[11px] mt-0.5">
-                LCD locked on reverse timer. Touch and sessions disabled.
-              </p>
-            </div>
+            ))}
           </div>
-
-          <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3.5 flex items-center gap-3 text-left">
-            <div className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
-              <Globe size={18} />
-            </div>
-            <div>
-              <div className="font-bold text-white flex items-center gap-1.5">
-                Web Workspace Access
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-              </div>
-              <p className="text-slate-400 text-[11px] mt-0.5">
-                Dashboard restricted. System remains locked across sessions.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Security / Anti-Bypass Notice */}
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 text-xs text-slate-300 flex items-start gap-3 text-left w-full">
-          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong className="text-red-300">Strict Anti-Bypass Enforced:</strong> Power-cycling the desk hardware, refreshing this webpage, or clearing browser cache will <span className="underline decoration-red-400 underline-offset-2 font-semibold">NOT</span> bypass this restriction. The lockout is persisted in hardware non-volatile storage (NVS) and cloud database.
+          <p style={{ color: 'rgba(245,243,237,0.3)', fontSize: 11, marginTop: 14 }}>
+            Automatic unlock: <span style={{ color: 'rgba(245,243,237,0.6)', fontWeight: 600 }}>{unlockTime}</span>
           </p>
         </div>
 
+        {/* Info rows */}
+        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {[
+            { icon: Cpu, title: `Device: ${deviceName || deviceUid}`, sub: 'LCD locked — sessions disabled' },
+            { icon: Globe, title: 'Web access', sub: 'Dashboard restricted until unlock' },
+          ].map(({ icon: Icon, title, sub }) => (
+            <div
+              key={title}
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                border: '1px solid rgba(245,243,237,0.06)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                textAlign: 'left',
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+              }}
+            >
+              <div style={{ padding: 7, borderRadius: 8, background: 'rgba(182,83,75,0.12)', border: '1px solid rgba(182,83,75,0.2)', flexShrink: 0 }}>
+                <Icon size={14} style={{ color: '#E57B73' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'rgba(245,243,237,0.75)', marginBottom: 2 }}>{title}</p>
+                <p style={{ fontSize: 11, color: 'rgba(245,243,237,0.35)', lineHeight: 1.4 }}>{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Anti-bypass notice */}
+        <div
+          style={{
+            width: '100%',
+            background: 'rgba(182,83,75,0.07)',
+            border: '1px solid rgba(182,83,75,0.2)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left',
+          }}
+        >
+          <AlertTriangle size={15} style={{ color: '#E57B73', flexShrink: 0, marginTop: 1 }} />
+          <p style={{ fontSize: 12, color: 'rgba(245,243,237,0.5)', lineHeight: 1.6 }}>
+            <strong style={{ color: 'rgba(245,243,237,0.7)' }}>Anti-bypass enforced.</strong>
+            {' '}Power-cycling the hardware, refreshing this page, or clearing cache will{' '}
+            <span style={{ textDecoration: 'underline', color: '#E57B73' }}>not</span>{' '}
+            bypass this restriction. Lockout persists in NVS and cloud database.
+          </p>
+        </div>
+
+        {/* Feedback */}
         {actionError && (
-          <div className="w-full p-3 rounded-lg bg-red-600/20 border border-red-500 text-red-200 text-xs">
+          <div style={{ width: '100%', padding: '10px 14px', borderRadius: 10, background: 'rgba(182,83,75,0.15)', border: '1px solid rgba(182,83,75,0.4)', color: '#E57B73', fontSize: 13 }}>
             {actionError}
           </div>
         )}
-
         {unlockSuccess && (
-          <div className="w-full p-3 rounded-lg bg-green-600/20 border border-green-500 text-green-200 text-xs flex items-center justify-center gap-2">
-            <CheckCircle2 size={16} />
-            System unlocked successfully! Restoring dashboard...
+          <div
+            style={{
+              width: '100%', padding: '10px 14px', borderRadius: 10,
+              background: 'rgba(74,124,89,0.15)', border: '1px solid rgba(74,124,89,0.4)',
+              color: '#6A9E78', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <CheckCircle2 size={14} />
+            Unlocked successfully — restoring access…
           </div>
         )}
 
-        {/* Administrative Actions */}
-        <div className="w-full pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-400 text-left">
-            <span>Invalid Sessions: </span>
-            <span className="text-red-400 font-bold">{invalidCount}/10</span>
-            <span className="text-slate-500 ml-2">(Policy threshold reached)</span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Test 2-Min Lockout */}
+        {/* Admin actions */}
+        <div
+          style={{
+            width: '100%',
+            paddingTop: 20,
+            borderTop: '1px solid rgba(245,243,237,0.06)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 12, color: 'rgba(245,243,237,0.35)' }}>
+            Invalid sessions:{' '}
+            <span style={{ color: '#E57B73', fontWeight: 700 }}>{invalidCount}/10</span>
+          </span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
-              onClick={() => handleTestLockout(120)}
+              onClick={handleTestLockout}
               disabled={isUnlocking}
-              className="px-3 py-2 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-300 text-xs font-semibold transition-all"
+              style={{
+                padding: '8px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                background: 'rgba(184,121,57,0.15)', border: '1px solid rgba(184,121,57,0.3)', color: '#D4A04A',
+                transition: 'all 150ms ease', display: 'flex', alignItems: 'center', gap: 6,
+                opacity: isUnlocking ? 0.5 : 1,
+              }}
             >
-              🧪 Test 2-Min Lockout
+              🧪 Test 2-min lockout
             </button>
-
-            {/* Admin Override Unlock */}
             <button
               onClick={handleAdminUnlock}
               disabled={isUnlocking}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-xs font-bold shadow-lg shadow-green-900/40 border border-green-400/40 flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50"
+              style={{
+                padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: 'rgba(74,124,89,0.2)', border: '1px solid rgba(74,124,89,0.4)', color: '#6A9E78',
+                transition: 'all 150ms ease', display: 'flex', alignItems: 'center', gap: 6,
+                opacity: isUnlocking ? 0.5 : 1,
+              }}
             >
               {isUnlocking ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  Unlocking System...
-                </>
+                <><Loader2 size={13} className="animate-spin" /> Unlocking…</>
               ) : (
-                <>
-                  <Unlock size={14} />
-                  Admin Instant Unlock
-                </>
+                <><Unlock size={13} /> 🔓 Admin unlock</>
               )}
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

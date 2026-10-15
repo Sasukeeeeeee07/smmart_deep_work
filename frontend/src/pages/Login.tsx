@@ -1,152 +1,248 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { KeyRound, Mail, Loader2, Cpu, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [mounted, setMounted]   = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const response = await api.post('/auth/login', { email, password });
       if (response.data.success) {
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data));
-        // Add a slight delay for animation before redirect
-        setTimeout(() => navigate('/'), 400);
+        setTimeout(() => navigate('/'), 300);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Authentication failed. Please check your credentials.');
+      setError(
+        err.response?.data?.error?.message
+          || err.response?.data?.message
+          || 'Incorrect credentials — please try again.'
+      );
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background relative overflow-hidden">
-      {/* Animated Background Orbs */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/30 rounded-full mix-blend-screen filter blur-[100px] animate-blob" />
-        <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-accent/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob" style={{ animationDelay: '2s' }} />
-        <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-primary-dark/30 rounded-full mix-blend-screen filter blur-[100px] animate-blob" style={{ animationDelay: '4s' }} />
-      </div>
-
-      {/* Left side: Branding / Presentation */}
-      <div className="w-full md:w-1/2 p-8 md:p-12 lg:p-24 flex flex-col justify-center relative z-10 hidden md:flex">
-        <div className={`transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-          <div className="inline-flex items-center space-x-3 mb-8 bg-surface border border-white/10 px-4 py-2 rounded-full">
-            <span className="flex h-3 w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-accent"></span>
-            </span>
-            <span className="text-sm text-text-muted font-medium tracking-wide uppercase">System Online</span>
+    <div
+      className="min-h-screen flex"
+      style={{ background: 'var(--canvas)' }}
+    >
+      {/* Left panel — brand story */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-1/2 p-14"
+        style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center justify-center"
+            style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--forest)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+            </svg>
           </div>
-          
-          <h1 className="text-5xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-text-muted mb-6 tracking-tight">
-            smmart deep work
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-light to-accent">Control Center</span>
+          <div>
+            <p
+              className="font-semibold leading-none"
+              style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif', fontSize: 15 }}
+            >
+              smmart
+            </p>
+            <p className="leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 11 }}>
+              deep work
+            </p>
+          </div>
+        </div>
+
+        {/* Hero copy */}
+        <div>
+          <h1
+            className="leading-tight mb-5"
+            style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 42,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              letterSpacing: '-0.03em',
+              maxWidth: 420,
+            }}
+          >
+            Make room for<br />
+            <span style={{ color: 'var(--forest)' }}>meaningful work.</span>
           </h1>
-          
-          <p className="text-lg text-text-muted max-w-md leading-relaxed">
-            Manage your IoT ecosystem, monitor live telemetry, and deploy tasks to physical hardware interfaces in real-time.
+          <p
+            className="leading-relaxed max-w-sm"
+            style={{ color: 'var(--ink-3)', fontSize: 16 }}
+          >
+            SmartDesk OS connects your physical workspace to intelligent session
+            monitoring — so you can understand how you truly work.
           </p>
+        </div>
+
+        {/* Features */}
+        <div className="space-y-4">
+          {[
+            { label: 'Radar-based presence detection', sub: "Knows when you're at your desk" },
+            { label: 'Uninterrupted session tracking', sub: 'Real data, not estimates' },
+            { label: 'Break pattern analysis', sub: 'Understand your rhythms' },
+          ].map(f => (
+            <div key={f.label} className="flex items-start gap-3">
+              <div
+                className="mt-1 shrink-0"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--sage)',
+                  marginTop: 6,
+                }}
+              />
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{f.label}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>{f.sub}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Right side: Login Form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-12 relative z-10 min-h-screen md:min-h-0">
-        <div className={`glass-panel p-8 sm:p-10 rounded-[2rem] w-full max-w-md transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`} style={{ transitionDelay: '200ms' }}>
-          
-          <div className="flex md:hidden items-center justify-center space-x-3 mb-10">
-            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
-              <Cpu className="h-6 w-6 text-primary" />
+      {/* Right panel — login form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <div
+          className="w-full"
+          style={{
+            maxWidth: 380,
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? 'none' : 'translateY(12px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
+          }}
+        >
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-2.5 mb-10">
+            <div
+              className="flex items-center justify-center"
+              style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--forest)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+              </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">smmart deep work</h2>
+            <span className="font-semibold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>
+              smmart deep work
+            </span>
           </div>
 
-          <div className="mb-10 text-center md:text-left">
-            <h3 className="text-3xl font-bold text-white mb-2">Welcome Back</h3>
-            <p className="text-text-muted">Authenticate to access the dashboard</p>
-          </div>
+          <h2
+            className="mb-1"
+            style={{
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: 26,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Welcome back
+          </h2>
+          <p className="mb-8 text-sm" style={{ color: 'var(--ink-3)' }}>
+            Sign in to your workspace
+          </p>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm flex items-center animate-fade-in-up">
-              <div className="h-2 w-2 bg-red-500 rounded-full mr-3 animate-pulse"></div>
+            <div
+              className="flex items-start gap-3 p-3.5 rounded-xl mb-6 text-sm"
+              style={{
+                background: 'rgba(182, 83, 75, 0.08)',
+                border: '1px solid rgba(182, 83, 75, 0.2)',
+                color: 'var(--error)',
+              }}
+            >
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-muted ml-1">Email Address</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-primary text-text-muted">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <input
-                  type="email"
-                  className="input-premium w-full pl-11 pr-4 py-3.5 rounded-xl placeholder-text-muted/50 outline-none"
-                  placeholder="admin@smmart deep work.local"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-muted ml-1">Password</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-primary text-text-muted">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-                <input
-                  type="password"
-                  className="input-premium w-full pl-11 pr-4 py-3.5 rounded-xl placeholder-text-muted/50 outline-none"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-premium w-full py-4 px-4 text-white font-semibold rounded-xl flex items-center justify-center space-x-2"
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label
+                className="block text-sm font-medium mb-1.5"
+                htmlFor="email"
+                style={{ color: 'var(--ink-2)' }}
               >
-                {loading ? (
-                  <Loader2 className="animate-spin h-5 w-5" />
-                ) : (
-                  <>
-                    <span>Initialize Session</span>
-                    <ArrowRight className="h-5 w-5 ml-2 opacity-80" />
-                  </>
-                )}
-              </button>
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                className="input-base"
+                placeholder="you@smmart.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
             </div>
+
+            <div>
+              <label
+                className="block text-sm font-medium mb-1.5"
+                htmlFor="password"
+                style={{ color: 'var(--ink-2)' }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                className="input-base"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </div>
+
+            <button
+              id="login-submit"
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary w-full py-3 mt-2"
+              style={{ fontSize: 15 }}
+            >
+              {loading ? (
+                <><Loader2 size={16} className="animate-spin" /> Signing in…</>
+              ) : (
+                <><span>Sign in</span><ArrowRight size={16} /></>
+              )}
+            </button>
           </form>
-          
-          <div className="mt-8 text-center">
-            <p className="text-xs text-text-muted/60">
-              Secured by smmart deep work Encryption Protocol
-            </p>
-          </div>
+
+          <p
+            className="mt-8 text-center"
+            style={{ color: 'var(--ink-4)', fontSize: 12 }}
+          >
+            SmartDesk OS — workspace intelligence for focused professionals
+          </p>
         </div>
       </div>
     </div>

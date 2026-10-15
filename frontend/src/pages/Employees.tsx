@@ -1,263 +1,306 @@
 import { useState, useEffect } from 'react';
 import { employeeService } from '../services/api';
-import { Users, Plus, Trash2, Edit } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, X, Loader2, AlertCircle } from 'lucide-react';
 
+const ROLES = ['EMPLOYEE', 'MANAGER', 'ADMIN'] as const;
+type Role = typeof ROLES[number];
+
+const ROLE_STYLE: Record<Role, { bg: string; color: string }> = {
+  ADMIN:    { bg: 'rgba(66, 84, 67, 0.1)',   color: 'var(--forest)' },
+  MANAGER:  { bg: 'rgba(184, 121, 57, 0.1)', color: 'var(--amber-w)' },
+  EMPLOYEE: { bg: 'var(--surface-2)',         color: 'var(--ink-3)' },
+};
+
+const emptyForm = { firstName: '', lastName: '', email: '', password: '', role: 'EMPLOYEE' as Role, department: '', position: '' };
+
+/* ── Shared Field ──────────────────────────────────────────────────────── */
+const Field = ({
+  label, id, children, optional
+}: { label: string; id: string; children: React.ReactNode; optional?: boolean }) => (
+  <div>
+    <label htmlFor={id} className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-3)' }}>
+      {label} {optional && <span style={{ color: 'var(--ink-4)' }}>(optional)</span>}
+    </label>
+    {children}
+  </div>
+);
+
+/* ── Modal Shell ─────────────────────────────────────────────────────── */
+const Modal = ({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style={{ background: 'rgba(41, 43, 37, 0.4)', backdropFilter: 'blur(4px)' }}
+    onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+  >
+    <div
+      className="w-full animate-fade-up"
+      style={{
+        maxWidth: 480,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 20,
+        boxShadow: 'var(--shadow-xl)',
+      }}
+    >
+      <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid var(--border)' }}>
+        <h3 className="font-semibold" style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 16, color: 'var(--ink)' }}>
+          {title}
+        </h3>
+        <button onClick={onClose} className="btn btn-ghost p-1.5 rounded-lg">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="px-6 py-5">{children}</div>
+    </div>
+  </div>
+);
+
+/* ── Main ──────────────────────────────────────────────────────────────── */
 const Employees = () => {
   const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    role: 'EMPLOYEE',
-    department: '',
-    position: ''
-  });
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [formError, setFormError] = useState('');
+  const [showAdd, setShowAdd]     = useState(false);
+  const [editing, setEditing]     = useState<any>(null);
+  const [newEmp, setNewEmp]       = useState(emptyForm);
 
   const fetchEmployees = async () => {
     try {
       const data = await employeeService.getAllEmployees();
       setEmployees(data);
-    } catch (error) {
-      console.error('Failed to fetch employees', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
+  useEffect(() => { fetchEmployees(); }, []);
 
-  const handleAddEmployee = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true); setFormError('');
     try {
-      await employeeService.createEmployee(newEmployee);
-      setShowAddModal(false);
-      setNewEmployee({ firstName: '', lastName: '', email: '', password: '', role: 'EMPLOYEE', department: '', position: '' });
+      await employeeService.createEmployee(newEmp);
+      setShowAdd(false);
+      setNewEmp(emptyForm);
       fetchEmployees();
-    } catch (error: any) {
-      console.error('Failed to create employee', error);
-      alert(error.response?.data?.error?.message || 'Failed to create employee. Please try again.');
-    }
+    } catch (err: any) {
+      setFormError(err.response?.data?.error?.message || 'Failed to create member.');
+    } finally { setSaving(false); }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true); setFormError('');
+    try {
+      const { id, ...data } = editing;
+      if (!data.password) delete data.password;
+      await employeeService.updateEmployee(id, data);
+      setEditing(null);
+      fetchEmployees();
+    } catch (err: any) {
+      setFormError(err.response?.data?.error?.message || 'Failed to update member.');
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      try {
-        await employeeService.deleteEmployee(id);
-        fetchEmployees();
-      } catch (error) {
-        console.error('Failed to delete employee', error);
-      }
-    }
+    if (!window.confirm('Delete this team member?')) return;
+    try { await employeeService.deleteEmployee(id); fetchEmployees(); } catch {}
   };
 
-  const openEditModal = (emp: any) => {
-    setEditingEmployee({
-      id: emp._id,
-      firstName: emp.firstName,
-      lastName: emp.lastName,
-      email: emp.email,
-      department: emp.department,
-      position: emp.position,
-      role: emp.user?.role || 'EMPLOYEE',
-      status: emp.status,
-      password: '' // empty password so it won't update unless typed
-    });
-    setShowEditModal(true);
-  };
-
-  const handleEditEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const updateData: any = { ...editingEmployee };
-      delete updateData.id;
-      if (!updateData.password) {
-        delete updateData.password;
-      }
-      await employeeService.updateEmployee(editingEmployee.id, updateData);
-      setShowEditModal(false);
-      fetchEmployees();
-    } catch (error: any) {
-      console.error('Failed to update employee', error);
-      alert(error.response?.data?.error?.message || 'Failed to update employee. Please try again.');
-    }
-  };
+  const EmpForm = ({ data, setData, onSubmit, isEdit }: any) => (
+    <form onSubmit={onSubmit} className="space-y-4">
+      {formError && (
+        <div
+          className="flex items-start gap-2.5 p-3 rounded-xl text-sm"
+          style={{ background: 'rgba(182, 83, 75, 0.07)', border: '1px solid rgba(182, 83, 75, 0.2)', color: 'var(--error)' }}
+        >
+          <AlertCircle size={15} className="shrink-0 mt-0.5" />
+          {formError}
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First name" id="firstName">
+          <input id="firstName" required className="input-base" value={data.firstName}
+            onChange={e => setData({ ...data, firstName: e.target.value })} />
+        </Field>
+        <Field label="Last name" id="lastName">
+          <input id="lastName" required className="input-base" value={data.lastName}
+            onChange={e => setData({ ...data, lastName: e.target.value })} />
+        </Field>
+      </div>
+      <Field label="Email" id="empEmail">
+        <input id="empEmail" required type="email" className="input-base" value={data.email}
+          onChange={e => setData({ ...data, email: e.target.value })} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={isEdit ? 'New password' : 'Password'} id="empPw" optional={isEdit}>
+          <input id="empPw" type="password" minLength={6} className="input-base" value={data.password}
+            placeholder={isEdit ? 'Leave blank to keep' : ''}
+            onChange={e => setData({ ...data, password: e.target.value })} required={!isEdit} />
+        </Field>
+        <Field label="Role" id="empRole">
+          <select id="empRole" className="input-base" value={data.role}
+            onChange={e => setData({ ...data, role: e.target.value })}>
+            {ROLES.map(r => <option key={r} value={r}>{r.charAt(0) + r.slice(1).toLowerCase()}</option>)}
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Department" id="empDept">
+          <input id="empDept" required className="input-base" value={data.department}
+            onChange={e => setData({ ...data, department: e.target.value })} />
+        </Field>
+        <Field label="Position" id="empPos">
+          <input id="empPos" required className="input-base" value={data.position}
+            onChange={e => setData({ ...data, position: e.target.value })} />
+        </Field>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" onClick={() => { setShowAdd(false); setEditing(null); setFormError(''); }}
+          className="btn btn-secondary text-sm">Cancel</button>
+        <button type="submit" disabled={saving} className="btn btn-primary text-sm">
+          {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : isEdit ? 'Save changes' : 'Add member'}
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="space-y-6">
-      <header className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-text-main flex items-center gap-2">
-          <Users size={28} className="text-primary-main" />
-          Staff & Users
-        </h2>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary-main hover:bg-primary-hover text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus size={20} />
-          Add Staff Member
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="section-label mb-0.5">Workspace</p>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+            Team
+          </h1>
+        </div>
+        <button onClick={() => { setShowAdd(true); setFormError(''); setNewEmp(emptyForm); }} className="btn btn-primary text-sm">
+          <Plus size={15} /> Add member
         </button>
-      </header>
+      </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass p-8 rounded-2xl w-full max-w-md border border-surface-light">
-            <h3 className="text-xl font-bold text-text-main mb-6">Add New Staff Member</h3>
-            <form onSubmit={handleAddEmployee} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">First Name</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.firstName} onChange={e => setNewEmployee({...newEmployee, firstName: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Last Name</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.lastName} onChange={e => setNewEmployee({...newEmployee, lastName: e.target.value})} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-text-muted mb-1">Email</label>
-                <input required type="email" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Password</label>
-                  <input required type="password" minLength={6} className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.password} onChange={e => setNewEmployee({...newEmployee, password: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Role</label>
-                  <select className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})}>
-                    <option value="EMPLOYEE">Employee</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Department</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Position</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={newEmployee.position} onChange={e => setNewEmployee({...newEmployee, position: e.target.value})} />
-                </div>
-              </div>
-              <div className="flex justify-end gap-4 mt-6">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-text-muted hover:text-white transition-colors">Cancel</button>
-                <button type="submit" className="bg-primary-main hover:bg-primary-hover text-white px-6 py-2 rounded-lg transition-colors">Save</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && editingEmployee && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass p-8 rounded-2xl w-full max-w-md border border-surface-light">
-            <h3 className="text-xl font-bold text-text-main mb-6">Edit Staff Member</h3>
-            <form onSubmit={handleEditEmployee} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">First Name</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.firstName} onChange={e => setEditingEmployee({...editingEmployee, firstName: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Last Name</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.lastName} onChange={e => setEditingEmployee({...editingEmployee, lastName: e.target.value})} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-text-muted mb-1">Email</label>
-                <input required type="email" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.email} onChange={e => setEditingEmployee({...editingEmployee, email: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">New Password <span className="text-xs text-text-muted/50">(optional)</span></label>
-                  <input type="password" minLength={6} placeholder="Leave blank to keep" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white placeholder-text-muted/40" value={editingEmployee.password} onChange={e => setEditingEmployee({...editingEmployee, password: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Role</label>
-                  <select className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.role} onChange={e => setEditingEmployee({...editingEmployee, role: e.target.value})}>
-                    <option value="EMPLOYEE">Employee</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Department</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.department} onChange={e => setEditingEmployee({...editingEmployee, department: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm text-text-muted mb-1">Position</label>
-                  <input required type="text" className="w-full bg-surface-dark border border-surface-light rounded-lg px-4 py-2 text-white" value={editingEmployee.position} onChange={e => setEditingEmployee({...editingEmployee, position: e.target.value})} />
-                </div>
-              </div>
-              <div className="flex justify-end gap-4 mt-6">
-                <button type="button" onClick={() => setShowEditModal(false)} className="px-4 py-2 text-text-muted hover:text-white transition-colors">Cancel</button>
-                <button type="submit" className="bg-primary-main hover:bg-primary-hover text-white px-6 py-2 rounded-lg transition-colors">Update</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <div className="glass rounded-2xl border border-surface-light overflow-hidden">
+      {/* Table card */}
+      <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-text-muted">Loading employees...</div>
+          <div className="p-8 space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="skeleton h-12 rounded-xl" />
+            ))}
+          </div>
         ) : employees.length === 0 ? (
-          <div className="p-8 text-center text-text-muted">No employees found. Add one to get started.</div>
+          <div className="flex flex-col items-center justify-center py-16">
+            <Users size={28} style={{ color: 'var(--ink-4)', marginBottom: 10 }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-3)' }}>No team members yet</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>Add someone to get started</p>
+          </div>
         ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-dark/50 border-b border-surface-light text-text-muted text-sm uppercase tracking-wider">
-                <th className="p-4 font-medium">Name</th>
-                <th className="p-4 font-medium">Department</th>
-                <th className="p-4 font-medium">Role</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((emp) => (
-                <tr key={emp._id} className="border-b border-surface-light/50 hover:bg-white/5 transition-colors">
-                  <td className="p-4">
-                    <div className="font-medium text-text-main">{emp.firstName} {emp.lastName}</div>
-                    <div className="text-sm text-text-muted">{emp.email}</div>
-                  </td>
-                  <td className="p-4 text-text-main">{emp.department}</td>
-                  <td className="p-4 text-text-muted">
-                    <span className={`px-2 py-1 rounded text-xs font-bold border ${emp.user?.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : emp.user?.role === 'MANAGER' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'} mr-2`}>
-                      {emp.user?.role || 'NO ROLE'}
-                    </span>
-                    {emp.position}
-                  </td>
-                  <td className="p-4">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
-                      {emp.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right space-x-2">
-                    <button onClick={() => openEditModal(emp)} className="text-blue-400 hover:text-blue-300 transition-colors p-2">
-                      <Edit size={18} />
-                    </button>
-                    <button onClick={() => handleDelete(emp._id)} className="text-red-400 hover:text-red-300 transition-colors p-2">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                  {['Name', 'Department', 'Role', 'Status', ''].map(h => (
+                    <th key={h} className="section-label px-5 py-3.5 font-medium">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {employees.map((emp, i) => {
+                  const role = (emp.user?.role || 'EMPLOYEE') as Role;
+                  const rs = ROLE_STYLE[role] || ROLE_STYLE.EMPLOYEE;
+                  return (
+                    <tr
+                      key={emp._id}
+                      style={{
+                        borderBottom: i < employees.length - 1 ? '1px solid var(--border)' : undefined,
+                        transition: 'background 120ms ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex items-center justify-center shrink-0 text-xs font-bold"
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              background: 'rgba(66, 84, 67, 0.1)',
+                              color: 'var(--forest)',
+                              fontFamily: 'DM Sans, sans-serif',
+                            }}
+                          >
+                            {(emp.firstName?.[0] || '').toUpperCase()}{(emp.lastName?.[0] || '').toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+                              {emp.firstName} {emp.lastName}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--ink-4)' }}>{emp.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--ink-2)' }}>{emp.department}</td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className="pill"
+                          style={{ color: rs.color, background: rs.bg, borderColor: 'transparent' }}
+                        >
+                          {role.charAt(0) + role.slice(1).toLowerCase()}
+                        </span>
+                        <span className="ml-2 text-xs" style={{ color: 'var(--ink-4)' }}>{emp.position}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="pill" style={{ color: 'var(--success)', background: 'rgba(74, 124, 89, 0.1)', borderColor: 'rgba(74, 124, 89, 0.2)' }}>
+                          <span className="status-dot" style={{ background: 'var(--success)' }} />
+                          {emp.status || 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setEditing({ id: emp._id, firstName: emp.firstName, lastName: emp.lastName, email: emp.email, department: emp.department, position: emp.position, role, status: emp.status, password: '' });
+                              setFormError('');
+                            }}
+                            className="btn btn-ghost p-2 rounded-lg text-xs"
+                            title="Edit"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(emp._id)}
+                            className="btn btn-ghost p-2 rounded-lg text-xs"
+                            style={{ color: 'var(--ink-4)' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-4)')}
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {/* Modals */}
+      {showAdd && (
+        <Modal title="Add team member" onClose={() => { setShowAdd(false); setFormError(''); }}>
+          <EmpForm data={newEmp} setData={setNewEmp} onSubmit={handleAdd} isEdit={false} />
+        </Modal>
+      )}
+      {editing && (
+        <Modal title="Edit team member" onClose={() => { setEditing(null); setFormError(''); }}>
+          <EmpForm data={editing} setData={setEditing} onSubmit={handleEdit} isEdit={true} />
+        </Modal>
+      )}
     </div>
   );
 };

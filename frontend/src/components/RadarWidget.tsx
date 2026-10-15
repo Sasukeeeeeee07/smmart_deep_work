@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { deviceService } from '../services/api';
-import { Activity, User, Maximize } from 'lucide-react';
+import { User, Minus, Plus } from 'lucide-react';
 
 interface RadarWidgetProps {
   deviceUid: string;
@@ -15,10 +15,9 @@ interface TelemetryData {
 }
 
 const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) => {
-  const [data, setData] = useState<TelemetryData | null>(null);
+  const [data, setData]       = useState<TelemetryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  // Track whether this is the very first fetch so we don't flash the spinner on polls
+  const [error, setError]     = useState(false);
   const initialFetch = useRef(true);
 
   const fetchTelemetry = useCallback(async () => {
@@ -26,8 +25,7 @@ const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) =>
       const latest = await deviceService.getLatestActivity(deviceUid);
       setData(latest);
       setError(false);
-    } catch (err) {
-      console.error('Failed to fetch telemetry', err);
+    } catch {
       setError(true);
     } finally {
       if (initialFetch.current) {
@@ -41,80 +39,120 @@ const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) =>
     initialFetch.current = true;
     setLoading(true);
     fetchTelemetry();
-    // 5s poll — smoother than 3s, still near-realtime
-    const interval = setInterval(fetchTelemetry, 5000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchTelemetry, 5000);
+    return () => clearInterval(iv);
   }, [fetchTelemetry]);
 
   const isOccupied = data?.state !== 'NO PERSON' && data?.state !== 'UNKNOWN' && data !== null;
 
+  const stateLabel: Record<string, string> = {
+    'MOVING':     'Active',
+    'STATIONARY': 'Seated',
+    'NO PERSON':  'Empty',
+    'UNKNOWN':    'Unknown',
+  };
+
+  const lastSeen = data?.timestamp
+    ? new Date(data.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   return (
     <div
-      style={{ willChange: 'transform' }}
-      className={`glass p-6 rounded-2xl relative overflow-hidden transition-shadow duration-500 ${
-        isOccupied
-          ? 'shadow-[0_0_24px_rgba(34,197,94,0.18)]'
-          : 'shadow-none'
-      }`}
+      className="card card-hover"
+      style={{
+        padding: 20,
+        borderColor: isOccupied ? 'rgba(94, 112, 82, 0.35)' : undefined,
+        transition: 'all 180ms ease',
+      }}
     >
-      
-      <div className="relative z-10">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h3 className="text-xl font-semibold text-white mb-1 flex items-center gap-2">
-              <User size={20} className="text-blue-400" />
-              {employeeName}'s Desk
-            </h3>
-            <p className="text-sm text-gray-400">Device: {deviceUid}</p>
+      {/* Header row */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: isOccupied ? 'rgba(66, 84, 67, 0.1)' : 'var(--surface-2)',
+              }}
+            >
+              <User size={14} style={{ color: isOccupied ? 'var(--forest)' : 'var(--ink-4)' }} />
+            </div>
+            <p
+              className="font-semibold text-sm leading-none"
+              style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
+            >
+              {employeeName}
+            </p>
           </div>
-          
-          <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border ${
-            isOccupied 
-              ? 'bg-green-500/20 text-green-400 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.3)]' 
-              : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${isOccupied ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
-            {isOccupied ? 'Occupied' : 'Empty'}
-          </div>
+          <p className="text-xs mt-1" style={{ color: 'var(--ink-4)', marginLeft: 2 }}>
+            {deviceUid}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="h-32 flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-          </div>
-        ) : error || !data ? (
-          <div className="h-32 flex items-center justify-center text-red-400/80">
-            Failed to load radar data
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                <Activity size={16} />
-                Moving Dist.
-              </div>
-              <div className="text-2xl font-bold text-white font-mono">
-                {data.movingDistance} <span className="text-sm text-gray-500">cm</span>
-              </div>
-            </div>
-            
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
-                <Maximize size={16} />
-                Static Dist.
-              </div>
-              <div className="text-2xl font-bold text-white font-mono">
-                {data.stationaryDistance} <span className="text-sm text-gray-500">cm</span>
-              </div>
-            </div>
-            
-            <div className="col-span-2 bg-white/5 rounded-xl p-3 border border-white/10 text-center">
-              <span className="text-xs text-gray-400 uppercase tracking-wider">Raw State: </span>
-              <span className="text-sm font-semibold text-blue-300">{data.state}</span>
-            </div>
-          </div>
-        )}
+        {/* Status pill */}
+        <div
+          className="pill"
+          style={isOccupied
+            ? { color: 'var(--success)', background: 'rgba(74, 124, 89, 0.1)', borderColor: 'rgba(74, 124, 89, 0.25)' }
+            : { color: 'var(--ink-4)', background: 'var(--surface-2)', borderColor: 'var(--border)' }
+          }
+        >
+          <span
+            className="status-dot"
+            style={{ background: isOccupied ? 'var(--success)' : 'var(--ink-4)', ...(isOccupied ? { animation: 'pulse-gentle 2s ease infinite' } : {}) }}
+          />
+          {data ? (stateLabel[data.state] || data.state) : 'Loading'}
+        </div>
       </div>
+
+      {/* Telemetry */}
+      {loading ? (
+        <div className="flex gap-3">
+          <div className="skeleton h-16 flex-1 rounded-xl" />
+          <div className="skeleton h-16 flex-1 rounded-xl" />
+        </div>
+      ) : error || !data ? (
+        <div
+          className="flex items-center justify-center h-16 rounded-xl text-xs"
+          style={{ background: 'var(--surface-2)', color: 'var(--ink-4)', border: '1px solid var(--border)' }}
+        >
+          No telemetry signal
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Moving', value: data.movingDistance, unit: 'cm', icon: Plus },
+            { label: 'Static', value: data.stationaryDistance, unit: 'cm', icon: Minus },
+          ].map(({ label, value, unit, icon: Icon }) => (
+            <div
+              key={label}
+              className="rounded-xl p-3.5"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon size={12} style={{ color: 'var(--ink-4)' }} />
+                <span className="text-xs" style={{ color: 'var(--ink-4)' }}>{label}</span>
+              </div>
+              <p
+                className="font-bold tabular-nums leading-none"
+                style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 20, color: 'var(--ink)' }}
+              >
+                {value}
+                <span className="text-xs font-normal ml-1" style={{ color: 'var(--ink-4)' }}>{unit}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lastSeen && (
+        <p className="text-xs mt-3" style={{ color: 'var(--ink-4)' }}>
+          Last seen at {lastSeen}
+        </p>
+      )}
     </div>
   );
 };
