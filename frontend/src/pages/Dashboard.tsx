@@ -271,18 +271,18 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── 1 Long Button: Deepwork ───────────────────────────── */}
-      <div className="pt-4">
+      {/* ── 1 Long Button: Deepwork (Thin & Sleek) ───────────── */}
+      <div className="pt-2">
         <button
           onClick={() => navigate('/deepwork')}
-          className="w-full py-5 px-8 rounded-2xl flex items-center justify-between font-bold text-base md:text-lg transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+          className="w-full py-3 px-6 rounded-xl flex items-center justify-between font-semibold text-sm md:text-base transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
           style={{
             background: 'var(--forest)',
             color: '#ffffff',
             border: 'none',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.transform = 'translateY(-1px)';
             e.currentTarget.style.background = '#374738';
           }}
           onMouseLeave={e => {
@@ -290,14 +290,14 @@ const Dashboard = () => {
             e.currentTarget.style.background = 'var(--forest)';
           }}
         >
-          <div className="flex items-center gap-3">
-            <Timer size={24} />
-            <span className="tracking-tight text-lg md:text-xl font-bold">Deepwork</span>
+          <div className="flex items-center gap-2.5">
+            <Timer size={18} />
+            <span className="tracking-tight font-bold">Deepwork</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm font-semibold opacity-90">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium opacity-90">
             <span>Enter Deepwork</span>
-            <ArrowRight size={18} />
+            <ArrowRight size={15} />
           </div>
         </button>
       </div>

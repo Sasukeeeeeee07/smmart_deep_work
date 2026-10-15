@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Navigate, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import {
-  LogOut, Bell, Timer, Building2, User as UserIcon
-} from 'lucide-react';
+import { Navigate, Outlet, Link, useNavigate } from 'react-router-dom';
+import { LogOut, Bell } from 'lucide-react';
 import { notificationService, deviceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 
@@ -11,12 +9,9 @@ export default function DashboardLayout() {
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [unreadCount, setUnreadCount]   = useState(0);
   const [lockedDevice, setLockedDevice] = useState<any>(null);
-
-  const mode = localStorage.getItem('workspaceMode') || 'entrepreneur';
 
   const checkLockout = async () => {
     try {
@@ -71,91 +66,42 @@ export default function DashboardLayout() {
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U';
 
-  const isDeepWork = location.pathname.startsWith('/deepwork');
-
   return (
     <div
       style={{ minHeight: '100dvh', background: 'var(--canvas)' }}
-      className="flex flex-col"
+      className="flex flex-col w-full"
     >
-      {/* ── Minimalist Top Header (Side menu hidden as requested) ── */}
+      {/* ── Minimalist Clean Header ── */}
       <header
-        className="sticky top-0 z-40 px-5 md:px-8 py-3.5 flex items-center justify-between shrink-0"
+        className="sticky top-0 z-40 px-5 md:px-8 py-3.5 flex items-center justify-between shrink-0 w-full"
         style={{
-          background: 'rgba(255, 254, 250, 0.92)',
+          background: 'rgba(255, 254, 250, 0.95)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--border)',
         }}
       >
-        {/* Left: Brand & Mode badge */}
-        <div className="flex items-center gap-4">
-          <Link to="/select-mode" className="flex items-center gap-2.5 group">
-            <div
-              className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
-              style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--forest)' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-              </svg>
-            </div>
-            <div>
-              <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                smmart
-              </p>
-              <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 10 }}>
-                deep work
-              </p>
-            </div>
-          </Link>
-
-          <div className="hidden sm:block h-4 w-px" style={{ background: 'var(--border)' }} />
-
-          {/* Mode Pill & Switcher */}
-          <Link
-            to="/select-mode"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all"
-            style={{
-              background: mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.08)' : 'rgba(196, 127, 97, 0.1)',
-              color: mode === 'entrepreneur' ? 'var(--forest)' : 'var(--terra)',
-              border: `1px solid ${mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.2)' : 'rgba(196, 127, 97, 0.25)'}`,
-            }}
-            title="Click to switch between Entrepreneur & Individual mode"
+        {/* Left: Brand Logo only */}
+        <Link to="/select-mode" className="flex items-center gap-2.5 group">
+          <div
+            className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+            style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--forest)' }}
           >
-            {mode === 'entrepreneur' ? <Building2 size={12} /> : <UserIcon size={12} />}
-            <span className="capitalize">{mode} Mode</span>
-            <span className="text-xs opacity-60 ml-0.5 font-normal hover:underline">• Switch</span>
-          </Link>
-        </div>
-
-        {/* Center: Quick navigation links */}
-        <nav className="flex items-center gap-1 sm:gap-2 text-xs font-medium">
-          <Link
-            to="/"
-            className="px-3 py-1.5 rounded-lg transition-all"
-            style={{
-              background: location.pathname === '/' || location.pathname === '/dashboard' ? 'var(--surface-2)' : 'transparent',
-              color: location.pathname === '/' || location.pathname === '/dashboard' ? 'var(--ink)' : 'var(--ink-3)',
-              fontWeight: location.pathname === '/' || location.pathname === '/dashboard' ? 600 : 400,
-            }}
-          >
-            Dashboard
-          </Link>
-          <Link
-            to="/deepwork"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
-            style={{
-              background: isDeepWork ? 'rgba(66, 84, 67, 0.1)' : 'transparent',
-              color: isDeepWork ? 'var(--forest)' : 'var(--ink-3)',
-              fontWeight: isDeepWork ? 600 : 400,
-            }}
-          >
-            <Timer size={13} />
-            <span>Deep Work</span>
-          </Link>
-        </nav>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+              smmart
+            </p>
+            <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 10 }}>
+              deep work
+            </p>
+          </div>
+        </Link>
 
         {/* Right: Notifications, User & Logout */}
         <div className="flex items-center gap-3">
@@ -209,12 +155,12 @@ export default function DashboardLayout() {
         </div>
       </header>
 
-      {/* ── Main Content Container (Full Width, Centered) ── */}
+      {/* ── Main Content Container (Covers Entire Page Width) ── */}
       <main
-        className="flex-1 overflow-y-auto px-5 py-6 md:px-8 md:py-8"
+        className="flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-6 w-full"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        <div className="max-w-5xl mx-auto">
+        <div className="w-full">
           <Outlet />
         </div>
       </main>
