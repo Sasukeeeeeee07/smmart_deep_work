@@ -94,8 +94,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       }
       if (email) user.email = email;
       if (password) {
-        const salt = await bcrypt.genSalt(10);
-        user.passwordHash = await bcrypt.hash(password, salt);
+        user.passwordHash = password;
       }
       if (role) user.role = role;
       await user.save();
@@ -106,12 +105,10 @@ export const updateEmployee = async (req: Request, res: Response) => {
       }
     } else {
       // Create user if one did not exist for this employee
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password || 'defaultpassword123', salt);
       const newUser = await User.create({
         name: `${employee.firstName} ${employee.lastName}`,
         email: employee.email,
-        passwordHash,
+        passwordHash: password || 'defaultpassword123',
         role: role || Role.EMPLOYEE,
         isActive: true,
       });
