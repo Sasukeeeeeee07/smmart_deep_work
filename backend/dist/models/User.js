@@ -56,6 +56,9 @@ const userSchema = new mongoose_1.Schema({
 userSchema.pre('save', async function () {
     if (!this.isModified('passwordHash'))
         return;
+    if (typeof this.passwordHash === 'string' && (this.passwordHash.startsWith('$2b$') || this.passwordHash.startsWith('$2a$') || this.passwordHash.startsWith('$2y$'))) {
+        return;
+    }
     const salt = await bcrypt_1.default.genSalt(10);
     this.passwordHash = await bcrypt_1.default.hash(this.passwordHash, salt);
 });

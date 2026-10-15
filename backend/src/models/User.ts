@@ -30,6 +30,9 @@ const userSchema = new Schema<IUser>(
 // Hash password before saving
 userSchema.pre('save', async function () {
   if (!this.isModified('passwordHash')) return;
+  if (typeof this.passwordHash === 'string' && (this.passwordHash.startsWith('$2b$') || this.passwordHash.startsWith('$2a$') || this.passwordHash.startsWith('$2y$'))) {
+    return;
+  }
   const salt = await bcrypt.genSalt(10);
   this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
 });
