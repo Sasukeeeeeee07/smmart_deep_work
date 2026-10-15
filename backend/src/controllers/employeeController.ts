@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
 import { Employee } from '../models/Employee';
 import { User, Role } from '../models/User';
 
@@ -29,11 +30,14 @@ export const createEmployee = async (req: Request, res: Response) => {
     }
     
     // Create the User first
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password || 'defaultpassword123', salt);
     const user = await User.create({
       name: `${firstName} ${lastName}`,
       email,
-      passwordHash: password || 'defaultpassword123', // require password from frontend
+      passwordHash,
       role: role || Role.EMPLOYEE,
+      isActive: true,
     });
 
     // Create Employee linked to User
@@ -75,20 +79,48 @@ export const updateEmployee = async (req: Request, res: Response) => {
     
     await employee.save();
 
+    // Find linked or matching user
+    let user = null;
     if (employee.user) {
-      const user = await User.findById(employee.user);
-      if (user) {
-        if (firstName || lastName) {
-          user.name = `${employee.firstName} ${employee.lastName}`;
-        }
-        if (email) user.email = email;
-        if (password) user.passwordHash = password;
-        if (role) user.role = role;
-        await user.save();
+      user = await User.findById(employee.user);
+    }
+    if (!user && employee.email) {
+      user = await User.findOne({ email: employee.email });
+    }
+
+    if (user) {
+      if (firstName || lastName) {
+        user.name = `${employee.firstName} ${employee.lastName}`;
       }
+      if (email) user.email = email;
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        user.passwordHash = await bcrypt.hash(password, salt);
+      }
+      if (role) user.role = role;
+      await user.save();
+
+      if (!employee.user || employee.user.toString() !== user._id.toString()) {
+        employee.user = user._id;
+        await employee.save();
+      }
+    } else {
+      // Create user if one did not exist for this employee
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password || 'defaultpassword123', salt);
+      const newUser = await User.create({
+        name: `${employee.firstName} ${employee.lastName}`,
+        email: employee.email,
+        passwordHash,
+        role: role || Role.EMPLOYEE,
+        isActive: true,
+      });
+      employee.user = newUser._id;
+      await employee.save();
     }
     
-    res.json({ success: true, data: employee });
+    const populated = await Employee.findById(employee._id).populate('user', 'name email role');
+    res.json({ success: true, data: populated });
   } catch (error) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to update employee' } });
   }

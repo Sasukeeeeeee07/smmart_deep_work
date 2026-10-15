@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEmployee = exports.updateEmployee = exports.createEmployee = exports.getEmployees = void 0;
+const bcrypt_1 = __importDefault(require("bcrypt"));
 const Employee_1 = require("../models/Employee");
 const User_1 = require("../models/User");
 // @desc    Get all employees
@@ -29,11 +33,14 @@ const createEmployee = async (req, res) => {
             return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Employee or User already exists with this email' } });
         }
         // Create the User first
+        const salt = await bcrypt_1.default.genSalt(10);
+        const passwordHash = await bcrypt_1.default.hash(password || 'defaultpassword123', salt);
         const user = await User_1.User.create({
             name: `${firstName} ${lastName}`,
             email,
-            passwordHash: password || 'defaultpassword123', // require password from frontend
+            passwordHash,
             role: role || User_1.Role.EMPLOYEE,
+            isActive: true,
         });
         // Create Employee linked to User
         const employee = await Employee_1.Employee.create({
@@ -75,22 +82,48 @@ const updateEmployee = async (req, res) => {
         if (status)
             employee.status = status;
         await employee.save();
+        // Find linked or matching user
+        let user = null;
         if (employee.user) {
-            const user = await User_1.User.findById(employee.user);
-            if (user) {
-                if (firstName || lastName) {
-                    user.name = `${employee.firstName} ${employee.lastName}`;
-                }
-                if (email)
-                    user.email = email;
-                if (password)
-                    user.passwordHash = password;
-                if (role)
-                    user.role = role;
-                await user.save();
+            user = await User_1.User.findById(employee.user);
+        }
+        if (!user && employee.email) {
+            user = await User_1.User.findOne({ email: employee.email });
+        }
+        if (user) {
+            if (firstName || lastName) {
+                user.name = `${employee.firstName} ${employee.lastName}`;
+            }
+            if (email)
+                user.email = email;
+            if (password) {
+                const salt = await bcrypt_1.default.genSalt(10);
+                user.passwordHash = await bcrypt_1.default.hash(password, salt);
+            }
+            if (role)
+                user.role = role;
+            await user.save();
+            if (!employee.user || employee.user.toString() !== user._id.toString()) {
+                employee.user = user._id;
+                await employee.save();
             }
         }
-        res.json({ success: true, data: employee });
+        else {
+            // Create user if one did not exist for this employee
+            const salt = await bcrypt_1.default.genSalt(10);
+            const passwordHash = await bcrypt_1.default.hash(password || 'defaultpassword123', salt);
+            const newUser = await User_1.User.create({
+                name: `${employee.firstName} ${employee.lastName}`,
+                email: employee.email,
+                passwordHash,
+                role: role || User_1.Role.EMPLOYEE,
+                isActive: true,
+            });
+            employee.user = newUser._id;
+            await employee.save();
+        }
+        const populated = await Employee_1.Employee.findById(employee._id).populate('user', 'name email role');
+        res.json({ success: true, data: populated });
     }
     catch (error) {
         res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to update employee' } });

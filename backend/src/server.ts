@@ -38,9 +38,6 @@ const startServer = async () => {
     console.log('Seeded default admin user: admin@smmart.com / admin123');
   }
 
-  // Temporary: Clean up the orphaned user from the failed save
-  await User.deleteOne({ email: 'yadavchirag168@gmail.com' });
-
   // Listen on 0.0.0.0 so ESP32 and other LAN devices can reach us
   app.listen(Number(PORT), '0.0.0.0', () => {
     const lanIP = getLanIP();
