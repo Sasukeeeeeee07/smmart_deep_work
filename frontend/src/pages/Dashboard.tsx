@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { deviceService, sessionService } from '../services/api';
 import RadarWidget from '../components/RadarWidget';
-import { TrendingUp, Activity, Clock, Coffee, CheckCircle2, Cpu } from 'lucide-react';
+import { TrendingUp, Activity, Clock, Coffee, CheckCircle2, Cpu, Timer, ArrowRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -139,6 +140,7 @@ const BarTip = ({ active, payload }: any) => {
 
 /* ─── Main Component ──────────────────────────────────────────────────── */
 const Dashboard = () => {
+  const navigate = useNavigate();
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const greeting = () => {
     const h = new Date().getHours();
@@ -431,6 +433,65 @@ const Dashboard = () => {
             ))}
           </div>
         )}
+      </section>
+
+      {/* ── Long Deep Work Button at the Bottom ─────────────── */}
+      <section className="pt-2">
+        <button
+          onClick={() => navigate('/deepwork')}
+          className="w-full group rounded-2xl p-5 md:p-6 transition-all duration-200 flex items-center justify-between cursor-pointer border"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'var(--forest)';
+            e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          <div className="flex items-center gap-4 text-left">
+            <div
+              className="flex items-center justify-center shrink-0 rounded-xl"
+              style={{ width: 48, height: 48, background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}
+            >
+              <Timer size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="text-lg md:text-xl font-bold tracking-tight"
+                  style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+                >
+                  Deep Work
+                </span>
+                <span
+                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(66, 84, 67, 0.08)', color: 'var(--forest)' }}
+                >
+                  Active Session
+                </span>
+              </div>
+              <p className="text-xs md:text-sm mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                Start a timed focus sprint, monitor presence, manage breaks and device LCD alerts
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="flex items-center gap-2 font-bold text-sm px-4 py-2.5 rounded-xl transition-all shrink-0 ml-4"
+            style={{ background: 'var(--forest)', color: '#ffffff' }}
+          >
+            <span>Open Session</span>
+            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
       </section>
     </div>
   );

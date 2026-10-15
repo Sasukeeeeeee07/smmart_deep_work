@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import SelectMode from './pages/SelectMode';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
@@ -14,9 +15,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/select-mode" element={<SelectMode />} />
         
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/employees" element={<Employees />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/devices" element={<Devices />} />
@@ -25,7 +28,7 @@ function App() {
           <Route path="/notifications" element={<Notifications />} />
         </Route>
         
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/select-mode" replace />} />
       </Routes>
     </Router>
   );

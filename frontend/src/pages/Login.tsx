@@ -22,7 +22,7 @@ const Login = () => {
       if (response.data.success) {
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data));
-        setTimeout(() => navigate('/'), 300);
+        setTimeout(() => navigate('/select-mode'), 300);
       }
     } catch (err: any) {
       setError(
