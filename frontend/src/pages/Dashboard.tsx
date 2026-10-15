@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/api';
-import { TrendingUp, Activity, Clock, Coffee, CheckCircle2, Timer, ArrowRight } from 'lucide-react';
+import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -10,7 +10,6 @@ import {
 /* ─── Types ──────────────────────────────────────────────────────────── */
 interface DayData   { name: string; day: string; date: string; focus: number; breaks: number; sessions: number; }
 interface WeekData  { name: string; focus: number; breaks: number; productivity: number; sessions: number; }
-interface Summary   { totalFocusMinutes: number; totalBreakMinutes: number; totalSessionsCount: number; completedSessionsCount: number; }
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 const fmtMin = (mins: number) => {
@@ -61,12 +60,6 @@ const computeClientAnalytics = (sessions: any[]) => {
     weeklyData,
     monthlyData,
     averageMonthlyScore,
-    summary: {
-      totalFocusMinutes: sessions.reduce((a, s) => a + (s.activeMinutes || 0), 0),
-      totalBreakMinutes: sessions.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0),
-      totalSessionsCount: sessions.length,
-      completedSessionsCount: sessions.filter(s => s.status === 'COMPLETED').length,
-    },
   };
 };
 
@@ -126,25 +119,14 @@ const BarTip = ({ active, payload }: any) => {
 /* ─── Main Component ──────────────────────────────────────────────────── */
 const Dashboard = () => {
   const navigate = useNavigate();
-  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  const [refreshing, setRefreshing]               = useState(false);
   const isFirst = useRef(true);
 
-  const [weeklyData, setWeeklyData]               = useState<DayData[]>([]);
-  const [monthlyData, setMonthlyData]             = useState<WeekData[]>([]);
-  const [avgScore, setAvgScore]                   = useState(0);
-  const [summary, setSummary]                     = useState<Summary>({ totalFocusMinutes: 0, totalBreakMinutes: 0, totalSessionsCount: 0, completedSessionsCount: 0 });
+  const [weeklyData, setWeeklyData]   = useState<DayData[]>([]);
+  const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
+  const [avgScore, setAvgScore]       = useState(0);
 
   useEffect(() => {
     const fetchAll = async () => {
-      setRefreshing(true);
       try {
         let analytics: any = null;
         try {
@@ -160,11 +142,9 @@ const Dashboard = () => {
           setWeeklyData(analytics.weeklyData || []);
           setMonthlyData(analytics.monthlyData || []);
           setAvgScore(analytics.averageMonthlyScore || 0);
-          if (analytics.summary) setSummary(analytics.summary);
         }
       } finally {
         if (isFirst.current) isFirst.current = false;
-        setRefreshing(false);
       }
     };
     fetchAll();
@@ -172,121 +152,31 @@ const Dashboard = () => {
     return () => clearInterval(iv);
   }, []);
 
-  const todaySessions = weeklyData.find(d => d.name === 'Today');
-  const todayFocus    = todaySessions?.focus  || 0;
-  const todayBreaks   = todaySessions?.breaks || 0;
-
   return (
-    <div className="space-y-8 select-none">
-      {/* ── Page header ─────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-sm mb-1" style={{ color: 'var(--ink-4)' }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          <h1
-            className="leading-none mb-1 text-2xl md:text-3xl font-bold"
-            style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.02em' }}
-          >
-            {greeting()}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}.
-          </h1>
-          <p style={{ color: 'var(--ink-3)', fontSize: 15 }}>
-            {todayFocus > 0
-              ? `You've focused for ${fmtMin(todayFocus)} today.`
-              : 'Here is your weekly and monthly deep work breakdown.'}
-          </p>
-        </div>
-        {refreshing && (
-          <span className="flex items-center gap-1.5 text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
-            <span className="dot-active status-dot" />
-            Syncing
-          </span>
-        )}
-      </div>
-
-      {/* ── Quick summary stats ─────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {
-            label: 'Focus today',
-            value: fmtMin(todayFocus),
-            sub: `${todaySessions?.sessions || 0} session${(todaySessions?.sessions || 0) !== 1 ? 's' : ''}`,
-            icon: Clock,
-            accent: 'var(--forest)',
-            bg: 'rgba(66, 84, 67, 0.07)',
-          },
-          {
-            label: 'All-time focus',
-            value: fmtMin(summary.totalFocusMinutes),
-            sub: `${summary.totalSessionsCount} total sessions`,
-            icon: Activity,
-            accent: 'var(--sage-dark)',
-            bg: 'rgba(94, 112, 82, 0.07)',
-          },
-          {
-            label: 'Break time',
-            value: fmtMin(todayBreaks || summary.totalBreakMinutes),
-            sub: todayBreaks > 0 ? 'today' : 'all time',
-            icon: Coffee,
-            accent: 'var(--amber-w)',
-            bg: 'rgba(184, 121, 57, 0.07)',
-          },
-          {
-            label: 'Sessions done',
-            value: String(summary.completedSessionsCount),
-            sub: `of ${summary.totalSessionsCount} recorded`,
-            icon: CheckCircle2,
-            accent: 'var(--success)',
-            bg: 'rgba(74, 124, 89, 0.07)',
-          },
-        ].map(({ label, value, sub, icon: Icon, accent, bg }) => (
-          <div
-            key={label}
-            className="card card-hover p-5 flex items-center gap-4"
-          >
-            <div
-              className="flex items-center justify-center shrink-0 rounded-xl"
-              style={{ width: 40, height: 40, background: bg }}
-            >
-              <Icon size={18} style={{ color: accent }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs mb-0.5" style={{ color: 'var(--ink-4)' }}>{label}</p>
-              <p
-                className="font-bold leading-none tabular-nums"
-                style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 20, color: 'var(--ink)' }}
-              >
-                {value || '—'}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--ink-4)' }}>{sub}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
+    <div className="space-y-8 select-none py-4">
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}
-        <div className="card p-6 flex flex-col justify-between">
+        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <div>
                 <span
-                  className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
                   style={{ background: 'rgba(66, 84, 67, 0.08)', color: 'var(--forest)' }}
                 >
-                  Weekly
+                  Weekly Focus
                 </span>
                 <h3
-                  className="text-base font-bold mt-1.5"
+                  className="text-lg font-bold mt-2"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  Focus vs Breaks (Last 7 Days)
+                  Last 7 Days
                 </h3>
               </div>
             </div>
 
-            <div style={{ height: 230 }}>
+            <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={weeklyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
                   <defs>
@@ -304,16 +194,16 @@ const Dashboard = () => {
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false}
                     tickFormatter={v => v >= 60 ? `${Math.round(v/60)}h` : `${v}m`} />
                   <Tooltip content={<AreaTip />} cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }} />
-                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#425443" strokeWidth={2.2} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 4, fill: '#425443', strokeWidth: 0 }} />
+                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#425443" strokeWidth={2.4} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 4, fill: '#425443', strokeWidth: 0 }} />
                   <Area type="monotone" dataKey="breaks" name="Breaks" stroke="#B87939" strokeWidth={1.8} fillOpacity={1} fill="url(#gBreaks)" dot={false} activeDot={{ r: 3, fill: '#B87939', strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="flex items-center gap-5 mt-4 pt-3 border-t border-[var(--border)]">
+          <div className="flex items-center gap-6 mt-6 pt-4 border-t border-[var(--border)]">
             {[{ color: '#425443', label: 'Focus time' }, { color: '#B87939', label: 'Break time' }].map(l => (
-              <div key={l.label} className="flex items-center gap-1.5">
+              <div key={l.label} className="flex items-center gap-2">
                 <span className="rounded-full" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
               </div>
@@ -322,42 +212,42 @@ const Dashboard = () => {
         </div>
 
         {/* Graph 2: Monthly Bar Chart */}
-        <div className="card p-6 flex flex-col justify-between">
+        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
           <div>
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-6">
               <div>
                 <span
-                  className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
                   style={{ background: 'rgba(184, 121, 57, 0.1)', color: 'var(--amber-w)' }}
                 >
-                  Monthly
+                  Monthly Productivity
                 </span>
                 <h3
-                  className="text-base font-bold mt-1.5"
+                  className="text-lg font-bold mt-2"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  Productivity (Last 4 Weeks)
+                  Last 4 Weeks
                 </h3>
               </div>
-              <div className="flex items-center gap-1.5 text-right">
+              <div className="flex items-center gap-2 text-right">
                 <p
-                  className="font-bold tabular-nums text-xl leading-none"
+                  className="font-bold tabular-nums text-2xl leading-none"
                   style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
                 >
                   {avgScore > 0 ? `${avgScore}%` : '—'}
                 </p>
-                <TrendingUp size={16} style={{ color: 'var(--sage-dark)' }} />
+                <TrendingUp size={18} style={{ color: 'var(--sage-dark)' }} />
               </div>
             </div>
 
-            <div style={{ height: 230 }}>
+            <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
                   <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
                   <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)' }} />
-                  <Bar dataKey="productivity" radius={[6, 6, 0, 0]} maxBarSize={44}>
+                  <Bar dataKey="productivity" radius={[6, 6, 0, 0]} maxBarSize={48}>
                     {monthlyData.map((entry, i) => (
                       <Cell
                         key={i}
@@ -370,9 +260,9 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[var(--border)]">
+          <div className="flex items-center gap-5 mt-6 pt-4 border-t border-[var(--border)]">
             {[{ color: '#5E7052', label: '≥80% High Flow' }, { color: '#B87939', label: '<80% Moderate' }].map(l => (
-              <div key={l.label} className="flex items-center gap-1.5">
+              <div key={l.label} className="flex items-center gap-2">
                 <span className="rounded-sm" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
               </div>
@@ -381,8 +271,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── Long Bottom Button: Deepwork ──────────────────────── */}
-      <div className="pt-2">
+      {/* ── 1 Long Button: Deepwork ───────────────────────────── */}
+      <div className="pt-4">
         <button
           onClick={() => navigate('/deepwork')}
           className="w-full py-5 px-8 rounded-2xl flex items-center justify-between font-bold text-base md:text-lg transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
@@ -402,11 +292,11 @@ const Dashboard = () => {
         >
           <div className="flex items-center gap-3">
             <Timer size={24} />
-            <span className="tracking-tight">Deepwork</span>
+            <span className="tracking-tight text-lg md:text-xl font-bold">Deepwork</span>
           </div>
 
           <div className="flex items-center gap-2 text-sm font-semibold opacity-90">
-            <span>Open Deepwork Page</span>
+            <span>Enter Deepwork</span>
             <ArrowRight size={18} />
           </div>
         </button>
