@@ -218,12 +218,28 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
     return fmtTimer(sec);
   };
 
+  const [endingSession, setEndingSession] = useState(false);
+
   const handleStopSound = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setStoppingSound(true);
-    try { await sessionService.stopSound(session.deviceUid); onUpdate?.(); }
+    try { await sessionService.stopSound(session.deviceUid, session._id); onUpdate?.(); }
     catch {}
     finally { setStoppingSound(false); }
+  };
+
+  const handleEndSession = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to end this deep work session?')) return;
+    setEndingSession(true);
+    try {
+      await sessionService.endSession(session.deviceUid, undefined, session._id);
+      onUpdate?.();
+    } catch {
+      alert('Failed to end session');
+    } finally {
+      setEndingSession(false);
+    }
   };
 
   const handleExtend = async (mins: number) => {
@@ -245,18 +261,19 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
     : '—';
 
   const sp = STATUS_PILL[session.status] || STATUS_PILL.COMPLETED;
+  const isAlarmVisible = session.alarmActive && session.status !== 'COMPLETED';
 
   return (
     <div
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
         background: 'var(--surface)',
-        border: `1px solid ${session.alarmActive ? 'rgba(182,83,75,0.5)' : session.status === 'INVALID' ? 'rgba(182,83,75,0.25)' : 'var(--border)'}`,
-        boxShadow: session.alarmActive ? '0 0 0 2px rgba(182,83,75,0.12)' : undefined,
+        border: `1px solid ${isAlarmVisible ? 'rgba(182,83,75,0.5)' : session.status === 'INVALID' ? 'rgba(182,83,75,0.25)' : 'var(--border)'}`,
+        boxShadow: isAlarmVisible ? '0 0 0 2px rgba(182,83,75,0.12)' : undefined,
       }}
     >
-      {/* Alarm banner */}
-      {session.alarmActive && (
+      {/* Alarm banner - only visible when session is active/break/dying */}
+      {isAlarmVisible && (
         <div
           className="flex items-center justify-between flex-wrap gap-2 px-5 py-3 animate-pulse-gentle"
           style={{ background: 'rgba(182,83,75,0.08)', borderBottom: '1px solid rgba(182,83,75,0.2)' }}
@@ -340,6 +357,18 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
           <Zap size={14} style={{ color: 'var(--amber-w)', flexShrink: 0 }} />
         )}
 
+        {/* End Session button for active sessions */}
+        {['ACTIVE', 'BREAK', 'DYING'].includes(session.status) && (
+          <button
+            onClick={handleEndSession}
+            disabled={endingSession}
+            className="btn btn-danger text-xs py-1 px-2.5 shrink-0 ml-1"
+            title="End session now"
+          >
+            {endingSession ? '…' : 'End session'}
+          </button>
+        )}
+
         {/* Chevron */}
         <ChevronDown
           size={15}
@@ -396,6 +425,26 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
                 </div>
               )}
 
+              {/* Manual Stop / End session control for ongoing sessions */}
+              {['ACTIVE', 'BREAK', 'DYING'].includes(session.status) && (
+                <div
+                  className="flex items-center justify-between p-3.5 rounded-xl"
+                  style={{ background: 'rgba(182,83,75,0.06)', border: '1px solid rgba(182,83,75,0.2)' }}
+                >
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--ink)' }}>Session in progress</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-4)' }}>Device offline or end session early?</p>
+                  </div>
+                  <button
+                    onClick={handleEndSession}
+                    disabled={endingSession}
+                    className="btn btn-danger text-xs py-1.5 px-3"
+                  >
+                    {endingSession ? 'Ending…' : 'End session now'}
+                  </button>
+                </div>
+              )}
+
               {/* Sound & alarm status */}
               <div
                 className="p-4 rounded-xl"
@@ -403,7 +452,7 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
               >
                 <div className="flex items-center justify-between mb-3">
                   <p className="section-label">Sound & alarm</p>
-                  {session.alarmActive && (
+                  {isAlarmVisible && (
                     <button onClick={handleStopSound} disabled={stoppingSound} className="btn btn-danger text-xs py-1 px-3">
                       🛑 Stop
                     </button>
@@ -411,7 +460,7 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: 'Alarm status', value: session.alarmActive ? 'Beeping' : 'Silent', color: session.alarmActive ? 'var(--error)' : 'var(--success)' },
+                    { label: 'Alarm status', value: isAlarmVisible ? 'Beeping' : 'Silent', color: isAlarmVisible ? 'var(--error)' : 'var(--success)' },
                     { label: 'Breaks taken', value: `${session.breakCount} / 3 max`, color: session.breakCount > 3 ? 'var(--error)' : 'var(--ink)' },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="p-3 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>

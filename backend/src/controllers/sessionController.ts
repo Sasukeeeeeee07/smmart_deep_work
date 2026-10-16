@@ -4,6 +4,7 @@ import { DeepWorkSession } from '../models/DeepWorkSession';
 import { SDWPoints } from '../models/SDWPoints';
 import { Employee } from '../models/Employee';
 import { voiceService } from '../services/voiceService';
+import { syncOfflineDevicesAndSessions } from '../services/cronService';
 
 // Helper: get ISO week number
 function getWeekNumber(d: Date): number {
@@ -45,6 +46,9 @@ async function handleSessionInvalidation(deviceUid: string) {
 // =====================================================
 export const getAllSessions = async (req: Request, res: Response) => {
   try {
+    // Reconcile offline devices and auto-complete orphaned sessions
+    await syncOfflineDevicesAndSessions();
+
     const { uid, limit = '50', page = '1' } = req.query;
     const lim = Math.min(parseInt(limit as string, 10), 200);
     const skip = (parseInt(page as string, 10) - 1) * lim;
@@ -323,22 +327,39 @@ export const resumeSession = async (req: Request, res: Response) => {
 // =====================================================
 export const endSession = async (req: Request, res: Response) => {
   try {
-    const { activeMinutes, selfRating } = req.body as { activeMinutes: number; selfRating?: number };
+    const { activeMinutes, selfRating, sessionId } = req.body as { activeMinutes?: number; selfRating?: number; sessionId?: string };
 
-    const session = await DeepWorkSession.findOne({
-      deviceUid: req.params.uid,
-      status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
-    }).sort({ startTime: -1 });
+    let session = null;
+    if (sessionId) {
+      session = await DeepWorkSession.findById(sessionId);
+    }
+    if (!session) {
+      session = await DeepWorkSession.findOne({
+        deviceUid: req.params.uid,
+        status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
+      }).sort({ startTime: -1 });
+    }
 
     if (!session) {
       return res.status(404).json({ success: false, error: 'No session to end' });
     }
 
-    session.endTime       = new Date();
-    session.activeMinutes = activeMinutes || session.activeMinutes;
+    const now = new Date();
+    session.endTime = now;
+    if (activeMinutes !== undefined && activeMinutes !== null) {
+      session.activeMinutes = activeMinutes;
+    } else if (!session.activeMinutes || session.activeMinutes === 0) {
+      const diffMs = Math.max(0, now.getTime() - new Date(session.startTime).getTime());
+      const totalMin = Math.floor(diffMs / 60000);
+      session.activeMinutes = Math.max(0, totalMin - (session.totalBreakMinutes || 0));
+    }
+
     if (session.status !== 'INVALID') {
       session.status = 'COMPLETED';
     }
+    session.alarmActive = false;
+    session.alarmMessage = '';
+
     if (selfRating && selfRating >= 1 && selfRating <= 5) {
       session.selfRating = selfRating;
     }
@@ -350,7 +371,6 @@ export const endSession = async (req: Request, res: Response) => {
       session.sdwPointsEarned = 5;
       pointsEarned = 5;
 
-      const now = new Date();
       await SDWPoints.create({
         employeeId: session.employeeId,
         sessionId:  session._id,
@@ -428,16 +448,20 @@ export const extendSession = async (req: Request, res: Response) => {
 // =====================================================
 export const stopSound = async (req: Request, res: Response) => {
   try {
-    const session = await DeepWorkSession.findOne({
-      deviceUid: req.params.uid,
-      status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'INVALID'] },
-    }).sort({ startTime: -1 });
+    const { sessionId } = req.body as { sessionId?: string };
 
-    if (session) {
-      session.alarmActive = false;
-      session.alarmMessage = '';
-      await session.save();
+    if (sessionId) {
+      await DeepWorkSession.findByIdAndUpdate(sessionId, {
+        alarmActive: false,
+        alarmMessage: '',
+      });
     }
+
+    // Dismiss any active alarm on all sessions for this device
+    await DeepWorkSession.updateMany(
+      { deviceUid: req.params.uid, alarmActive: true },
+      { alarmActive: false, alarmMessage: '' }
+    );
 
     res.json({ success: true, message: 'Sound stopped and alarm dismissed' });
   } catch (err) {

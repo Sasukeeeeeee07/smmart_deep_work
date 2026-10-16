@@ -5,6 +5,7 @@ const Device_1 = require("../models/Device");
 const ActivitySession_1 = require("../models/ActivitySession");
 const Task_1 = require("../models/Task");
 const Employee_1 = require("../models/Employee");
+const cronService_1 = require("../services/cronService");
 // @desc    Get paginated activity history (optionally filtered by device uid)
 // @route   GET /api/devices/activity/history
 // @access  Private
@@ -54,6 +55,7 @@ exports.getDevice = getDevice;
 // @access  Private
 const getAllDevices = async (req, res) => {
     try {
+        await (0, cronService_1.syncOfflineDevicesAndSessions)();
         const devices = await Device_1.Device.find().populate('assignedTo', 'firstName lastName email');
         const now = new Date();
         for (const d of devices) {

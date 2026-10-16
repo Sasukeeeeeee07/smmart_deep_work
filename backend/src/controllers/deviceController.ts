@@ -3,6 +3,7 @@ import { Device } from '../models/Device';
 import { ActivitySession } from '../models/ActivitySession';
 import { Task, TaskStatus } from '../models/Task';
 import { Employee } from '../models/Employee';
+import { syncOfflineDevicesAndSessions } from '../services/cronService';
 
 // @desc    Get paginated activity history (optionally filtered by device uid)
 // @route   GET /api/devices/activity/history
@@ -55,6 +56,7 @@ export const getDevice = async (req: Request, res: Response) => {
 // @access  Private
 export const getAllDevices = async (req: Request, res: Response) => {
   try {
+    await syncOfflineDevicesAndSessions();
     const devices = await Device.find().populate('assignedTo', 'firstName lastName email');
     const now = new Date();
     for (const d of devices) {

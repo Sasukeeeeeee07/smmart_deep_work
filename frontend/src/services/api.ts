@@ -158,8 +158,12 @@ export const sessionService = {
     const response = await api.post(`/sessions/${uid}/extend`, { extensionMinutes });
     return response.data.data;
   },
-  stopSound: async (uid: string) => {
-    const response = await api.post(`/sessions/${uid}/stop-sound`);
+  stopSound: async (uid: string, sessionId?: string) => {
+    const response = await api.post(`/sessions/${uid}/stop-sound`, { sessionId });
+    return response.data;
+  },
+  endSession: async (uid: string, activeMinutes?: number, sessionId?: string) => {
+    const response = await api.post(`/sessions/${uid}/end`, { activeMinutes, sessionId });
     return response.data;
   },
   rateSession: async (uid: string, rating: number) => {
