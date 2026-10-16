@@ -2416,6 +2416,7 @@ void startSessionFromDevice() {
     http.begin(String(sessionBaseURL) + "/start");
     http.setTimeout(2500);
     http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Device-Client", "ESP32");
     int startCode = http.POST("{}");
     if (startCode == 403) {
       String payload = http.getString();
@@ -2434,6 +2435,7 @@ void startSessionFromDevice() {
       // Immediately fetch /current to lock timer into server's exact remainingSeconds
       HTTPClient httpCur;
       httpCur.begin(String(sessionBaseURL) + "/current");
+      httpCur.addHeader("X-Device-Client", "ESP32");
       httpCur.setTimeout(2000);
       int curCode = httpCur.GET();
       if (curCode == 200) {

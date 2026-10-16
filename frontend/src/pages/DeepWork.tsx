@@ -7,7 +7,7 @@ import {
   Timer, ArrowRight, Play, Pause, Square, AlertTriangle,
   Volume2, VolumeX, Star, Coffee, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
-  Clock, Shield, Mic, Activity
+  Clock, Shield, Mic, Activity, Wifi, WifiOff
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -43,6 +43,7 @@ export default function DeepWorkPage() {
   const [resuming, setResuming]       = useState(false);
   const [ending, setEnding]           = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [extending, setExtending]     = useState(false);
   const [customVoice, setCustomVoice] = useState('');
   const [sendingVoice, setSendingVoice] = useState(false);
@@ -94,7 +95,7 @@ export default function DeepWorkPage() {
     };
 
     syncLive();
-    const liveIv = setInterval(syncLive, 2500);
+    const liveIv = setInterval(syncLive, 2000);
     return () => {
       mounted = false;
       clearInterval(liveIv);
@@ -126,7 +127,7 @@ export default function DeepWorkPage() {
 
   useEffect(() => {
     loadData();
-    const iv = setInterval(loadData, 10000);
+    const iv = setInterval(loadData, 4000);
     return () => clearInterval(iv);
   }, [selectedUid]);
 
@@ -184,9 +185,22 @@ export default function DeepWorkPage() {
   const selectedDevice = devices.find(d => d.uid === selectedUid);
   const invalidSessionCount = selectedDevice?.invalidSessionCount || allSessions.filter(s => s.status === 'INVALID').length || 0;
 
+  // Device Online Check (active within 2 minutes)
+  const isDeviceOnline = Boolean(
+    selectedDevice &&
+    selectedDevice.status === 'ONLINE' &&
+    selectedDevice.lastHeartbeat &&
+    (Date.now() - new Date(selectedDevice.lastHeartbeat).getTime() < 120000)
+  );
+
   // ── Actions ───────────────────────────────────────────────
   const handleStartSession = async () => {
     if (isRunning) return;
+    if (!isDeviceOnline) {
+      setOfflineNotice(`Device ${selectedUid} is currently offline. Please power on your SmartDesk device before starting a session.`);
+      return;
+    }
+    setOfflineNotice(null);
     setStarting(true);
     try {
       await sessionService.startSession(selectedUid);
@@ -199,7 +213,8 @@ export default function DeepWorkPage() {
       }
       await loadData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to start session');
+      const msg = err.response?.data?.message || err.message || 'Failed to start session';
+      setOfflineNotice(msg);
     } finally {
       setStarting(false);
     }
@@ -349,12 +364,37 @@ export default function DeepWorkPage() {
             </p>
           </div>
 
-          {/* Device Selector */}
-          <div className="flex items-center gap-2">
+          {/* Device Selector & Online/Offline Pill */}
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
+                isDeviceOnline
+                  ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30'
+                  : 'bg-rose-500/10 text-rose-600 border border-rose-500/30'
+              }`}
+              title={
+                isDeviceOnline
+                  ? `Device ${selectedUid} is online and ready`
+                  : `Device ${selectedUid} is offline. Turn on your desk device to start.`
+              }
+            >
+              {isDeviceOnline ? (
+                <>
+                  <Wifi size={12} className="text-emerald-500 animate-pulse" />
+                  <span>DEVICE ONLINE</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff size={12} className="text-rose-500" />
+                  <span>DEVICE OFFLINE</span>
+                </>
+              )}
+            </div>
+
             <span className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>Device:</span>
             <select
               value={selectedUid}
-              onChange={e => setSelectedUid(e.target.value)}
+              onChange={e => { setSelectedUid(e.target.value); setOfflineNotice(null); }}
               className="input-base text-xs font-semibold py-1.5 px-3 rounded-lg"
               style={{ width: 'auto' }}
             >
@@ -365,6 +405,22 @@ export default function DeepWorkPage() {
           </div>
         </div>
 
+        {/* Offline / Warning Notice Banner */}
+        {offlineNotice && (
+          <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-center justify-between gap-3 text-xs text-rose-700 animate-fade-in shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+              <span className="font-medium">{offlineNotice}</span>
+            </div>
+            <button
+              onClick={() => setOfflineNotice(null)}
+              className="text-xs font-bold px-2 py-0.5 rounded hover:bg-rose-500/20 text-rose-700 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* ── 4 Main Action Rows (Matching Notebook Sketch) ─────────── */}
         <div className="space-y-3.5">
 
@@ -372,32 +428,69 @@ export default function DeepWorkPage() {
           <div
             onClick={!isRunning ? handleStartSession : undefined}
             className={`p-5 rounded-2xl transition-all duration-200 border flex items-center justify-between gap-4 ${
-              !isRunning ? 'cursor-pointer hover:shadow-md hover:border-[var(--forest)]' : ''
+              !isRunning
+                ? (isDeviceOnline
+                    ? 'cursor-pointer hover:shadow-md hover:border-[var(--forest)]'
+                    : 'cursor-pointer hover:border-rose-400')
+                : ''
             }`}
             style={{
-              background: isRunning ? 'var(--surface)' : 'rgba(66, 84, 67, 0.05)',
-              borderColor: isRunning ? 'var(--border)' : 'rgba(66, 84, 67, 0.3)',
+              background: isRunning
+                ? 'var(--surface)'
+                : isDeviceOnline
+                ? 'rgba(66, 84, 67, 0.05)'
+                : 'rgba(225, 29, 72, 0.04)',
+              borderColor: isRunning
+                ? 'var(--border)'
+                : isDeviceOnline
+                ? 'rgba(66, 84, 67, 0.3)'
+                : 'rgba(225, 29, 72, 0.25)',
             }}
           >
             <div className="flex items-center gap-3.5">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{
-                  background: isRunning ? 'var(--surface-2)' : 'var(--forest)',
-                  color: isRunning ? 'var(--forest)' : '#ffffff',
+                  background: isRunning
+                    ? 'var(--surface-2)'
+                    : isDeviceOnline
+                    ? 'var(--forest)'
+                    : 'rgba(225, 29, 72, 0.12)',
+                  color: isRunning
+                    ? 'var(--forest)'
+                    : isDeviceOnline
+                    ? '#ffffff'
+                    : '#e11d48',
                 }}
               >
-                {isRunning ? <Timer size={20} className="animate-spin-slow" /> : <Play size={20} className="ml-0.5" />}
+                {isRunning ? (
+                  <Timer size={20} className="animate-spin-slow" />
+                ) : !isDeviceOnline ? (
+                  <WifiOff size={20} />
+                ) : (
+                  <Play size={20} className="ml-0.5" />
+                )}
               </div>
               <div>
-                <p
-                  className="font-bold text-base md:text-lg tracking-tight"
-                  style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
-                >
-                  START SESSION
-                </p>
+                <div className="flex items-center gap-2">
+                  <p
+                    className="font-bold text-base md:text-lg tracking-tight"
+                    style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
+                  >
+                    START SESSION
+                  </p>
+                  {!isRunning && !isDeviceOnline && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                      Device Offline
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
-                  {isRunning ? 'Reverse Countdown Timer running in H - M - S' : 'Click to start reverse timer (120:00)'}
+                  {isRunning
+                    ? 'Reverse Countdown Timer running in H - M - S'
+                    : !isDeviceOnline
+                    ? 'Desk device is offline • Power on device before starting'
+                    : 'Click to start reverse timer (120:00) • Desk connected'}
                 </p>
               </div>
             </div>
@@ -420,6 +513,11 @@ export default function DeepWorkPage() {
                     <Square size={13} />
                     <span>{ending ? '…' : 'End'}</span>
                   </button>
+                </div>
+              ) : !isDeviceOnline ? (
+                <div className="flex items-center gap-1.5 font-bold text-xs text-rose-600 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                  <WifiOff size={14} />
+                  <span>Device Offline</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 font-bold text-sm" style={{ color: 'var(--forest)' }}>

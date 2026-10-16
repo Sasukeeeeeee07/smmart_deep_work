@@ -122,6 +122,33 @@ const startSession = async (req, res) => {
             device.invalidSessionCount = 0;
             await device.save();
         }
+        // Check if request is from the physical ESP32 device
+        const isFromDevice = req.headers['x-device-client'] === 'ESP32' || (req.headers['user-agent'] && req.headers['user-agent'].includes('ESP32'));
+        if (isFromDevice) {
+            device.lastHeartbeat = new Date();
+            device.status = 'ONLINE';
+            await device.save();
+        }
+        else {
+            // Requested from Web: Check if device is ONLINE
+            await (0, cronService_1.syncOfflineDevicesAndSessions)();
+            const freshDev = await Device_1.Device.findOne({ uid: req.params.uid });
+            const now = new Date();
+            const cutoff = new Date(now.getTime() - 120000); // 2 minutes heartbeat cutoff
+            const isOnline = freshDev && freshDev.status === 'ONLINE' && freshDev.lastHeartbeat && freshDev.lastHeartbeat > cutoff;
+            if (!isOnline) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'DEVICE_OFFLINE',
+                    message: `Device ${device.uid} is currently offline. Please turn on your SmartDesk device before starting a session.`,
+                    data: {
+                        deviceStatus: 'OFFLINE',
+                        deviceUid: device.uid,
+                        lastHeartbeat: freshDev?.lastHeartbeat || null
+                    }
+                });
+            }
+        }
         // If an ACTIVE or BREAK session is ALREADY running for this device, return it
         const existingActive = await DeepWorkSession_1.DeepWorkSession.findOne({
             deviceUid: req.params.uid,
@@ -513,6 +540,15 @@ const getCurrentSession = async (req, res) => {
                 device.invalidSessionCount = 0;
                 device.adminUnlocked = true;
                 lockoutData.adminUnlocked = true;
+                await device.save();
+            }
+            // If called by ESP32 device, update its heartbeat and mark ONLINE
+            const isFromDevice = req.headers['x-device-client'] === 'ESP32' || (req.headers['user-agent'] && req.headers['user-agent'].includes('ESP32'));
+            if (isFromDevice) {
+                device.lastHeartbeat = new Date();
+                if (device.status !== 'ONLINE') {
+                    device.status = 'ONLINE';
+                }
                 await device.save();
             }
         }
