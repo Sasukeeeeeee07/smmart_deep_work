@@ -121,6 +121,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const isFirst = useRef(true);
 
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const [mode, setMode] = useState<'entrepreneur' | 'individual'>(
+    !isLeadership ? 'individual' : (localStorage.getItem('workspaceMode') as 'entrepreneur' | 'individual') || 'individual'
+  );
+
   const [weeklyData, setWeeklyData]   = useState<DayData[]>([]);
   const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
   const [avgScore, setAvgScore]       = useState(0);
@@ -130,12 +137,28 @@ const Dashboard = () => {
       try {
         let analytics: any = null;
         try {
-          analytics = await sessionService.getAnalytics();
+          const raw = await sessionService.getAllSessions(undefined);
+          const list = raw?.sessions || (Array.isArray(raw) ? raw : []);
+
+          let sessionsToAnalyze = list;
+          if (mode === 'individual') {
+            const filtered = list.filter((s: any) => {
+              const emp = s.employeeId;
+              if (!emp) return false;
+              if (typeof emp === 'object') {
+                if (emp.email && user?.email && emp.email.toLowerCase() === user.email.toLowerCase()) return true;
+                if (emp._id && user?._id && emp._id === user._id) return true;
+              }
+              return false;
+            });
+            // If logged in as admin previewing individual mode and has no personal employee linked, use list or filtered
+            sessionsToAnalyze = (filtered.length > 0 || !isLeadership) ? filtered : list;
+          }
+
+          analytics = computeClientAnalytics(sessionsToAnalyze);
         } catch {
           try {
-            const raw = await sessionService.getAllSessions(undefined);
-            const list = raw?.sessions || (Array.isArray(raw) ? raw : []);
-            analytics = computeClientAnalytics(list);
+            analytics = await sessionService.getAnalytics();
           } catch {}
         }
         if (analytics) {
@@ -150,10 +173,43 @@ const Dashboard = () => {
     fetchAll();
     const iv = setInterval(fetchAll, 30000);
     return () => clearInterval(iv);
-  }, []);
+  }, [mode]);
 
   return (
-    <div className="space-y-8 select-none py-4">
+    <div className="space-y-6 select-none py-2">
+      {/* ── Mode Info & Switcher Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-2">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider"
+            style={{
+              background: mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.1)' : 'rgba(196, 127, 97, 0.12)',
+              color: mode === 'entrepreneur' ? 'var(--forest)' : 'var(--terra)',
+              border: `1px solid ${mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.2)' : 'rgba(196, 127, 97, 0.25)'}`,
+            }}
+          >
+            {mode === 'entrepreneur' ? '🏢 Entrepreneur Mode' : '👤 Individual Mode'}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--ink-4)' }}>
+            {mode === 'entrepreneur' ? 'Company-wide team and desk analytics' : `Personal focus analytics for ${user?.name || user?.email}`}
+          </span>
+        </div>
+
+        {isLeadership && (
+          <button
+            onClick={() => {
+              const nextMode = mode === 'entrepreneur' ? 'individual' : 'entrepreneur';
+              localStorage.setItem('workspaceMode', nextMode);
+              setMode(nextMode);
+            }}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            style={{ color: 'var(--ink-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            Switch to {mode === 'entrepreneur' ? 'Individual' : 'Entrepreneur'}
+          </button>
+        )}
+      </div>
+
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}

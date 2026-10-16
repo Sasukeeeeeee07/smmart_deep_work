@@ -13,7 +13,7 @@ import {
 interface BreakRecord { startTime: string; endTime?: string; durationMinutes?: number; }
 interface Session {
   _id: string; deviceUid: string;
-  employeeId?: { firstName: string; lastName: string };
+  employeeId?: { _id?: string; firstName: string; lastName: string; email?: string };
   startTime: string; endTime?: string;
   targetDurationMinutes?: number; extensionMinutes?: number;
   activeMinutes: number; breaks: BreakRecord[];
@@ -624,7 +624,6 @@ function SessionRow({ session, onUpdate }: { session: Session; onUpdate?: () => 
 const DeepWorkPage = () => {
   const [sessions, setSessions]   = useState<Session[]>([]);
   const [devices, setDevices]     = useState<any[]>([]);
-  const [total, setTotal]         = useState(0);
   const [loading, setLoading]     = useState(true);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterDevice, setFilterDevice] = useState('ALL');
@@ -637,7 +636,6 @@ const DeepWorkPage = () => {
       if (filterDevice !== 'ALL') params.uid = filterDevice;
       const res = await api.get('/sessions/all', { params });
       setSessions(res.data.data.sessions ?? []);
-      setTotal(res.data.data.total ?? 0);
     } catch {}
     finally { setLoading(false); }
   };
@@ -671,10 +669,30 @@ const DeepWorkPage = () => {
     return <ModerationHistory deviceUid={historyDevice} onBack={() => setHistoryDevice(null)} />;
   }
 
-  const filtered = sessions.filter(s => filterStatus === 'ALL' || s.status === filterStatus);
-  const activeSessions = sessions.filter(s => s.status === 'ACTIVE').length;
-  const totalSDW       = sessions.reduce((a, s) => a + s.sdwPointsEarned, 0);
-  const ratedSessions  = sessions.filter(s => s.selfRating > 0);
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const mode = (!isLeadership ? 'individual' : (localStorage.getItem('workspaceMode') || 'individual'));
+
+  const modeSessions = sessions.filter(s => {
+    if (mode === 'entrepreneur') return true;
+    const emp = s.employeeId;
+    if (!emp) return false;
+    if (typeof emp === 'object') {
+      if (emp.email && user?.email && emp.email.toLowerCase() === user.email.toLowerCase()) return true;
+      if (emp._id && user?._id && emp._id === user._id) return true;
+    }
+    return false;
+  });
+
+  const finalModeSessions = (mode === 'individual' && modeSessions.length === 0 && isLeadership) 
+    ? sessions 
+    : modeSessions;
+
+  const filtered = finalModeSessions.filter(s => filterStatus === 'ALL' || s.status === filterStatus);
+  const activeSessions = finalModeSessions.filter(s => s.status === 'ACTIVE').length;
+  const totalSDW       = finalModeSessions.reduce((a, s) => a + s.sdwPointsEarned, 0);
+  const ratedSessions  = finalModeSessions.filter(s => s.selfRating > 0);
   const avgRating      = ratedSessions.length > 0
     ? (ratedSessions.reduce((a, s) => a + s.selfRating, 0) / ratedSessions.length).toFixed(1)
     : '—';
@@ -684,12 +702,24 @@ const DeepWorkPage = () => {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <p className="section-label mb-0.5">Focus tracking</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="section-label">Focus tracking</span>
+            <span
+              className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+              style={{
+                background: mode === 'entrepreneur' ? 'rgba(66,84,67,0.1)' : 'rgba(196,127,97,0.12)',
+                color: mode === 'entrepreneur' ? 'var(--forest)' : 'var(--terra)',
+                border: `1px solid ${mode === 'entrepreneur' ? 'rgba(66,84,67,0.2)' : 'rgba(196,127,97,0.25)'}`,
+              }}
+            >
+              {mode === 'entrepreneur' ? '🏢 Entrepreneur' : '👤 Individual'}
+            </span>
+          </div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
             Deep Work Sessions
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ink-4)' }}>
-            Uninterrupted sessions, breaks, SDW points and productivity spikes
+            {mode === 'entrepreneur' ? 'Uninterrupted sessions, breaks, SDW points and productivity spikes across all desks' : `Personal deep work sessions, breaks, and SDW points for ${user?.name || user?.email}`}
           </p>
         </div>
         <button
@@ -703,7 +733,7 @@ const DeepWorkPage = () => {
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total sessions',    value: String(total),         icon: Timer,  accent: 'var(--forest)',  bg: 'rgba(66,84,67,0.07)' },
+          { label: 'Total sessions',    value: String(finalModeSessions.length), icon: Timer,  accent: 'var(--forest)',  bg: 'rgba(66,84,67,0.07)' },
           { label: 'Active right now',  value: String(activeSessions), icon: Zap,   accent: 'var(--success)', bg: 'rgba(74,124,89,0.07)' },
           { label: 'SDW points earned', value: String(totalSDW),      icon: Award,  accent: 'var(--amber-w)', bg: 'rgba(184,121,57,0.07)' },
           { label: 'Avg self rating',   value: String(avgRating),     icon: Star,   accent: 'var(--terra)',   bg: 'rgba(196,127,97,0.07)' },
@@ -751,37 +781,41 @@ const DeepWorkPage = () => {
           })}
         </div>
 
-        {/* Device filter */}
-        <select
-          value={filterDevice}
-          onChange={e => setFilterDevice(e.target.value)}
-          className="input-base"
-          style={{ width: 'auto', fontSize: 13, paddingTop: 8, paddingBottom: 8 }}
-        >
-          <option value="ALL">All devices</option>
-          {devices.map((d: any) => (
-            <option key={d.uid} value={d.uid}>{d.uid} — {d.name}</option>
-          ))}
-        </select>
-
-        {/* Moderator trigger */}
-        <div className="ml-auto">
+        {/* Device filter (visible if in entrepreneur mode or leadership) */}
+        {(mode === 'entrepreneur' || isLeadership) && (
           <select
-            value={modDevice ?? ''}
-            onChange={e => setModDevice(e.target.value || null)}
+            value={filterDevice}
+            onChange={e => setFilterDevice(e.target.value)}
             className="input-base"
-            style={{ width: 'auto', fontSize: 13, paddingTop: 8, paddingBottom: 8, color: modDevice ? 'var(--sage-dark)' : 'var(--ink-3)', borderColor: modDevice ? 'var(--sage)' : undefined }}
+            style={{ width: 'auto', fontSize: 13, paddingTop: 8, paddingBottom: 8 }}
           >
-            <option value="">⚡ Open moderator panel…</option>
+            <option value="ALL">All devices</option>
             {devices.map((d: any) => (
-              <option key={d.uid} value={d.uid}>→ {d.uid}</option>
+              <option key={d.uid} value={d.uid}>{d.uid} — {d.name}</option>
             ))}
           </select>
-        </div>
+        )}
+
+        {/* Moderator trigger (Leadership only) */}
+        {isLeadership && (
+          <div className="ml-auto">
+            <select
+              value={modDevice ?? ''}
+              onChange={e => setModDevice(e.target.value || null)}
+              className="input-base"
+              style={{ width: 'auto', fontSize: 13, paddingTop: 8, paddingBottom: 8, color: modDevice ? 'var(--sage-dark)' : 'var(--ink-3)', borderColor: modDevice ? 'var(--sage)' : undefined }}
+            >
+              <option value="">⚡ Open moderator panel…</option>
+              {devices.map((d: any) => (
+                <option key={d.uid} value={d.uid}>→ {d.uid}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Moderator panel */}
-      {modDevice && (
+      {isLeadership && modDevice && (
         <ModeratorPanel
           device={devices.find(d => d.uid === modDevice) ?? { uid: modDevice }}
           onViewHistory={uid => setHistoryDevice(uid)}
