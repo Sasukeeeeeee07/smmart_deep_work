@@ -168,7 +168,7 @@ const Dashboard = () => {
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  const [mode, setMode] = useState<'entrepreneur' | 'individual'>(
+  const [mode] = useState<'entrepreneur' | 'individual'>(
     !isLeadership ? 'individual' : (localStorage.getItem('workspaceMode') as 'entrepreneur' | 'individual') || 'individual'
   );
 
@@ -228,57 +228,23 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 select-none py-2">
-      {/* ── Mode Info & Switcher Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-2">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider"
-            style={{
-              background: mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.1)' : 'rgba(196, 127, 97, 0.12)',
-              color: mode === 'entrepreneur' ? 'var(--forest)' : 'var(--terra)',
-              border: `1px solid ${mode === 'entrepreneur' ? 'rgba(66, 84, 67, 0.2)' : 'rgba(196, 127, 97, 0.25)'}`,
-            }}
-          >
-            {mode === 'entrepreneur' ? '🏢 Entrepreneur Mode' : '👤 Individual Mode'}
-          </span>
-          <span className="text-xs" style={{ color: 'var(--ink-4)' }}>
-            {mode === 'entrepreneur' ? 'Company-wide team and desk analytics' : `Personal focus analytics for ${user?.name || user?.email}`}
-          </span>
-        </div>
-
-        {isLeadership && (
-          <button
-            onClick={() => {
-              const nextMode = mode === 'entrepreneur' ? 'individual' : 'entrepreneur';
-              localStorage.setItem('workspaceMode', nextMode);
-              setMode(nextMode);
-              setSelectedWeek(null);
-            }}
-            className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-            style={{ color: 'var(--ink-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            Switch to {mode === 'entrepreneur' ? 'Individual' : 'Entrepreneur'}
-          </button>
-        )}
-      </div>
-
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}
-        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
+        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 380 }}>
           <div>
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+            <div className="flex items-start justify-between mb-6 flex-wrap gap-2">
               <div>
                 <div className="flex items-center gap-2">
                   <span
-                    className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
+                    className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs"
                     style={{
-                      background: selectedWeek ? 'rgba(66, 84, 67, 0.15)' : 'rgba(66, 84, 67, 0.08)',
+                      background: 'rgba(66, 84, 67, 0.12)',
                       color: 'var(--forest)',
-                      border: selectedWeek ? '1px solid rgba(66, 84, 67, 0.3)' : 'none',
+                      border: '1px solid rgba(66, 84, 67, 0.25)',
                     }}
                   >
-                    {selectedWeek ? `${selectedWeek.name} Breakdown` : 'Weekly Focus'}
+                    Weekly Focus Assessment
                   </span>
                   {selectedWeek && (
                     <button
@@ -292,10 +258,10 @@ const Dashboard = () => {
                   )}
                 </div>
                 <h3
-                  className="text-lg font-bold mt-2"
+                  className="text-xl font-bold mt-2.5"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  {selectedWeek ? selectedWeek.label : 'Last 7 Days'}
+                  {selectedWeek ? `${selectedWeek.name} (${selectedWeek.label})` : 'Last 7 Days Assessment'}
                 </h3>
               </div>
               {selectedWeek && (
@@ -344,21 +310,25 @@ const Dashboard = () => {
         </div>
 
         {/* Graph 2: Monthly Bar Chart */}
-        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
+        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 380 }}>
           <div>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <span
-                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(184, 121, 57, 0.1)', color: 'var(--amber-w)' }}
+                  className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs"
+                  style={{
+                    background: 'rgba(184, 121, 57, 0.12)',
+                    color: 'var(--amber-w)',
+                    border: '1px solid rgba(184, 121, 57, 0.25)',
+                  }}
                 >
-                  Monthly Productivity
+                  Monthly Productivity Assessment
                 </span>
                 <h3
-                  className="text-lg font-bold mt-2"
+                  className="text-xl font-bold mt-2.5"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  Last 4 Weeks
+                  Monthly Productivity Assessment
                 </h3>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
                   {selectedWeek ? `Inspecting ${selectedWeek.name}. Click bar again to reset.` : 'Click any bar to view its 7-day breakdown'}

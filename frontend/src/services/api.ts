@@ -142,6 +142,14 @@ export const sessionService = {
     const response = await api.get(`/sessions/${uid}/sdwpoints`);
     return response.data.data;
   },
+  startSession: async (uid: string) => {
+    const response = await api.post(`/sessions/${uid}/start`);
+    return response.data;
+  },
+  resumeSession: async (uid: string) => {
+    const response = await api.post(`/sessions/${uid}/resume`);
+    return response.data;
+  },
   sendModeratorCommand: async (uid: string, command: string) => {
     const response = await api.post(`/sessions/${uid}/command`, { command });
     return response.data.data;
