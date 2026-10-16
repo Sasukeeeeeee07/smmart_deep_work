@@ -9,7 +9,16 @@ import {
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 interface DayData   { name: string; day: string; date: string; focus: number; breaks: number; sessions: number; }
-interface WeekData  { name: string; focus: number; breaks: number; productivity: number; sessions: number; }
+interface WeekData  {
+  name: string;
+  label: string;
+  weekIndex: number;
+  focus: number;
+  breaks: number;
+  productivity: number;
+  sessions: number;
+  days: DayData[];
+}
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 const fmtMin = (mins: number) => {
@@ -52,7 +61,37 @@ const computeClientAnalytics = (sessions: any[]) => {
     const focus  = ws.reduce((a, s) => a + getCappedActive(s), 0);
     const breaks = ws.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0);
     const total  = focus + breaks;
-    monthlyData.push({ name: `Week ${4 - w}`, focus, breaks, productivity: total > 0 ? Math.round((focus / total) * 100) : 0, sessions: ws.length });
+
+    // 7 specific days for this week
+    const weekDays: DayData[] = [];
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const dayDate = new Date(start);
+      dayDate.setDate(dayDate.getDate() + dayOffset);
+      const dateStr = dayDate.toISOString().slice(0, 10);
+      const daySessions = ws.filter(s => new Date(s.startTime).toISOString().slice(0, 10) === dateStr);
+      weekDays.push({
+        name: DAY[dayDate.getDay()],
+        day: DAY[dayDate.getDay()],
+        date: dateStr,
+        focus: daySessions.reduce((a, s) => a + getCappedActive(s), 0),
+        breaks: daySessions.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0),
+        sessions: daySessions.length,
+      });
+    }
+
+    const startFmt = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endFmt = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    monthlyData.push({
+      name: `Week ${4 - w}`,
+      label: `${startFmt} – ${endFmt}`,
+      weekIndex: 3 - w,
+      focus,
+      breaks,
+      productivity: total > 0 ? Math.round((focus / total) * 100) : 0,
+      sessions: ws.length,
+      days: weekDays,
+    });
   }
 
   const ms = new Date(now); ms.setDate(ms.getDate() - 30);
@@ -136,6 +175,7 @@ const Dashboard = () => {
   const [weeklyData, setWeeklyData]   = useState<DayData[]>([]);
   const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
   const [avgScore, setAvgScore]       = useState(0);
+  const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -168,8 +208,12 @@ const Dashboard = () => {
         }
         if (analytics) {
           setWeeklyData(analytics.weeklyData || []);
-          setMonthlyData(analytics.monthlyData || []);
+          const months = analytics.monthlyData || [];
+          setMonthlyData(months);
           setAvgScore(analytics.averageMonthlyScore || 0);
+
+          // Keep selected week in sync if already selected
+          setSelectedWeek(prev => (prev ? months.find((w: WeekData) => w.name === prev.name) || null : null));
         }
       } finally {
         if (isFirst.current) isFirst.current = false;
@@ -179,6 +223,8 @@ const Dashboard = () => {
     const iv = setInterval(fetchAll, 30000);
     return () => clearInterval(iv);
   }, [mode]);
+
+  const activeWeeklyData = selectedWeek ? selectedWeek.days : weeklyData;
 
   return (
     <div className="space-y-6 select-none py-2">
@@ -206,6 +252,7 @@ const Dashboard = () => {
               const nextMode = mode === 'entrepreneur' ? 'individual' : 'entrepreneur';
               localStorage.setItem('workspaceMode', nextMode);
               setMode(nextMode);
+              setSelectedWeek(null);
             }}
             className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             style={{ color: 'var(--ink-3)', background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -220,26 +267,50 @@ const Dashboard = () => {
         {/* Graph 1: Weekly Area Chart */}
         <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
               <div>
-                <span
-                  className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
-                  style={{ background: 'rgba(66, 84, 67, 0.08)', color: 'var(--forest)' }}
-                >
-                  Weekly Focus
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
+                    style={{
+                      background: selectedWeek ? 'rgba(66, 84, 67, 0.15)' : 'rgba(66, 84, 67, 0.08)',
+                      color: 'var(--forest)',
+                      border: selectedWeek ? '1px solid rgba(66, 84, 67, 0.3)' : 'none',
+                    }}
+                  >
+                    {selectedWeek ? `${selectedWeek.name} Breakdown` : 'Weekly Focus'}
+                  </span>
+                  {selectedWeek && (
+                    <button
+                      onClick={() => setSelectedWeek(null)}
+                      className="text-xs font-semibold px-2.5 py-0.5 rounded-full transition-all cursor-pointer hover:opacity-80 flex items-center gap-1"
+                      style={{ background: 'rgba(182, 83, 75, 0.1)', color: 'var(--error)', border: '1px solid rgba(182, 83, 75, 0.25)' }}
+                      title="Reset to current 7 days"
+                    >
+                      <span>✕ Reset to Live</span>
+                    </button>
+                  )}
+                </div>
                 <h3
                   className="text-lg font-bold mt-2"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  Last 7 Days
+                  {selectedWeek ? selectedWeek.label : 'Last 7 Days'}
                 </h3>
               </div>
+              {selectedWeek && (
+                <div className="text-right">
+                  <p className="text-xs" style={{ color: 'var(--ink-4)' }}>Week Productivity</p>
+                  <p className="text-sm font-bold" style={{ color: selectedWeek.productivity >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
+                    {selectedWeek.productivity}%
+                  </p>
+                </div>
+              )}
             </div>
 
             <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <AreaChart data={activeWeeklyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="gFocus" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#425443" stopOpacity={0.25}/>
@@ -275,7 +346,7 @@ const Dashboard = () => {
         {/* Graph 2: Monthly Bar Chart */}
         <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 360 }}>
           <div>
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start justify-between mb-4">
               <div>
                 <span
                   className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full"
@@ -289,6 +360,9 @@ const Dashboard = () => {
                 >
                   Last 4 Weeks
                 </h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
+                  {selectedWeek ? `Inspecting ${selectedWeek.name}. Click bar again to reset.` : 'Click any bar to view its 7-day breakdown'}
+                </p>
               </div>
               <div className="flex items-center gap-2 text-right">
                 <p
@@ -303,18 +377,51 @@ const Dashboard = () => {
 
             <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <BarChart
+                  data={monthlyData}
+                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
+                  onClick={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length > 0) {
+                      const clicked = e.activePayload[0].payload as WeekData;
+                      setSelectedWeek(prev => (prev?.name === clicked.name ? null : clicked));
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
-                  <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)' }} />
-                  <Bar dataKey="productivity" radius={[6, 6, 0, 0]} maxBarSize={48}>
-                    {monthlyData.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.productivity >= 80 ? '#5E7052' : entry.productivity > 0 ? '#B87939' : 'var(--border)'}
-                      />
-                    ))}
+                  <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }} />
+                  <Bar
+                    dataKey="productivity"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={48}
+                    cursor="pointer"
+                    onClick={(entry: any) => {
+                      if (entry && entry.name) {
+                        setSelectedWeek(prev => (prev?.name === entry.name ? null : entry));
+                      }
+                    }}
+                  >
+                    {monthlyData.map((entry, i) => {
+                      const isSelected = selectedWeek?.name === entry.name;
+                      return (
+                        <Cell
+                          key={i}
+                          cursor="pointer"
+                          stroke={isSelected ? '#425443' : 'none'}
+                          strokeWidth={isSelected ? 3 : 0}
+                          fill={
+                            isSelected
+                              ? '#425443'
+                              : entry.productivity >= 80
+                              ? '#5E7052'
+                              : entry.productivity > 0
+                              ? '#B87939'
+                              : 'var(--border)'
+                          }
+                        />
+                      );
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
