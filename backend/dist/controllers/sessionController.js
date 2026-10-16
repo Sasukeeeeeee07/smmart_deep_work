@@ -822,6 +822,7 @@ exports.unlockDevice = unlockDevice;
 // =====================================================
 const getDashboardAnalytics = async (req, res) => {
     try {
+        await (0, cronService_1.syncOfflineDevicesAndSessions)();
         const { uid } = req.query;
         const filter = {};
         if (uid)

@@ -23,6 +23,11 @@ const computeClientAnalytics = (sessions: any[]) => {
   const now = new Date();
   const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+  const getCappedActive = (s: any) => {
+    const max = (s.targetDurationMinutes || 120) + (s.extensionMinutes || 0);
+    return Math.min(s.activeMinutes || 0, max);
+  };
+
   const weeklyData: DayData[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
@@ -33,7 +38,7 @@ const computeClientAnalytics = (sessions: any[]) => {
       name: i === 0 ? 'Today' : DAY[d.getDay()],
       day: DAY[d.getDay()],
       date: dateStr,
-      focus: ss.reduce((a, s) => a + (s.activeMinutes || 0), 0),
+      focus: ss.reduce((a, s) => a + getCappedActive(s), 0),
       breaks: ss.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0),
       sessions: ss.length,
     });
@@ -44,7 +49,7 @@ const computeClientAnalytics = (sessions: any[]) => {
     const start = new Date(now); start.setDate(start.getDate() - ((w + 1) * 7) + 1); start.setHours(0,0,0,0);
     const end   = new Date(now); end.setDate(end.getDate() - (w * 7)); end.setHours(23,59,59,999);
     const ws = sessions.filter(s => { const t = new Date(s.startTime).getTime(); return t >= start.getTime() && t <= end.getTime(); });
-    const focus  = ws.reduce((a, s) => a + (s.activeMinutes || 0), 0);
+    const focus  = ws.reduce((a, s) => a + getCappedActive(s), 0);
     const breaks = ws.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0);
     const total  = focus + breaks;
     monthlyData.push({ name: `Week ${4 - w}`, focus, breaks, productivity: total > 0 ? Math.round((focus / total) * 100) : 0, sessions: ws.length });
@@ -52,7 +57,7 @@ const computeClientAnalytics = (sessions: any[]) => {
 
   const ms = new Date(now); ms.setDate(ms.getDate() - 30);
   const mSess = sessions.filter(s => new Date(s.startTime).getTime() >= ms.getTime());
-  const mF = mSess.reduce((a, s) => a + (s.activeMinutes || 0), 0);
+  const mF = mSess.reduce((a, s) => a + getCappedActive(s), 0);
   const mB = mSess.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0);
   const averageMonthlyScore = (mF + mB) > 0 ? parseFloat(((mF / (mF + mB)) * 100).toFixed(1)) : 0;
 

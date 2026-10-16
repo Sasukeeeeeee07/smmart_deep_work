@@ -892,6 +892,8 @@ export const unlockDevice = async (req: Request, res: Response) => {
 // =====================================================
 export const getDashboardAnalytics = async (req: Request, res: Response) => {
   try {
+    await syncOfflineDevicesAndSessions();
+
     const { uid } = req.query;
     const filter: Record<string, any> = {};
     if (uid) filter.deviceUid = uid as string;

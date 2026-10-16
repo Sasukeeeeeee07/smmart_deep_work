@@ -36,11 +36,12 @@ export const syncOfflineDevicesAndSessions = async () => {
         session.alarmActive = false;
         session.alarmMessage = '';
 
-        // Calculate actual active minutes up to lastHeartbeat
+        // Calculate actual active minutes up to lastHeartbeat, capped at max session duration (e.g. 120m)
         const endMs = (dev.lastHeartbeat ? new Date(dev.lastHeartbeat).getTime() : now.getTime());
         const totalMs = Math.max(0, endMs - new Date(session.startTime).getTime());
         const totalMins = Math.floor(totalMs / 60000);
-        session.activeMinutes = Math.max(0, totalMins - (session.totalBreakMinutes || 0));
+        const maxAllowed = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+        session.activeMinutes = Math.min(maxAllowed, Math.max(0, totalMins - (session.totalBreakMinutes || 0)));
         await session.save();
       }
     }
@@ -50,6 +51,20 @@ export const syncOfflineDevicesAndSessions = async () => {
       { status: { $in: ['COMPLETED', 'INVALID'] }, alarmActive: true },
       { alarmActive: false, alarmMessage: '' }
     );
+
+    // 3. Normalize any historical runaway sessions where activeMinutes exceeds realistic limit (> 180m)
+    const runawaySessions = await DeepWorkSession.find({
+      activeMinutes: { $gt: 180 },
+    });
+    for (const s of runawaySessions) {
+      const capped = (s.targetDurationMinutes || 120) + (s.extensionMinutes || 0);
+      console.log(`[CLEANUP] Normalizing runaway session ${s._id}: ${s.activeMinutes}m -> ${capped}m`);
+      s.activeMinutes = capped;
+      if (s.startTime) {
+        s.endTime = new Date(new Date(s.startTime).getTime() + (capped + (s.totalBreakMinutes || 0)) * 60000);
+      }
+      await s.save();
+    }
   } catch (err) {
     console.error('[OFFLINE SYNC] Error syncing offline devices and sessions:', err);
   }
