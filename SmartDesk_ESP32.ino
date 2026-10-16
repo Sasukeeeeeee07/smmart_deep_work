@@ -2431,6 +2431,28 @@ void startSessionFromDevice() {
       }
     } else if (startCode == 200) {
       Serial.println("[SESSION] Server registered session successfully from device button.");
+      // Immediately fetch /current to lock timer into server's exact remainingSeconds
+      HTTPClient httpCur;
+      httpCur.begin(String(sessionBaseURL) + "/current");
+      httpCur.setTimeout(2000);
+      int curCode = httpCur.GET();
+      if (curCode == 200) {
+        String curPayload = httpCur.getString();
+        JsonDocument curDoc;
+        if (!deserializeJson(curDoc, curPayload) && !curDoc["data"].isNull()) {
+          unsigned long beRemSec = curDoc["data"]["remainingSeconds"] | 0;
+          int beTarget = curDoc["data"]["targetDurationMinutes"] | 120;
+          targetDurationMinutes = beTarget;
+          if (beRemSec > 0) {
+            unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+            unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+            sessionTotalMs = serverActiveSec * 1000UL;
+            sessionStartMs = millis();
+            Serial.printf("[SESSION] Locked countdown to server: remainingSeconds=%lu activeSec=%lu\n", beRemSec, serverActiveSec);
+          }
+        }
+      }
+      httpCur.end();
     }
     http.end();
     vTaskDelay(pdMS_TO_TICKS(1));

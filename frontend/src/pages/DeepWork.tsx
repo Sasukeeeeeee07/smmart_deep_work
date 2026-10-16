@@ -68,6 +68,39 @@ export default function DeepWorkPage() {
     };
   }, []);
 
+  const [serverAnchor, setServerAnchor] = useState<{ activeSec: number; fetchedAt: number } | null>(null);
+
+  // High-frequency live session sync (every 2.5s) to stay in instant lockstep with ESP32 device
+  useEffect(() => {
+    if (!selectedUid) return;
+    let mounted = true;
+
+    const syncLive = async () => {
+      try {
+        const live = await sessionService.getCurrentSession(selectedUid);
+        if (!mounted) return;
+        if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
+          setCurrentSession(prev => ({ ...(prev || {}), ...live }));
+          if (typeof live.activeSeconds === 'number') {
+            setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
+          }
+        } else if (!live && currentSession && ['ACTIVE', 'BREAK', 'DYING'].includes(currentSession.status)) {
+          // Session ended on device or server
+          setCurrentSession(null);
+          setServerAnchor(null);
+          loadData();
+        }
+      } catch { /* non-fatal */ }
+    };
+
+    syncLive();
+    const liveIv = setInterval(syncLive, 2500);
+    return () => {
+      mounted = false;
+      clearInterval(liveIv);
+    };
+  }, [selectedUid, currentSession?._id, currentSession?.status]);
+
   // Fetch devices & sessions
   const loadData = async () => {
     try {
@@ -108,11 +141,15 @@ export default function DeepWorkPage() {
   // ── Session Timers (HMS & Reverse Timer) ──────────────────
   const isRunning = currentSession && ['ACTIVE', 'BREAK', 'DYING'].includes(currentSession.status);
 
-  // Active elapsed seconds
+  // Active elapsed seconds — locked to server anchor for exact ESP32 synchronization
   const computeActiveSeconds = () => {
     if (!currentSession) return 0;
     if (currentSession.status === 'COMPLETED' || currentSession.status === 'INVALID') {
       return (currentSession.activeMinutes || 0) * 60;
+    }
+    if (serverAnchor) {
+      const localElapsed = Math.max(0, Math.floor((now - serverAnchor.fetchedAt) / 1000));
+      return serverAnchor.activeSec + localElapsed;
     }
     const elapsed = Math.max(0, Math.floor((now - new Date(currentSession.startTime).getTime()) / 1000));
     return Math.max(0, elapsed - (currentSession.totalBreakMinutes || 0) * 60);
@@ -153,6 +190,13 @@ export default function DeepWorkPage() {
     setStarting(true);
     try {
       await sessionService.startSession(selectedUid);
+      const live = await sessionService.getCurrentSession(selectedUid);
+      if (live) {
+        setCurrentSession(live);
+        if (typeof live.activeSeconds === 'number') {
+          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
+        }
+      }
       await loadData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to start session');
