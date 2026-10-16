@@ -1607,10 +1607,15 @@ void drawHomePage() {
 
   // ── ROW 1: Uninterrupted Session (left 190px)
   tft.fillRoundRect(5, r1Y, 190, r1H, 7, COLOR_PANEL);
-  tft.setTextColor(COLOR_MUTED);
   tft.setTextSize(1);
   tft.setCursor(12, r1Y + 6);
-  tft.print(showSessionTimer ? "UNINTERRUPTED SESSION" : "SESSION DISABLED");
+  if (sessionState == SESSION_IDLE) {
+    tft.setTextColor(COLOR_GREEN);
+    tft.print("TAP TO START SESSION");
+  } else {
+    tft.setTextColor(COLOR_MUTED);
+    tft.print(showSessionTimer ? "UNINTERRUPTED SESSION" : "SESSION DISABLED");
+  }
 
   // ── ROW 1: Breaks (right 120px)
   tft.fillRoundRect(198, r1Y, 120, r1H, 7, COLOR_PANEL);
@@ -1676,8 +1681,15 @@ void updateHomePageLiveValues() {
 
   // ── Reverse Timer (Counts down from 2h / target duration) ───
   int r1Y = 5;
-  tft.fillRect(12, r1Y + 16, 155, 30, COLOR_PANEL); // clear timer area
-  if (showSessionTimer) {
+  tft.fillRect(10, r1Y + 16, 180, 36, COLOR_PANEL); // clear timer area
+  if (sessionState == SESSION_IDLE) {
+    // Prominent "START TIMER" button on screen
+    tft.fillRoundRect(10, r1Y + 18, 178, 32, 6, COLOR_GREEN);
+    tft.setTextColor(ILI9341_BLACK);
+    tft.setTextSize(2);
+    tft.setCursor(18, r1Y + 26);
+    tft.print("> START TIMER");
+  } else if (showSessionTimer) {
     unsigned long activeSec = sessionTotalMs / 1000;
     if (sessionState == SESSION_ACTIVE && sessionStartMs > 0)
       activeSec += (nowMs - sessionStartMs) / 1000;
@@ -2364,6 +2376,68 @@ void drawCameraPage() {
 }
 
 // =====================================================
+// MANUAL SESSION START (from Device Button)
+// Calls exact same endpoint: POST /api/sessions/ESP32-S3-01/start
+// =====================================================
+void startSessionFromDevice() {
+  if (isDeviceLockedOut || sessionState == SESSION_LOCKED_OUT) {
+    Serial.println("[SESSION] Cannot start: Device is locked out.");
+    return;
+  }
+  if (sessionState == SESSION_ACTIVE) {
+    Serial.println("[SESSION] Session already active.");
+    return;
+  }
+
+  sessionState = SESSION_ACTIVE;
+  sessionStartMs = millis();
+  sessionTotalMs = 0;
+  sessionBreakCount = 0;
+  totalBreakMs = 0;
+  selfRating = 0;
+  productivitySpike = false;
+  sessionDyingShown = false;
+  targetDurationMinutes = 120; // 2 hrs default
+  extensionPromptActive = false;
+  extensionPromptShowOptions = false;
+  extensionPromptDismissed = false;
+  sessionCompletedShown = false;
+  soundAlarmActive = false;
+  alarmScreenDrawn = false;
+  isInvalidSession = false;
+  currentBreakCounted = false;
+
+  Serial.println("[SESSION] Manual START button pressed on device! Starting 2-hour session");
+  drawHomePage(); // Immediate UI update!
+
+  // Call the exact same API endpoint that Web calls
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(String(sessionBaseURL) + "/start");
+    http.setTimeout(2500);
+    http.addHeader("Content-Type", "application/json");
+    int startCode = http.POST("{}");
+    if (startCode == 403) {
+      String payload = http.getString();
+      JsonDocument doc;
+      if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
+        isDeviceLockedOut = true;
+        sessionState = SESSION_LOCKED_OUT;
+        currentPage = PAGE_LOCKOUT;
+        lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
+        preferences.putUInt("lockSec", lockoutRemainingSec);
+        soundAlarmActive = false;
+        drawLockoutScreen();
+      }
+    } else if (startCode == 200) {
+      Serial.println("[SESSION] Server registered session successfully from device button.");
+    }
+    http.end();
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+// =====================================================
 // TOUCH HANDLER
 // =====================================================
 
@@ -2618,6 +2692,17 @@ void handleTouch() {
       }
     }
   }
+
+  // ===================================================
+  // HOME PAGE: ROW 1 TOUCH (Start Session Button)
+  // ===================================================
+  if (currentPage == PAGE_HOME && tY >= 5 && tY <= 65 && tX >= 5 && tX <= 195) {
+    if (sessionState == SESSION_IDLE) {
+      startSessionFromDevice();
+      return;
+    }
+  }
+
   // ===================================================
   // HOME PAGE: BREAK BOX TOUCH (Toggle Session vs Daily)
   // ===================================================
@@ -3418,53 +3503,9 @@ void loop() {
   switch (sessionState) {
 
   case SESSION_IDLE:
-    if (!isDeviceLockedOut && personPresent) {
-      // Person just sat down — start a new 2-hour session
-      sessionState = SESSION_ACTIVE;
-      sessionStartMs = millis();
-      sessionTotalMs = 0;
-      sessionBreakCount = 0;
-      totalBreakMs = 0;
-      selfRating = 0;
-      productivitySpike = false;
-      sessionDyingShown = false;
-      targetDurationMinutes = 120; // 2 hrs default
-      extensionPromptActive = false;
-      extensionPromptShowOptions = false;
-      extensionPromptDismissed = false;
-      sessionCompletedShown = false;
-      soundAlarmActive = false;
-      alarmScreenDrawn = false;
-      isInvalidSession = false;
-      currentBreakCounted = false;
-
-      Serial.println("[SESSION] Started 2-hour reverse countdown session");
-      drawHomePage(); // Immediate UI update!
-
-      // Tell backend
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin(String(sessionBaseURL) + "/start");
-        http.setTimeout(1500);
-        http.addHeader("Content-Type", "application/json");
-        int startCode = http.POST("{}");
-        if (startCode == 403) {
-          String payload = http.getString();
-          JsonDocument doc;
-          if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
-            isDeviceLockedOut = true;
-            sessionState = SESSION_LOCKED_OUT;
-            currentPage = PAGE_LOCKOUT;
-            lockoutRemainingSec = doc["data"]["remainingSeconds"] | 172800UL;
-            preferences.putUInt("lockSec", lockoutRemainingSec);
-            soundAlarmActive = false;
-            drawLockoutScreen();
-          }
-        }
-        http.end();
-        vTaskDelay(pdMS_TO_TICKS(1));
-      }
-    }
+    // User requested: Do NOT auto-start session on radar presence alone!
+    // Device now waits for user to tap [START TIMER] on the screen OR click [START SESSION] on the Web.
+    // Both device and web invoke the exact same API: POST /api/sessions/ESP32-S3-01/start
     break;
 
   case SESSION_ACTIVE:
@@ -3731,11 +3772,12 @@ void loop() {
   }
 
   // ===================================================
-  // BIDIRECTIONAL SESSION SYNC WITH BACKEND (every 5 seconds)
-  // Synchronizes extensions, alarms, and ratings between Web and Device
+  // BIDIRECTIONAL SESSION SYNC WITH BACKEND (every 3-5 seconds)
+  // Synchronizes session start, timer countdown, alarms, and ratings between Web and Device
   // ===================================================
   static uint32_t lastSessionSync = 0;
-  if (millis() - lastSessionSync >= 5000 && millis() > 4000) {
+  uint32_t syncInterval = (sessionState == SESSION_IDLE) ? 3000 : 5000;
+  if (millis() - lastSessionSync >= syncInterval && millis() > 4000) {
     lastSessionSync = millis();
     if (WiFi.status() == WL_CONNECTED && currentPage != PAGE_CAMERA) {
       HTTPClient http;
@@ -3780,11 +3822,76 @@ void loop() {
             }
           }
 
-          if (!doc["data"].isNull() && !isDeviceLockedOut) {
+          if (doc["data"].isNull() && !isDeviceLockedOut) {
+            // Server has no active session — if device is running, reset to IDLE
+            if (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK) {
+              sessionState = SESSION_IDLE;
+              sessionStartMs = 0;
+              sessionTotalMs = 0;
+              totalBreakMs = 0;
+              sessionBreakCount = 0;
+              Serial.println("[SYNC] Server has no active session. Reset device to IDLE.");
+              drawHomePage();
+            }
+          } else if (!doc["data"].isNull() && !isDeviceLockedOut) {
             int beTarget = doc["data"]["targetDurationMinutes"] | 120;
             if (beTarget > 0 && beTarget != targetDurationMinutes) {
               targetDurationMinutes = beTarget;
               Serial.printf("[SYNC] Target duration synced from web: %d mins\n", targetDurationMinutes);
+            }
+
+            String beStatus = doc["data"]["status"].as<String>();
+            unsigned long beRemSec = doc["data"]["remainingSeconds"] | 0;
+
+            // 1. Session started remotely from Web while device is IDLE
+            if ((beStatus == "ACTIVE" || beStatus == "BREAK") && sessionState == SESSION_IDLE) {
+              sessionState = (beStatus == "BREAK") ? SESSION_BREAK : SESSION_ACTIVE;
+              targetDurationMinutes = beTarget;
+              if (beRemSec > 0) {
+                unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+                unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+                sessionTotalMs = serverActiveSec * 1000UL;
+                sessionStartMs = millis();
+              } else {
+                sessionTotalMs = 0;
+                sessionStartMs = millis();
+              }
+              sessionBreakCount = doc["data"]["breakCount"] | 0;
+              totalBreakMs = (doc["data"]["totalBreakMinutes"] | 0) * 60000UL;
+              Serial.println("[SYNC] Session started remotely from Web! Synchronized device timer.");
+              drawHomePage();
+            }
+
+            // 2. Session ended remotely from Web
+            else if ((beStatus == "COMPLETED" || beStatus == "INVALID") && (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK || sessionState == SESSION_DYING)) {
+              if (beStatus == "INVALID") {
+                sessionState = SESSION_INVALID;
+                isInvalidSession = true;
+                soundAlarmActive = true;
+                alarmTriggeredAtMs = millis();
+                soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
+                drawAlarmScreen();
+              } else {
+                sessionState = SESSION_IDLE;
+                sessionStartMs = 0;
+                sessionTotalMs = 0;
+                totalBreakMs = 0;
+                sessionBreakCount = 0;
+                Serial.println("[SYNC] Session completed remotely from Web. Reset device to IDLE.");
+                drawHomePage();
+              }
+            }
+
+            // 3. Keep running timer tightly synchronized with server
+            else if (sessionState == SESSION_ACTIVE && beStatus == "ACTIVE" && beRemSec > 0) {
+              unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+              unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+              unsigned long currentDevActiveSec = (sessionTotalMs / 1000) + ((sessionStartMs > 0) ? (millis() - sessionStartMs) / 1000 : 0);
+              if (abs((long)currentDevActiveSec - (long)serverActiveSec) > 3) {
+                sessionTotalMs = serverActiveSec * 1000UL;
+                sessionStartMs = millis();
+                Serial.printf("[SYNC] Auto-aligned device timer with server: activeSec=%lu remSec=%lu\n", serverActiveSec, beRemSec);
+              }
             }
 
             bool beAlarm = doc["data"]["alarmActive"] | false;
@@ -3807,16 +3914,6 @@ void loop() {
             int beRating = doc["data"]["selfRating"] | 0;
             if (beRating > 0 && beRating != selfRating) {
               selfRating = beRating;
-            }
-
-            String beStatus = doc["data"]["status"].as<String>();
-            if (beStatus == "INVALID" && sessionState != SESSION_INVALID) {
-              sessionState = SESSION_INVALID;
-              isInvalidSession = true;
-              soundAlarmActive = true;
-              alarmTriggeredAtMs = millis();
-              soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS!";
-              drawAlarmScreen();
             }
           }
         }

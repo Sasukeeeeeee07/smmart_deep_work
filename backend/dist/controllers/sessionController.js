@@ -122,7 +122,24 @@ const startSession = async (req, res) => {
             device.invalidSessionCount = 0;
             await device.save();
         }
-        // Close any stale ACTIVE/BREAK session for this device
+        // If an ACTIVE or BREAK session is ALREADY running for this device, return it
+        const existingActive = await DeepWorkSession_1.DeepWorkSession.findOne({
+            deviceUid: req.params.uid,
+            status: { $in: ['ACTIVE', 'BREAK', 'DYING'] }
+        }).sort({ startTime: -1 });
+        if (existingActive) {
+            console.log(`[SESSION] Device ${req.params.uid} already has active session: ${existingActive._id}`);
+            return res.json({
+                success: true,
+                data: {
+                    sessionId: existingActive._id,
+                    alreadyActive: true,
+                    startTime: existingActive.startTime,
+                    status: existingActive.status
+                }
+            });
+        }
+        // Close any stale session for this device
         const staleSessions = await DeepWorkSession_1.DeepWorkSession.find({
             deviceUid: req.params.uid,
             status: { $in: ['ACTIVE', 'BREAK', 'DYING'] }
@@ -158,7 +175,7 @@ const startSession = async (req, res) => {
             status: 'ACTIVE',
         });
         console.log(`[SESSION] Started: ${session._id} for device ${req.params.uid}`);
-        res.json({ success: true, data: { sessionId: session._id } });
+        res.json({ success: true, data: { sessionId: session._id, startTime: session.startTime } });
     }
     catch (err) {
         console.error('[SESSION] start error:', err);
@@ -509,26 +526,31 @@ const getCurrentSession = async (req, res) => {
         const now = Date.now();
         let liveActiveMinutes = session.activeMinutes || 0;
         let liveTotalBreakMinutes = session.totalBreakMinutes || 0;
+        const targetMin = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+        let remainingSeconds = Math.max(0, targetMin * 60 - liveActiveMinutes * 60);
+        let liveActiveSeconds = liveActiveMinutes * 60;
         if (session.status === 'ACTIVE' || session.status === 'BREAK' || session.status === 'DYING') {
             const diffMs = Math.max(0, now - new Date(session.startTime).getTime());
-            const totalMin = Math.floor(diffMs / 60000);
-            let openBreakMinutes = 0;
+            const totalSec = Math.floor(diffMs / 1000);
+            let openBreakMs = 0;
             if ((session.status === 'BREAK' || session.status === 'DYING') && session.breaks && session.breaks.length > 0) {
                 const lastBreak = session.breaks[session.breaks.length - 1];
                 if (!lastBreak.endTime) {
-                    openBreakMinutes = Math.floor(Math.max(0, now - new Date(lastBreak.startTime).getTime()) / 60000);
+                    openBreakMs = Math.max(0, now - new Date(lastBreak.startTime).getTime());
                 }
             }
-            liveTotalBreakMinutes = (session.totalBreakMinutes || 0) + openBreakMinutes;
-            liveActiveMinutes = Math.max(0, totalMin - liveTotalBreakMinutes);
+            const totalBreakSec = ((session.totalBreakMinutes || 0) * 60) + Math.floor(openBreakMs / 1000);
+            liveActiveSeconds = Math.max(0, totalSec - totalBreakSec);
+            liveActiveMinutes = Math.floor(liveActiveSeconds / 60);
+            liveTotalBreakMinutes = Math.floor(totalBreakSec / 60);
+            remainingSeconds = Math.max(0, (targetMin * 60) - liveActiveSeconds);
         }
-        const targetMin = session.targetDurationMinutes || 120;
-        const remainingSeconds = Math.max(0, (targetMin * 60) - (liveActiveMinutes * 60));
         res.json({
             success: true,
             data: {
                 ...session.toObject(),
                 activeMinutes: liveActiveMinutes,
+                activeSeconds: liveActiveSeconds,
                 totalBreakMinutes: liveTotalBreakMinutes,
                 targetDurationMinutes: targetMin,
                 remainingSeconds,
