@@ -596,14 +596,14 @@ export default function DeepWorkPage() {
           </div>
         </div>
 
-        {/* ── 4 Stat Metric Boxes (From Sketch) ─────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+        {/* ── Stat Metric Boxes (Session Productivity Score & Self Rating) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
 
           {/* Box 1: Session Productivity Score */}
-          <div className="card p-4 rounded-2xl flex flex-col justify-between">
+          <div className="card p-5 rounded-2xl flex flex-col justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
-                Session Prod. Score
+                Session Productivity Score
               </p>
               <div className="flex items-baseline gap-2">
                 <span
@@ -617,7 +617,7 @@ export default function DeepWorkPage() {
                 </span>
               </div>
             </div>
-            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+            <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -629,12 +629,12 @@ export default function DeepWorkPage() {
           </div>
 
           {/* Box 2: Session Self Rating */}
-          <div className="card p-4 rounded-2xl flex flex-col justify-between">
+          <div className="card p-5 rounded-2xl flex flex-col justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
                 Session Self Rating
               </p>
-              <div className="flex items-center gap-1 py-1">
+              <div className="flex items-center gap-1.5 py-1.5">
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
@@ -642,7 +642,7 @@ export default function DeepWorkPage() {
                     className="p-1 rounded-md transition-transform hover:scale-125 cursor-pointer"
                   >
                     <Star
-                      size={20}
+                      size={22}
                       style={{
                         color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'var(--border-strong)',
                         fill: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'none',
@@ -652,58 +652,8 @@ export default function DeepWorkPage() {
                 ))}
               </div>
             </div>
-            <p className="text-[11px] mt-2" style={{ color: 'var(--ink-4)' }}>
+            <p className="text-xs mt-2" style={{ color: 'var(--ink-4)' }}>
               {currentSession?.selfRating ? `Rated: ${currentSession.selfRating} / 5 stars` : 'Tap star to rate focus'}
-            </p>
-          </div>
-
-          {/* Box 3: Total Break Time */}
-          <div className="card p-4 rounded-2xl flex flex-col justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
-                Total Break Time
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="font-bold text-3xl tabular-nums tracking-tight"
-                  style={{
-                    color: (currentSession?.breakCount || 0) > 3 ? 'var(--error)' : 'var(--ink)',
-                    fontFamily: 'DM Sans, sans-serif'
-                  }}
-                >
-                  {currentSession?.totalBreakMinutes || 0}m
-                </span>
-                <span
-                  className="text-xs font-semibold px-2 py-0.5 rounded-md"
-                  style={{
-                    background: (currentSession?.breakCount || 0) > 3 ? 'rgba(182, 83, 75, 0.1)' : 'var(--surface-2)',
-                    color: (currentSession?.breakCount || 0) > 3 ? 'var(--error)' : 'var(--ink-3)',
-                  }}
-                >
-                  {currentSession?.breakCount || 0} / 3 breaks
-                </span>
-              </div>
-            </div>
-            <p className="text-[11px] mt-2" style={{ color: 'var(--ink-4)' }}>
-              Absences &ge; 5m count as a break
-            </p>
-          </div>
-
-          {/* Box 4: Time Live */}
-          <div className="card p-4 rounded-2xl flex flex-col justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
-                Time Live (Elapsed)
-              </p>
-              <p
-                className="font-mono font-bold text-2xl md:text-3xl tabular-nums tracking-tight"
-                style={{ color: 'var(--forest)' }}
-              >
-                {fmtHMS(activeSec)}
-              </p>
-            </div>
-            <p className="text-[11px] mt-2" style={{ color: 'var(--ink-4)' }}>
-              Started: {currentSession ? new Date(currentSession.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
             </p>
           </div>
         </div>
