@@ -7,7 +7,7 @@ import {
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Shield, Mic, Activity, Wifi, WifiOff,
-  Calendar, Hourglass
+  Calendar, Hourglass, History, X
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -48,6 +48,8 @@ export default function DeepWorkPage() {
   const [customVoice, setCustomVoice] = useState('');
   const [sendingVoice, setSendingVoice] = useState(false);
   const [voiceSuccess, setVoiceSuccess] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<'ALL' | 'COMPLETED' | 'ACTIVE' | 'INVALID'>('ALL');
 
   // User & role
   const userStr = localStorage.getItem('user');
@@ -389,8 +391,23 @@ export default function DeepWorkPage() {
             </p>
           </div>
 
-          {/* Device Selector & Online/Offline Pill */}
-          <div className="flex items-center gap-2.5">
+          {/* Device Selector, Online/Offline Pill & Session History Trigger */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => setShowHistoryModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+              title="View previous session history"
+            >
+              <History size={14} style={{ color: 'var(--forest)' }} />
+              <span>Session History</span>
+              {allSessions.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
+                  {allSessions.length}
+                </span>
+              )}
+            </button>
+
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
                 isDeviceOnline
@@ -756,247 +773,401 @@ export default function DeepWorkPage() {
           </div>
         </div>
 
-        {/* ── Stat Metric Boxes (Session Productivity Score & Self Rating) ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        {/* ── 15 Minute Pehle Extend Prompt (Appears conditionally) ── */}
+        {isRunning && remainingSec <= 15 * 60 && (
+          <div
+            className="p-4 rounded-2xl border flex items-center justify-between flex-wrap gap-3 animate-pulse-gentle mt-2"
+            style={{ background: 'rgba(66, 84, 67, 0.08)', borderColor: 'rgba(66, 84, 67, 0.3)' }}
+          >
+            <div className="flex items-center gap-2.5">
+              <Clock size={18} style={{ color: 'var(--forest)' }} />
+              <div>
+                <p className="font-bold text-sm" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                  15 Minute Pehle Extend
+                </p>
+                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                  Under 15 minutes remaining — choose extra focus time:
+                </p>
+              </div>
+            </div>
 
-          {/* Box 1: Session Productivity Score */}
-          <div className="card p-5 rounded-2xl flex flex-col justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
-                Session Productivity Score
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="font-bold text-3xl tabular-nums tracking-tight"
-                  style={{ color: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)', fontFamily: 'DM Sans, sans-serif' }}
+            <div className="flex items-center gap-2">
+              {[15, 30, 45, 60].map(m => (
+                <button
+                  key={m}
+                  onClick={() => handleExtend(m)}
+                  disabled={extending}
+                  className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer"
                 >
-                  {productivityScore}%
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
-                  Current Session
-                </span>
-              </div>
-            </div>
-            <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${productivityScore}%`,
-                  background: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)'
-                }}
-              />
+                  +{m}m
+                </button>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Box 2: Session Self Rating */}
-          <div className="card p-5 rounded-2xl flex flex-col justify-between">
+        {/* ── 3 Clean Spacious Metric Cards ─────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+
+          {/* CARD 1: TIMING & BREAKS */}
+          <div
+            className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
             <div>
-              <p className="text-[11px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--ink-4)' }}>
-                Session Self Rating
-              </p>
-              <div className="flex items-center gap-1.5 py-1.5">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    onClick={() => handleRate(star)}
-                    className="p-1 rounded-md transition-transform hover:scale-125 cursor-pointer"
-                  >
-                    <Star
-                      size={22}
-                      style={{
-                        color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'var(--border-strong)',
-                        fill: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'none',
-                      }}
-                    />
-                  </button>
-                ))}
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[var(--border)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--ink)' }}>
+                  <Hourglass size={14} className="text-sky-600" />
+                  Timing & Breaks
+                </span>
+                <span
+                  className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{
+                    background: isRunning ? (currentSession?.status === 'BREAK' ? 'rgba(184,121,57,0.1)' : 'rgba(74,124,89,0.1)') : 'var(--surface-2)',
+                    color: isRunning ? (currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--forest)') : 'var(--ink-4)',
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  {isRunning ? (currentSession?.status === 'BREAK' ? 'BREAK' : 'ACTIVE') : 'IDLE'}
+                </span>
               </div>
-            </div>
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-4)' }}>
-              {currentSession?.selfRating ? `Rated: ${currentSession.selfRating} / 5 stars` : 'Tap star to rate focus'}
-            </p>
-          </div>
-        </div>
 
-        {/* ── Sketch Rules, 15m Extend Prompt & Abort Counter ─────────── */}
-        <div className="space-y-3 pt-2">
-          {/* 15 minute pehle Extend prompt (From sketch note) */}
-          {isRunning && remainingSec <= 15 * 60 && (
-            <div
-              className="p-4 rounded-2xl border flex items-center justify-between flex-wrap gap-3 animate-pulse-gentle"
-              style={{ background: 'rgba(66, 84, 67, 0.08)', borderColor: 'rgba(66, 84, 67, 0.3)' }}
-            >
-              <div className="flex items-center gap-2.5">
-                <Clock size={18} style={{ color: 'var(--forest)' }} />
-                <div>
-                  <p className="font-bold text-sm" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                    15 Minute Pehle Extend
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
-                    Under 15 minutes remaining — choose extra focus time:
-                  </p>
+              <div>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Total Desk Time</p>
+                <p className="font-mono font-bold text-2xl lg:text-3xl tabular-nums tracking-tight mt-0.5" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                  {currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}
+                </p>
+              </div>
+
+              <div className="mt-4 space-y-2.5 text-xs" style={{ color: 'var(--ink-2)' }}>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
+                    <Calendar size={13} className="text-emerald-600" /> Started:
+                  </span>
+                  <span className="font-semibold font-mono">
+                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
+                    <Timer size={13} className="text-sky-600" /> Focus / Breaks:
+                  </span>
+                  <span className="font-semibold">
+                    {fmtHMS(activeSec)} / {currentSession?.totalBreakMinutes || 0}m ({currentSession?.breakCount || currentSession?.breaks?.length || 0})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
+                    <RotateCcw size={13} className="text-violet-600" /> Resumed:
+                  </span>
+                  <span className="font-semibold">
+                    {currentSession?.lastResumedAt ? formatTime(currentSession.lastResumedAt) : (isRunning ? 'Continuous' : '—')}
+                  </span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                {[15, 30, 45, 60].map(m => (
-                  <button
-                    key={m}
-                    onClick={() => handleExtend(m)}
-                    disabled={extending}
-                    className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer"
-                  >
-                    +{m}m
-                  </button>
-                ))}
-              </div>
             </div>
-          )}
 
-          {/* ── Bottom Session Timing & Duration Breakdown (Requested by User) ── */}
-          <div
-            className="p-5 rounded-2xl border transition-all duration-200"
-            style={{
-              background: 'var(--surface)',
-              borderColor: 'var(--border)',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-            }}
-          >
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 mb-3 border-b border-[var(--border)]">
-              <div className="flex items-center gap-2">
-                <Clock size={16} style={{ color: 'var(--forest)' }} />
-                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>
-                  Session Timing & Duration Breakdown
-                </h3>
-              </div>
-              <span
-                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{
-                  background: isRunning ? 'rgba(66, 84, 67, 0.1)' : 'var(--surface-2)',
-                  color: isRunning ? 'var(--forest)' : 'var(--ink-4)',
-                  border: '1px solid var(--border)'
-                }}
-              >
-                {isRunning ? (currentSession?.status === 'BREAK' ? 'PAUSED ON BREAK' : 'IN PROGRESS') : (currentSession ? 'PREVIOUS RECORD' : 'NO SESSION')}
+            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
+              <span>Extension:</span>
+              <span className="font-semibold" style={{ color: (currentSession?.extensionMinutes || 0) > 0 ? 'var(--amber-w)' : 'var(--ink)' }}>
+                {(currentSession?.extensionMinutes || 0) > 0 ? `+${currentSession?.extensionMinutes}m (Target: ${targetMin}m)` : `Standard 120m`}
               </span>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* 1. Session Started Proper Timing */}
-              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Calendar size={14} className="text-emerald-600 shrink-0" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
-                    Session Started
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
-                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
-                  </p>
-                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
-                    {currentSession?.startTime ? formatFullDate(currentSession.startTime) : 'Awaiting start'}
-                  </p>
-                </div>
+          {/* CARD 2: PRODUCTIVITY & RATING */}
+          <div
+            className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div>
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[var(--border)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--ink)' }}>
+                  <Star size={14} className="text-amber-500" />
+                  Productivity & Rating
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                  +{currentSession?.sdwPointsEarned || (productivityScore >= 80 ? 10 : 0)} pts
+                </span>
               </div>
 
-              {/* 2. Total Timing with Breaks */}
-              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Hourglass size={14} className="text-sky-600 shrink-0" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
-                    Total Desk Time
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
-                    {currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}
-                  </p>
-                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
-                    Focus: {fmtHMS(activeSec)} • Breaks: {currentSession?.totalBreakMinutes || 0}m ({currentSession?.breakCount || currentSession?.breaks?.length || 0})
-                  </p>
-                </div>
-              </div>
-
-              {/* 3. Session Extension */}
-              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Clock size={14} className="text-amber-600 shrink-0" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
-                    Session Extension
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <p
-                    className="font-bold text-base md:text-lg tracking-tight"
-                    style={{ color: (currentSession?.extensionMinutes || 0) > 0 ? 'var(--amber-w)' : 'var(--ink)' }}
+              <div>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Productivity Score</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span
+                    className="font-bold text-2xl lg:text-3xl tabular-nums tracking-tight"
+                    style={{ color: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)', fontFamily: 'DM Sans, sans-serif' }}
                   >
-                    {(currentSession?.extensionMinutes || 0) > 0 ? `+${currentSession?.extensionMinutes} mins` : 'No Extension'}
-                  </p>
-                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
-                    {(currentSession?.extensionMinutes || 0) > 0
-                      ? `Extended Target: ${targetMin} mins`
-                      : `Standard Target: ${targetMin} mins`}
-                  </p>
+                    {productivityScore}%
+                  </span>
+                  <span className="text-[11px] font-medium" style={{ color: 'var(--ink-4)' }}>
+                    {productivityScore >= 80 ? 'High Focus' : 'Pacing Needed'}
+                  </span>
+                </div>
+                <div className="mt-2.5 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${productivityScore}%`,
+                      background: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)'
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* 4. Resumed Timing */}
-              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <RotateCcw size={14} className="text-violet-600 shrink-0" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
-                    Last Resumed
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
-                    {currentSession?.lastResumedAt
-                      ? formatTime(currentSession.lastResumedAt)
-                      : isRunning
-                      ? 'Continuous'
-                      : '—'}
-                </p>
-                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
-                    {currentSession?.lastResumedAt
-                      ? 'Resumed from pause'
-                      : isRunning
-                      ? 'Running without breaks'
-                      : 'No resume events'}
-                  </p>
+              {/* Star Rating */}
+              <div className="mt-4">
+                <p className="text-[10px] uppercase font-semibold tracking-wider mb-1" style={{ color: 'var(--ink-4)' }}>Self Rating</p>
+                <div className="flex items-center gap-1.5">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => handleRate(star)}
+                      className="p-1 rounded-md transition-transform hover:scale-125 cursor-pointer"
+                      title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    >
+                      <Star
+                        size={20}
+                        style={{
+                          color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'var(--border-strong)',
+                          fill: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'none',
+                        }}
+                      />
+                    </button>
+                  ))}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
+              <span>Session Rating:</span>
+              <span className="font-semibold" style={{ color: 'var(--ink)' }}>
+                {currentSession?.selfRating ? `${currentSession.selfRating} / 5 stars` : 'Tap star to rate'}
+              </span>
             </div>
           </div>
 
-          {/* Sketch Rules Footer */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div
-              className="p-3.5 rounded-xl border flex items-center gap-3 text-xs"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <AlertTriangle size={16} className="shrink-0" style={{ color: 'var(--amber-w)' }} />
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--ink)' }}>3+ Breaks Rule</p>
-                <p style={{ color: 'var(--ink-4)' }}>More than 3 breaks within 2 hrs: session will not register & dies.</p>
+          {/* CARD 3: DESK STATUS & RULES */}
+          <div
+            className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div>
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[var(--border)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--ink)' }}>
+                  <Shield size={14} className="text-emerald-700" />
+                  Desk Status & Rules
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {selectedUid}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  <div className="flex items-center gap-2">
+                    <Volume2 size={15} className={alarmCount > 0 ? 'text-rose-600' : 'text-slate-400'} />
+                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Alarms Raised</span>
+                  </div>
+                  <span className="font-bold text-xs px-2 py-0.5 rounded-md" style={{ background: alarmCount > 0 ? 'rgba(225,29,72,0.1)' : 'var(--surface)', color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
+                    {alarmCount} alerts ({alarmDurationMinutes}m)
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={15} className="text-amber-600" />
+                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Break Limit Rule</span>
+                  </div>
+                  <span className="font-bold text-xs" style={{ color: 'var(--amber-w)' }}>
+                    Max 3 Breaks (5m+)
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  <div className="flex items-center gap-2">
+                    <Shield size={15} className={invalidSessionCount > 0 ? 'text-rose-600' : 'text-slate-400'} />
+                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Abort Counter</span>
+                  </div>
+                  <span className="font-bold text-xs" style={{ color: invalidSessionCount >= 8 ? 'var(--error)' : 'var(--ink)' }}>
+                    {invalidSessionCount} / 10 Aborts
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div
-              className="p-3.5 rounded-xl border flex items-center gap-3 text-xs"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <Shield size={16} className="shrink-0" style={{ color: 'var(--error)' }} />
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--ink)' }}>
-                  Session Aborted: {invalidSessionCount} / 10 Aborts
-                </p>
-                <p style={{ color: 'var(--ink-4)' }}>10 aborts triggers 48-hour self-hibernation lockout on desk.</p>
-              </div>
+            <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between">
+              <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Session Log:</span>
+              <button
+                onClick={() => setShowHistoryModal(true)}
+                className="text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--forest)]"
+                style={{ color: 'var(--forest)' }}
+              >
+                <span>View Previous History</span>
+                <ArrowRight size={13} />
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          PREVIOUS SESSION HISTORY MODAL
+         ══════════════════════════════════════════════════════════════════ */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+          <div
+            className="w-full max-w-3xl max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(66,84,67,0.1)', color: 'var(--forest)' }}>
+                  <History size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                    Previous Session History
+                  </h3>
+                  <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                    Device: {selectedUid} • Total {allSessions.filter(s => !selectedUid || s.deviceUid === selectedUid).length} recorded sessions
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Status filter pills */}
+                <div className="hidden sm:flex items-center p-1 rounded-xl gap-0.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  {(['ALL', 'COMPLETED', 'ACTIVE', 'INVALID'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setHistoryFilter(f)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        historyFilter === f
+                          ? 'bg-white shadow-xs text-[var(--forest)]'
+                          : 'text-[var(--ink-4)] hover:text-[var(--ink)]'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)] text-[var(--ink-4)] hover:text-[var(--ink)] cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content / Sessions List */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {allSessions
+                .filter(s => {
+                  if (selectedUid && s.deviceUid !== selectedUid) return false;
+                  if (historyFilter !== 'ALL' && s.status !== historyFilter) return false;
+                  return true;
+                })
+                .length === 0 ? (
+                <div className="text-center py-16 text-xs" style={{ color: 'var(--ink-4)' }}>
+                  <History size={32} className="mx-auto mb-2 opacity-40" />
+                  <p className="font-semibold text-sm" style={{ color: 'var(--ink-3)' }}>No sessions found</p>
+                  <p className="mt-1">Completed and logged deep work sessions will appear here.</p>
+                </div>
+              ) : (
+                allSessions
+                  .filter(s => {
+                    if (selectedUid && s.deviceUid !== selectedUid) return false;
+                    if (historyFilter !== 'ALL' && s.status !== historyFilter) return false;
+                    return true;
+                  })
+                  .map(s => {
+                    const isSessionActive = ['ACTIVE', 'BREAK', 'DYING'].includes(s.status);
+                    const durMin = s.activeMinutes || Math.floor((new Date(s.endTime || Date.now()).getTime() - new Date(s.startTime).getTime()) / 60000);
+                    return (
+                      <div
+                        key={s._id}
+                        className="p-4 rounded-2xl border transition-all hover:shadow-xs flex items-center justify-between flex-wrap gap-3"
+                        style={{
+                          background: isSessionActive ? 'rgba(74,124,89,0.04)' : 'var(--surface-2)',
+                          borderColor: isSessionActive ? 'rgba(74,124,89,0.25)' : 'var(--border)'
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs"
+                            style={{
+                              background: s.status === 'COMPLETED' ? 'rgba(74,124,89,0.15)' : s.status === 'INVALID' ? 'rgba(225,29,72,0.12)' : 'rgba(184,121,57,0.15)',
+                              color: s.status === 'COMPLETED' ? 'var(--forest)' : s.status === 'INVALID' ? 'var(--error)' : 'var(--amber-w)'
+                            }}
+                          >
+                            {s.status === 'COMPLETED' ? '✓' : s.status === 'INVALID' ? '✕' : '●'}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                                {formatFullDate(s.startTime)}
+                              </span>
+                              <span className="text-xs font-mono" style={{ color: 'var(--ink-4)' }}>
+                                {formatTime(s.startTime)}
+                              </span>
+                              <span
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase"
+                                style={{
+                                  background: s.status === 'COMPLETED' ? 'rgba(74,124,89,0.1)' : s.status === 'INVALID' ? 'rgba(225,29,72,0.1)' : 'var(--surface-3)',
+                                  color: s.status === 'COMPLETED' ? 'var(--forest)' : s.status === 'INVALID' ? 'var(--error)' : 'var(--ink-3)'
+                                }}
+                              >
+                                {s.status}
+                              </span>
+                            </div>
+
+                            <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
+                              Focus: <strong className="font-mono">{durMin}m</strong> • Breaks: {s.totalBreakMinutes || 0}m ({s.breakCount || s.breaks?.length || 0}) • SDW Points: +{s.sdwPointsEarned || 0}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right Rating */}
+                        <div className="flex items-center gap-3">
+                          {s.selfRating > 0 && (
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map(st => (
+                                <Star
+                                  key={st}
+                                  size={13}
+                                  style={{
+                                    color: st <= s.selfRating ? 'var(--amber-w)' : 'var(--border-strong)',
+                                    fill: st <= s.selfRating ? 'var(--amber-w)' : 'none'
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-[var(--border)] flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink-4)' }}>
+              <span>Showing filtered sessions for {selectedUid}</span>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="btn btn-secondary text-xs py-1.5 px-3 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════
           SLIM RIGHT-SIDE MENU BAR (Requested on Right Side)
