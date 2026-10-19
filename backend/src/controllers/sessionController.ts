@@ -249,19 +249,27 @@ export const startBreak = async (req: Request, res: Response) => {
     }
 
     const { activeMinutes, isAwayAlert } = req.body as { activeMinutes?: number; isAwayAlert?: boolean };
+    
+    // Completely disallow manual user breaks — sessions run continuously
+    if (!isAwayAlert) {
+      return res.status(400).json({
+        success: false,
+        error: 'MANUAL_BREAK_DISABLED',
+        message: 'Manual breaks are disabled. Deep work sessions run continuously until completion or end.'
+      });
+    }
+
     if (typeof activeMinutes === 'number') {
       session.activeMinutes = activeMinutes;
     }
 
     session.status = 'BREAK';
-    // Only sound away alert if explicitly triggered by radar absence, NOT for intentional user break
-    session.alarmActive = Boolean(isAwayAlert);
-    session.alarmMessage = isAwayAlert ? 'Away Alert: You are away from your desk!' : '';
+    session.alarmActive = true;
+    session.alarmMessage = 'Away Alert: You are away from your desk!';
     session.breaks.push({ startTime: new Date() });
-    // Note: breakCount is NOT incremented yet! Only absences crossing 5 minutes count as a break.
 
     await session.save();
-    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive } });
+    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
   } catch (err) {
     console.error('[SESSION] break error:', err);
     res.status(500).json({ success: false, error: 'Failed to log break' });

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { deviceService, sessionService, notificationService } from '../services/api';
-import api from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 import {
   Timer, ArrowRight, Play, Pause, Square, AlertTriangle,
-  Volume2, VolumeX, Star, Coffee, LayoutDashboard,
+  Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Shield, Mic, Activity, Wifi, WifiOff
 } from 'lucide-react';
@@ -39,7 +38,6 @@ export default function DeepWorkPage() {
 
   // Action states
   const [starting, setStarting]       = useState(false);
-  const [pausing, setPausing]         = useState(false);
   const [resuming, setResuming]       = useState(false);
   const [ending, setEnding]           = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
@@ -240,30 +238,6 @@ export default function DeepWorkPage() {
       alert(err.response?.data?.message || err.response?.data?.error || 'Failed to resume session');
     } finally {
       setResuming(false);
-    }
-  };
-
-  const handlePauseSession = async () => {
-    if (!currentSession || currentSession.status !== 'ACTIVE') return;
-    setPausing(true);
-    try {
-      await api.post(`/sessions/${selectedUid}/break`, {
-        activeMinutes: Math.floor(activeSec / 60),
-        isAwayAlert: false
-      });
-      const live = await sessionService.getCurrentSession(selectedUid);
-      if (live) {
-        setCurrentSession(live);
-        if (typeof live.activeSeconds === 'number') {
-          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
-        }
-      }
-      await loadData();
-    } catch (err: any) {
-      console.error('Failed to pause session', err);
-      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to pause session');
-    } finally {
-      setPausing(false);
     }
   };
 
@@ -598,18 +572,9 @@ export default function DeepWorkPage() {
                 </button>
               ) : isRunning ? (
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-semibold tabular-nums px-2.5 py-1 rounded-lg" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
+                  <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
                     Live: {fmtHMS(activeSec)}
                   </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handlePauseSession(); }}
-                    disabled={pausing}
-                    className="btn btn-secondary text-xs py-1.5 px-3 flex items-center gap-1 cursor-pointer"
-                    title="Take break"
-                  >
-                    <Coffee size={13} />
-                    <span>Break</span>
-                  </button>
                 </div>
               ) : (
                 <ArrowRight size={18} style={{ color: 'var(--ink-4)' }} />
