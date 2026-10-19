@@ -120,6 +120,10 @@ unsigned long alarmTriggeredAtMs = 0;
 unsigned long dyingAlarmMs = 0;
 bool dyingAlarmActive = false;
 
+// Radar Absence / Presence debounce tracking
+unsigned long absenceStartMs = 0;  // when person left
+unsigned long presenceStartMs = 0; // when person returned
+
 // SDW Points (fetched from backend)
 int sdwWeeklyPts = 0;
 int sdwMonthlyPts = 0;
@@ -2475,8 +2479,6 @@ void resumeSessionFromDevice() {
   }
   sessionState = SESSION_ACTIVE;
   sessionStartMs = millis();
-  absenceStartMs = 0;
-  presenceStartMs = 0;
   alarmScreenDrawn = false;
   soundAlarmActive = false;
   soundAlarmMessage = "";
@@ -3541,9 +3543,6 @@ void loop() {
 // ===================================================
 #define ABSENCE_DEBOUNCE_MS 30000UL // 30 seconds of absence before away alert & sound
 #define PRESENCE_DEBOUNCE_MS 3000UL // 3 seconds of sustained presence before resume
-
-  static unsigned long absenceStartMs = 0;  // when person left
-  static unsigned long presenceStartMs = 0; // when person returned
 
   bool rawPresent = (radar.valid && radar.targetState > 0);
 
