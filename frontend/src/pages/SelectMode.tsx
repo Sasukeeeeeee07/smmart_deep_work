@@ -37,15 +37,23 @@ export default function SelectMode() {
       className="min-h-screen w-full flex flex-col relative select-none"
       style={{ background: 'var(--canvas)' }}
     >
-      {/* ── Top Bar: User details & Sign out ── */}
+      {/* ── Top Bar: Logo, User details & Sign out ── */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)', border: '1px solid var(--border)' }}>
-            {user?.role || 'USER'}
-          </span>
-          <span className="text-xs hidden sm:inline" style={{ color: 'var(--ink-4)' }}>
-            {user?.name || user?.email}
-          </span>
+        <div className="flex items-center gap-4">
+          <img
+            src="/smmart-logo.png"
+            alt="smmart"
+            className="h-8 md:h-10 w-auto object-contain transition-transform hover:scale-105"
+          />
+          <div className="hidden sm:block h-5 w-[1px]" style={{ background: 'var(--border)' }} />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)', border: '1px solid var(--border)' }}>
+              {user?.role || 'USER'}
+            </span>
+            <span className="text-xs hidden md:inline" style={{ color: 'var(--ink-4)' }}>
+              {user?.name || user?.email}
+            </span>
+          </div>
         </div>
 
         <button
