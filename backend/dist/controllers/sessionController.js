@@ -219,19 +219,30 @@ const startBreak = async (req, res) => {
         const session = await DeepWorkSession_1.DeepWorkSession.findOne({
             deviceUid: req.params.uid,
             status: { $in: ['ACTIVE'] },
-        });
+        }).sort({ startTime: -1 });
         if (!session) {
+            // Check if already in BREAK
+            const existingBreak = await DeepWorkSession_1.DeepWorkSession.findOne({
+                deviceUid: req.params.uid,
+                status: { $in: ['BREAK', 'DYING'] },
+            }).sort({ startTime: -1 });
+            if (existingBreak) {
+                return res.json({ success: true, data: { breakCount: existingBreak.breakCount, status: existingBreak.status, alarmActive: existingBreak.alarmActive } });
+            }
             return res.status(404).json({ success: false, error: 'No active session' });
         }
-        const { activeMinutes } = req.body;
-        session.activeMinutes = activeMinutes || session.activeMinutes;
+        const { activeMinutes, isAwayAlert } = req.body;
+        if (typeof activeMinutes === 'number') {
+            session.activeMinutes = activeMinutes;
+        }
         session.status = 'BREAK';
-        session.alarmActive = true;
-        session.alarmMessage = 'Away Alert: You are away from your desk!';
+        // Only sound away alert if explicitly triggered by radar absence, NOT for intentional user break
+        session.alarmActive = Boolean(isAwayAlert);
+        session.alarmMessage = isAwayAlert ? 'Away Alert: You are away from your desk!' : '';
         session.breaks.push({ startTime: new Date() });
         // Note: breakCount is NOT incremented yet! Only absences crossing 5 minutes count as a break.
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive } });
     }
     catch (err) {
         console.error('[SESSION] break error:', err);
@@ -297,16 +308,31 @@ const countBreak = async (req, res) => {
 exports.countBreak = countBreak;
 // =====================================================
 // POST /api/sessions/:uid/resume
-// ESP32 calls this when radar re-detects person
+// ESP32 or Web calls this to resume session
 // =====================================================
 const resumeSession = async (req, res) => {
     try {
-        const session = await DeepWorkSession_1.DeepWorkSession.findOne({
+        let session = await DeepWorkSession_1.DeepWorkSession.findOne({
             deviceUid: req.params.uid,
-            status: 'BREAK',
-        });
+            status: { $in: ['BREAK', 'DYING'] },
+        }).sort({ startTime: -1 });
         if (!session) {
-            return res.status(404).json({ success: false, error: 'No session in break' });
+            // Check if session is already ACTIVE (e.g., resumed by device or idempotent call)
+            const activeSession = await DeepWorkSession_1.DeepWorkSession.findOne({
+                deviceUid: req.params.uid,
+                status: 'ACTIVE',
+            }).sort({ startTime: -1 });
+            if (activeSession) {
+                return res.json({
+                    success: true,
+                    data: {
+                        status: 'ACTIVE',
+                        breakCount: activeSession.breakCount,
+                        totalBreakMinutes: activeSession.totalBreakMinutes
+                    }
+                });
+            }
+            return res.status(404).json({ success: false, error: 'No session in break to resume' });
         }
         const { isCountedBreak } = req.body;
         // Close the last open break record
@@ -324,7 +350,7 @@ const resumeSession = async (req, res) => {
                 session.totalBreakMinutes += breakMins;
             }
             else {
-                // Under 5 minutes: Remove from breaks list so it does not count as a break
+                // Under 5 minutes: Remove from breaks list so it does not count against the 3-break limit
                 session.breaks.pop();
             }
         }
@@ -332,7 +358,7 @@ const resumeSession = async (req, res) => {
         session.alarmActive = false; // Dismiss any away alert sound on resume
         session.alarmMessage = '';
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
+        res.json({ success: true, data: { status: 'ACTIVE', breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
     }
     catch (err) {
         console.error('[SESSION] resume error:', err);

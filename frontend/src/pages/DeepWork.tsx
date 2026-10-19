@@ -224,12 +224,20 @@ export default function DeepWorkPage() {
     if (!currentSession) return;
     setResuming(true);
     try {
-      if (currentSession.status === 'BREAK') {
+      if (['BREAK', 'DYING'].includes(currentSession.status)) {
         await sessionService.resumeSession(selectedUid);
       }
+      const live = await sessionService.getCurrentSession(selectedUid);
+      if (live) {
+        setCurrentSession(live);
+        if (typeof live.activeSeconds === 'number') {
+          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
+        }
+      }
       await loadData();
-    } catch {
-      alert('Failed to resume session');
+    } catch (err: any) {
+      console.error('Failed to resume session', err);
+      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to resume session');
     } finally {
       setResuming(false);
     }
@@ -239,10 +247,21 @@ export default function DeepWorkPage() {
     if (!currentSession || currentSession.status !== 'ACTIVE') return;
     setPausing(true);
     try {
-      await api.post(`/sessions/${selectedUid}/break`, { activeMinutes: Math.floor(activeSec / 60) });
+      await api.post(`/sessions/${selectedUid}/break`, {
+        activeMinutes: Math.floor(activeSec / 60),
+        isAwayAlert: false
+      });
+      const live = await sessionService.getCurrentSession(selectedUid);
+      if (live) {
+        setCurrentSession(live);
+        if (typeof live.activeSeconds === 'number') {
+          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
+        }
+      }
       await loadData();
-    } catch {
-      alert('Failed to pause session');
+    } catch (err: any) {
+      console.error('Failed to pause session', err);
+      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to pause session');
     } finally {
       setPausing(false);
     }

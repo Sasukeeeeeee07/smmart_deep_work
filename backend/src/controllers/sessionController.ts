@@ -186,7 +186,7 @@ export const startSession = async (req: Request, res: Response) => {
     for (const stale of staleSessions) {
       stale.endTime = nowEnd;
       stale.status = 'COMPLETED';
-      
+
       if (!stale.activeMinutes || stale.activeMinutes === 0) {
         const diffMs = nowEnd.getTime() - new Date(stale.startTime).getTime();
         const totalMin = Math.floor(diffMs / 60000);
@@ -197,12 +197,12 @@ export const startSession = async (req: Request, res: Response) => {
         stale.sdwPointsEarned = 5;
         await SDWPoints.create({
           employeeId: stale.employeeId,
-          sessionId:  stale._id,
-          points:     5,
-          earnedAt:   nowEnd,
+          sessionId: stale._id,
+          points: 5,
+          earnedAt: nowEnd,
           weekNumber: getWeekNumber(nowEnd),
-          month:      nowEnd.getMonth() + 1,
-          year:       nowEnd.getFullYear(),
+          month: nowEnd.getMonth() + 1,
+          year: nowEnd.getFullYear(),
         });
         console.log(`[SDW] +5 points earned for orphaned session ${stale._id}`);
       }
@@ -210,10 +210,10 @@ export const startSession = async (req: Request, res: Response) => {
     }
 
     const session = await DeepWorkSession.create({
-      deviceUid:   req.params.uid as string,
-      employeeId:  device.assignedTo,
-      startTime:   new Date(),
-      status:      'ACTIVE',
+      deviceUid: req.params.uid as string,
+      employeeId: device.assignedTo,
+      startTime: new Date(),
+      status: 'ACTIVE',
     });
 
     console.log(`[SESSION] Started: ${session._id} for device ${req.params.uid}`);
@@ -233,23 +233,35 @@ export const startBreak = async (req: Request, res: Response) => {
     const session = await DeepWorkSession.findOne({
       deviceUid: req.params.uid,
       status: { $in: ['ACTIVE'] },
-    });
+    }).sort({ startTime: -1 });
 
     if (!session) {
+      // Check if already in BREAK
+      const existingBreak = await DeepWorkSession.findOne({
+        deviceUid: req.params.uid,
+        status: { $in: ['BREAK', 'DYING'] },
+      }).sort({ startTime: -1 });
+
+      if (existingBreak) {
+        return res.json({ success: true, data: { breakCount: existingBreak.breakCount, status: existingBreak.status, alarmActive: existingBreak.alarmActive } });
+      }
       return res.status(404).json({ success: false, error: 'No active session' });
     }
 
-    const { activeMinutes } = req.body as { activeMinutes: number };
-    session.activeMinutes = activeMinutes || session.activeMinutes;
+    const { activeMinutes, isAwayAlert } = req.body as { activeMinutes?: number; isAwayAlert?: boolean };
+    if (typeof activeMinutes === 'number') {
+      session.activeMinutes = activeMinutes;
+    }
 
     session.status = 'BREAK';
-    session.alarmActive = true;
-    session.alarmMessage = 'Away Alert: You are away from your desk!';
+    // Only sound away alert if explicitly triggered by radar absence, NOT for intentional user break
+    session.alarmActive = Boolean(isAwayAlert);
+    session.alarmMessage = isAwayAlert ? 'Away Alert: You are away from your desk!' : '';
     session.breaks.push({ startTime: new Date() });
     // Note: breakCount is NOT incremented yet! Only absences crossing 5 minutes count as a break.
 
     await session.save();
-    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
+    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive } });
   } catch (err) {
     console.error('[SESSION] break error:', err);
     res.status(500).json({ success: false, error: 'Failed to log break' });
@@ -320,17 +332,33 @@ export const countBreak = async (req: Request, res: Response) => {
 
 // =====================================================
 // POST /api/sessions/:uid/resume
-// ESP32 calls this when radar re-detects person
+// ESP32 or Web calls this to resume session
 // =====================================================
 export const resumeSession = async (req: Request, res: Response) => {
   try {
-    const session = await DeepWorkSession.findOne({
+    let session = await DeepWorkSession.findOne({
       deviceUid: req.params.uid,
-      status: 'BREAK',
-    });
+      status: { $in: ['BREAK', 'DYING'] },
+    }).sort({ startTime: -1 });
 
     if (!session) {
-      return res.status(404).json({ success: false, error: 'No session in break' });
+      // Check if session is already ACTIVE (e.g., resumed by device or idempotent call)
+      const activeSession = await DeepWorkSession.findOne({
+        deviceUid: req.params.uid,
+        status: 'ACTIVE',
+      }).sort({ startTime: -1 });
+
+      if (activeSession) {
+        return res.json({
+          success: true,
+          data: {
+            status: 'ACTIVE',
+            breakCount: activeSession.breakCount,
+            totalBreakMinutes: activeSession.totalBreakMinutes
+          }
+        });
+      }
+      return res.status(404).json({ success: false, error: 'No session in break to resume' });
     }
 
     const { isCountedBreak } = req.body as { isCountedBreak?: boolean };
@@ -352,7 +380,7 @@ export const resumeSession = async (req: Request, res: Response) => {
         }
         session.totalBreakMinutes += breakMins;
       } else {
-        // Under 5 minutes: Remove from breaks list so it does not count as a break
+        // Under 5 minutes: Remove from breaks list so it does not count against the 3-break limit
         session.breaks.pop();
       }
     }
@@ -362,7 +390,7 @@ export const resumeSession = async (req: Request, res: Response) => {
     session.alarmMessage = '';
     await session.save();
 
-    res.json({ success: true, data: { breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
+    res.json({ success: true, data: { status: 'ACTIVE', breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
   } catch (err) {
     console.error('[SESSION] resume error:', err);
     res.status(500).json({ success: false, error: 'Failed to resume session' });
@@ -421,19 +449,19 @@ export const endSession = async (req: Request, res: Response) => {
 
       await SDWPoints.create({
         employeeId: session.employeeId,
-        sessionId:  session._id,
-        points:     5,
-        earnedAt:   now,
+        sessionId: session._id,
+        points: 5,
+        earnedAt: now,
         weekNumber: getWeekNumber(now),
-        month:      now.getMonth() + 1,
-        year:       now.getFullYear(),
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
       });
 
       console.log(`[SDW] +5 points earned for employee ${session.employeeId}`);
     }
 
     await session.save();
-    
+
     // Voice feedback
     if (pointsEarned > 0) {
       voiceService.queueMessage(req.params.uid as string, `Incredible work! You completed your ${targetMin} minute deep work session and earned 5 points.`);
@@ -697,10 +725,10 @@ export const getSDWPoints = async (req: Request, res: Response) => {
       return res.json({ success: true, data: { weekly: 0, monthly: 0 } });
     }
 
-    const now    = new Date();
-    const week   = getWeekNumber(now);
-    const month  = now.getMonth() + 1;
-    const year   = now.getFullYear();
+    const now = new Date();
+    const week = getWeekNumber(now);
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
 
     const [weeklyResult, monthlyResult] = await Promise.all([
       SDWPoints.aggregate([
@@ -713,7 +741,7 @@ export const getSDWPoints = async (req: Request, res: Response) => {
       ]),
     ]);
 
-    const weekly  = weeklyResult[0]?.total  || 0;
+    const weekly = weeklyResult[0]?.total || 0;
     const monthly = monthlyResult[0]?.total || 0;
 
     res.json({ success: true, data: { weekly, monthly } });
@@ -798,12 +826,12 @@ export const getModerationHistory = async (req: Request, res: Response) => {
     // Flatten all moderation log entries across sessions for that day
     const history = sessions.flatMap(s =>
       s.moderationLog.map(log => ({
-        sessionId:  (s._id as any).toString(),
+        sessionId: (s._id as any).toString(),
         sessionStart: s.startTime,
         sessionStatus: s.status,
         employee: s.employeeId,
-        type:      log.type,
-        message:   log.message,
+        type: log.type,
+        message: log.message,
         timestamp: log.timestamp,
       }))
     ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -814,7 +842,7 @@ export const getModerationHistory = async (req: Request, res: Response) => {
         date: start.toISOString().split('T')[0],
         totalActions: history.length,
         commands: history.filter(h => h.type === 'COMMAND').length,
-        alarms:   history.filter(h => h.type === 'ALARM').length,
+        alarms: history.filter(h => h.type === 'ALARM').length,
         history,
       },
     });

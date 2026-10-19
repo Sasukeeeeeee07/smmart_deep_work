@@ -3561,8 +3561,9 @@ void loop() {
         http.begin(String(sessionBaseURL) + "/break");
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
+        http.addHeader("X-Device-Client", "ESP32");
         unsigned long activeMins = sessionTotalMs / 60000;
-        String body = "{\"activeMinutes\":" + String(activeMins) + "}";
+        String body = "{\"activeMinutes\":" + String(activeMins) + ",\"isAwayAlert\":true}";
         http.POST(body);
         http.end();
         vTaskDelay(pdMS_TO_TICKS(1));
@@ -3875,10 +3876,10 @@ void loop() {
                 unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
                 unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
                 sessionTotalMs = serverActiveSec * 1000UL;
-                sessionStartMs = millis();
+                sessionStartMs = (beStatus == "ACTIVE") ? millis() : 0;
               } else {
                 sessionTotalMs = 0;
-                sessionStartMs = millis();
+                sessionStartMs = (beStatus == "ACTIVE") ? millis() : 0;
               }
               sessionBreakCount = doc["data"]["breakCount"] | 0;
               totalBreakMs = (doc["data"]["totalBreakMinutes"] | 0) * 60000UL;
@@ -3906,7 +3907,45 @@ void loop() {
               }
             }
 
-            // 3. Keep running timer tightly synchronized with server
+            // 3. User paused / took a break from Web while device is ACTIVE
+            else if (sessionState == SESSION_ACTIVE && beStatus == "BREAK") {
+              sessionState = SESSION_BREAK;
+              breakStartMs = millis();
+              currentBreakCounted = false;
+              if (sessionStartMs > 0 && millis() >= sessionStartMs) {
+                sessionTotalMs += (millis() - sessionStartMs);
+              }
+              sessionStartMs = 0; // stop ticking active focus time
+              if (beRemSec > 0) {
+                unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+                unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+                sessionTotalMs = serverActiveSec * 1000UL;
+              }
+              sessionBreakCount = doc["data"]["breakCount"] | 0;
+              totalBreakMs = (doc["data"]["totalBreakMinutes"] | 0) * 60000UL;
+              Serial.println("[SYNC] Web triggered BREAK! Device timer paused.");
+              drawHomePage();
+            }
+
+            // 4. User resumed session from Web while device is in BREAK
+            else if (sessionState == SESSION_BREAK && beStatus == "ACTIVE") {
+              sessionState = SESSION_ACTIVE;
+              sessionStartMs = millis(); // resume ticking active focus time
+              soundAlarmActive = false;
+              alarmScreenDrawn = false;
+              soundAlarmMessage = "";
+              if (beRemSec > 0) {
+                unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+                unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+                sessionTotalMs = serverActiveSec * 1000UL;
+              }
+              sessionBreakCount = doc["data"]["breakCount"] | 0;
+              totalBreakMs = (doc["data"]["totalBreakMinutes"] | 0) * 60000UL;
+              Serial.println("[SYNC] Web resumed session! Device timer unpaused.");
+              drawHomePage();
+            }
+
+            // 5. Keep running timer tightly synchronized with server
             else if (sessionState == SESSION_ACTIVE && beStatus == "ACTIVE" && beRemSec > 0) {
               unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
               unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
