@@ -213,9 +213,7 @@ export default function DeepWorkPage() {
   const alarmCount = (currentSession?.alarmActive ? 1 : 0) + alarmLogs.length;
   const alarmDurationMinutes = alarmCount * 2; // ~2 mins per alert average
 
-  // Abort / Invalid count (from sketch: "Session Aborted: 10 Aborts -> self hibernate")
   const selectedDevice = devices.find(d => d.uid === selectedUid);
-  const invalidSessionCount = selectedDevice?.invalidSessionCount || allSessions.filter(s => s.status === 'INVALID').length || 0;
 
   // Device Online Check (active within 2 minutes)
   const isDeviceOnline = Boolean(
@@ -981,16 +979,6 @@ export default function DeepWorkPage() {
                   </div>
                   <span className="font-bold text-xs" style={{ color: 'var(--amber-w)' }}>
                     Max 3 Breaks (5m+)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <div className="flex items-center gap-2">
-                    <Shield size={15} className={invalidSessionCount > 0 ? 'text-rose-600' : 'text-slate-400'} />
-                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Abort Counter</span>
-                  </div>
-                  <span className="font-bold text-xs" style={{ color: invalidSessionCount >= 8 ? 'var(--error)' : 'var(--ink)' }}>
-                    {invalidSessionCount} / 10 Aborts
                   </span>
                 </div>
               </div>

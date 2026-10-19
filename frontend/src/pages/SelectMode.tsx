@@ -106,28 +106,21 @@ export default function SelectMode() {
               </div>
             )}
 
-            {/* Button only visible when hovered */}
-            <div
-              className="mt-8 transition-all duration-300"
-              style={{
-                opacity: hovered === 'entrepreneur' ? 1 : 0,
-                visibility: hovered === 'entrepreneur' ? 'visible' : 'hidden',
-                transform: hovered === 'entrepreneur' ? 'translateY(0)' : 'translateY(8px)',
-                pointerEvents: hovered === 'entrepreneur' && isLeadership ? 'auto' : 'none',
-              }}
-            >
+            {/* Button always visible */}
+            <div className="mt-8">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSelect('entrepreneur');
                 }}
                 disabled={!isLeadership}
-                className="px-8 py-3.5 rounded-full font-semibold text-sm transition-transform duration-200 shadow-sm"
+                className={`px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 shadow-sm ${
+                  isLeadership ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'
+                }`}
                 style={{
                   background: isLeadership ? 'var(--forest)' : 'var(--surface-3)',
                   color: isLeadership ? '#ffffff' : 'var(--ink-4)',
                   border: isLeadership ? 'none' : '1px solid var(--border)',
-                  cursor: isLeadership ? 'pointer' : 'not-allowed',
                 }}
               >
                 {isLeadership ? 'Enter Dashboard' : 'Restricted (Admin Only)'}
@@ -158,22 +151,14 @@ export default function SelectMode() {
               Individual
             </h1>
 
-            {/* Button only visible when hovered */}
-            <div
-              className="mt-8 transition-all duration-300"
-              style={{
-                opacity: hovered === 'individual' ? 1 : 0,
-                visibility: hovered === 'individual' ? 'visible' : 'hidden',
-                transform: hovered === 'individual' ? 'translateY(0)' : 'translateY(8px)',
-                pointerEvents: hovered === 'individual' ? 'auto' : 'none',
-              }}
-            >
+            {/* Button always visible */}
+            <div className="mt-8">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSelect('individual');
                 }}
-                className="px-8 py-3.5 rounded-full font-semibold text-sm transition-transform duration-200 hover:scale-105 cursor-pointer shadow-sm"
+                className="px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 hover:scale-105 cursor-pointer shadow-sm"
                 style={{
                   background: 'var(--terra)',
                   color: '#ffffff',
