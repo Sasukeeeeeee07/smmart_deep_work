@@ -2462,6 +2462,43 @@ void startSessionFromDevice() {
 }
 
 // =====================================================
+// RESUME SESSION FROM DEVICE (Touch Button on screen)
+// Calls exact same endpoint: POST /api/sessions/ESP32-S3-01/resume
+// =====================================================
+void resumeSessionFromDevice() {
+  if (sessionState != SESSION_BREAK) return;
+  unsigned long breakDuration = millis() - breakStartMs;
+  if (currentBreakCounted) {
+    totalBreakMs += breakDuration;
+    dailyBreakMs += breakDuration;
+    preferences.putUInt("brkMs", dailyBreakMs);
+  }
+  sessionState = SESSION_ACTIVE;
+  sessionStartMs = millis();
+  absenceStartMs = 0;
+  presenceStartMs = 0;
+  alarmScreenDrawn = false;
+  soundAlarmActive = false;
+  soundAlarmMessage = "";
+  bool wasCounted = currentBreakCounted;
+  currentBreakCounted = false;
+
+  Serial.println("[SESSION] Manual RESUME touched on device! Resumed active session.");
+  drawHomePage(); // Immediate UI update!
+
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(String(sessionBaseURL) + "/resume");
+    http.setTimeout(2500);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Device-Client", "ESP32");
+    http.POST("{\"isCountedBreak\":" + String(wasCounted ? "true" : "false") + "}");
+    http.end();
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+// =====================================================
 // TOUCH HANDLER
 // =====================================================
 
@@ -2718,11 +2755,14 @@ void handleTouch() {
   }
 
   // ===================================================
-  // HOME PAGE: ROW 1 TOUCH (Start Session Button)
+  // HOME PAGE: ROW 1 TOUCH (Start / Resume Session Button)
   // ===================================================
   if (currentPage == PAGE_HOME && tY >= 5 && tY <= 65 && tX >= 5 && tX <= 195) {
     if (sessionState == SESSION_IDLE) {
       startSessionFromDevice();
+      return;
+    } else if (sessionState == SESSION_BREAK) {
+      resumeSessionFromDevice();
       return;
     }
   }
@@ -3624,42 +3664,8 @@ void loop() {
       }
     }
 
-    // Note: sound does NOT stop until user taps STOP SOUND (or stops it on Web).
-    // Once sound is silenced, person present resumes the active study session:
-    if (!soundAlarmActive && personPresent) {
-      bool wasCounted = currentBreakCounted;
-      if (wasCounted) {
-        totalBreakMs += breakDuration;
-        dailyBreakMs += breakDuration;
-        preferences.putUInt("brkMs", dailyBreakMs);
-      }
-      sessionStartMs = millis(); // restart active timer
-      sessionState = SESSION_ACTIVE;
-      absenceStartMs = 0;
-      presenceStartMs = 0;
-      alarmScreenDrawn = false;
-      currentBreakCounted = false;
-
-      if (wasCounted) {
-        Serial.printf("[SESSION] Resumed after 5m+ Break #%d (Duration: %lu mins).\n", sessionBreakCount, breakDuration / 60000);
-      } else {
-        Serial.printf("[SESSION] Resumed within 5 mins (%lu sec). NOT counted as a break. Total breaks: %d\n", breakDuration / 1000, sessionBreakCount);
-      }
-
-      drawHomePage(); // Immediate UI update!
-
-      if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin(String(sessionBaseURL) + "/resume");
-        http.setTimeout(1500);
-        http.addHeader("Content-Type", "application/json");
-        http.POST("{\"isCountedBreak\":" + String(wasCounted ? "true" : "false") + "}");
-        http.end();
-        vTaskDelay(pdMS_TO_TICKS(1));
-      }
-
-    } else if (breakDuration >= BREAK_DYING_THRESHOLD_MS) {
-      // Break exceeded 10 minutes — trigger 10-min break alarm
+    // Break exceeded 10 minutes — trigger 10-min break alarm
+    if (breakDuration >= BREAK_DYING_THRESHOLD_MS) {
       sessionState = SESSION_DYING;
       dyingAlarmMs = millis();
       dyingAlarmActive = true;
