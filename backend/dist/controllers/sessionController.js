@@ -232,23 +232,15 @@ const startBreak = async (req, res) => {
             return res.status(404).json({ success: false, error: 'No active session' });
         }
         const { activeMinutes, isAwayAlert } = req.body;
-        // Completely disallow manual user breaks — sessions run continuously
-        if (!isAwayAlert) {
-            return res.status(400).json({
-                success: false,
-                error: 'MANUAL_BREAK_DISABLED',
-                message: 'Manual breaks are disabled. Deep work sessions run continuously until completion or end.'
-            });
-        }
         if (typeof activeMinutes === 'number') {
             session.activeMinutes = activeMinutes;
         }
         session.status = 'BREAK';
-        session.alarmActive = true;
-        session.alarmMessage = 'Away Alert: You are away from your desk!';
+        session.alarmActive = Boolean(isAwayAlert);
+        session.alarmMessage = isAwayAlert ? 'Away Alert: You are away from your desk!' : '';
         session.breaks.push({ startTime: new Date() });
         await session.save();
-        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: true } });
+        res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive } });
     }
     catch (err) {
         console.error('[SESSION] break error:', err);
@@ -361,10 +353,19 @@ const resumeSession = async (req, res) => {
             }
         }
         session.status = 'ACTIVE';
+        session.lastResumedAt = new Date();
         session.alarmActive = false; // Dismiss any away alert sound on resume
         session.alarmMessage = '';
         await session.save();
-        res.json({ success: true, data: { status: 'ACTIVE', breakCount: session.breakCount, totalBreakMinutes: session.totalBreakMinutes } });
+        res.json({
+            success: true,
+            data: {
+                status: 'ACTIVE',
+                breakCount: session.breakCount,
+                totalBreakMinutes: session.totalBreakMinutes,
+                lastResumedAt: session.lastResumedAt
+            }
+        });
     }
     catch (err) {
         console.error('[SESSION] resume error:', err);
@@ -613,6 +614,7 @@ const getCurrentSession = async (req, res) => {
             liveTotalBreakMinutes = Math.floor(totalBreakSec / 60);
             remainingSeconds = Math.max(0, (targetMin * 60) - liveActiveSeconds);
         }
+        const latestBreakEnd = session.breaks && session.breaks.length > 0 ? session.breaks[session.breaks.length - 1].endTime : null;
         res.json({
             success: true,
             data: {
@@ -622,6 +624,7 @@ const getCurrentSession = async (req, res) => {
                 totalBreakMinutes: liveTotalBreakMinutes,
                 targetDurationMinutes: targetMin,
                 remainingSeconds,
+                lastResumedAt: session.lastResumedAt || latestBreakEnd || null,
             },
             lockout: lockoutData
         });

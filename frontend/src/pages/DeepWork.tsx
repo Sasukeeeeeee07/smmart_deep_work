@@ -6,7 +6,8 @@ import {
   Timer, ArrowRight, Play, Pause, Square, AlertTriangle,
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
-  Clock, Shield, Mic, Activity, Wifi, WifiOff
+  Clock, Shield, Mic, Activity, Wifi, WifiOff,
+  Coffee, Calendar, Hourglass
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -16,6 +17,7 @@ interface Session {
   _id: string; deviceUid: string;
   employeeId?: { _id?: string; firstName: string; lastName: string; email?: string };
   startTime: string; endTime?: string;
+  lastResumedAt?: string;
   targetDurationMinutes?: number; extensionMinutes?: number;
   activeMinutes: number; breaks: BreakRecord[];
   breakCount: number; totalBreakMinutes: number;
@@ -38,6 +40,7 @@ export default function DeepWorkPage() {
 
   // Action states
   const [starting, setStarting]       = useState(false);
+  const [pausing, setPausing]         = useState(false);
   const [resuming, setResuming]       = useState(false);
   const [ending, setEnding]           = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
@@ -146,6 +149,10 @@ export default function DeepWorkPage() {
     if (currentSession.status === 'COMPLETED' || currentSession.status === 'INVALID') {
       return (currentSession.activeMinutes || 0) * 60;
     }
+    // When session is in BREAK or DYING, freeze the active timer so countdown stops advancing
+    if (['BREAK', 'DYING'].includes(currentSession.status)) {
+      return serverAnchor ? serverAnchor.activeSec : (currentSession.activeMinutes || 0) * 60;
+    }
     if (serverAnchor) {
       const localElapsed = Math.max(0, Math.floor((now - serverAnchor.fetchedAt) / 1000));
       return serverAnchor.activeSec + localElapsed;
@@ -159,6 +166,9 @@ export default function DeepWorkPage() {
   const targetSec = targetMin * 60;
   const remainingSec = Math.max(0, targetSec - activeSec);
 
+  // Total desk time including break minutes
+  const totalDeskTimeSec = activeSec + (currentSession?.totalBreakMinutes || 0) * 60;
+
   // HMS Formatter: e.g. "01:45:20"
   const fmtHMS = (sec: number) => {
     const h = Math.floor(sec / 3600);
@@ -166,6 +176,29 @@ export default function DeepWorkPage() {
     const s = sec % 60;
     const p = (n: number) => n.toString().padStart(2, '0');
     return `${p(h)}:${p(m)}:${p(s)}`;
+  };
+
+  // Time formatters: e.g. "11:42:15 AM" and "Oct 19, 2026"
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return '—';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    } catch {
+      return '—';
+    }
+  };
+
+  const formatFullDate = (isoString?: string) => {
+    if (!isoString) return '—';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '—';
+    }
   };
 
   // Productivity Score: e.g. 81%
@@ -215,6 +248,27 @@ export default function DeepWorkPage() {
       setOfflineNotice(msg);
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handlePauseSession = async () => {
+    if (!currentSession || currentSession.status !== 'ACTIVE') return;
+    setPausing(true);
+    try {
+      await sessionService.pauseSession(selectedUid, Math.floor(activeSec / 60));
+      const live = await sessionService.getCurrentSession(selectedUid);
+      if (live) {
+        setCurrentSession(live);
+        if (typeof live.activeSeconds === 'number') {
+          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
+        }
+      }
+      await loadData();
+    } catch (err: any) {
+      console.error('Failed to pause session for break', err);
+      alert(err.response?.data?.message || err.message || 'Failed to pause session');
+    } finally {
+      setPausing(false);
     }
   };
 
@@ -551,15 +605,17 @@ export default function DeepWorkPage() {
                 </p>
                 <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
                   {currentSession?.status === 'BREAK'
-                    ? 'Break active — click arrow to resume deep focus'
+                    ? 'Break active — click Resume Now to continue deep focus'
+                    : currentSession?.lastResumedAt
+                    ? `Session resumed at ${formatTime(currentSession.lastResumedAt)}`
                     : isRunning
-                    ? `Active Session: ${fmtHMS(activeSec)} elapsed`
+                    ? `Running continuously since ${formatTime(currentSession.startTime)}`
                     : 'Shows session timer & resume trigger'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {currentSession?.status === 'BREAK' ? (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleResumeSession(); }}
@@ -570,6 +626,21 @@ export default function DeepWorkPage() {
                   <span>{resuming ? 'Resuming…' : 'Resume Now'}</span>
                   <ArrowRight size={15} />
                 </button>
+              ) : currentSession?.status === 'ACTIVE' ? (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
+                    Live: {fmtHMS(activeSec)}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePauseSession(); }}
+                    disabled={pausing}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer hover:border-[var(--amber-w)] hover:bg-amber-500/10 text-amber-700 border-amber-500/30 bg-amber-500/5"
+                    title="Take a break (pauses timer and session on desk)"
+                  >
+                    <Coffee size={13} className="text-amber-600" />
+                    <span>{pausing ? 'Pausing…' : 'Take Break'}</span>
+                  </button>
+                </div>
               ) : isRunning ? (
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
@@ -818,6 +889,122 @@ export default function DeepWorkPage() {
               </div>
             </div>
           )}
+
+          {/* ── Bottom Session Timing & Duration Breakdown (Requested by User) ── */}
+          <div
+            className="p-5 rounded-2xl border transition-all duration-200"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+            }}
+          >
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 mb-3 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <Clock size={16} style={{ color: 'var(--forest)' }} />
+                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>
+                  Session Timing & Duration Breakdown
+                </h3>
+              </div>
+              <span
+                className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                style={{
+                  background: isRunning ? 'rgba(66, 84, 67, 0.1)' : 'var(--surface-2)',
+                  color: isRunning ? 'var(--forest)' : 'var(--ink-4)',
+                  border: '1px solid var(--border)'
+                }}
+              >
+                {isRunning ? (currentSession?.status === 'BREAK' ? 'PAUSED ON BREAK' : 'IN PROGRESS') : (currentSession ? 'PREVIOUS RECORD' : 'NO SESSION')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Session Started Proper Timing */}
+              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Calendar size={14} className="text-emerald-600 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
+                    Session Started
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
+                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
+                  </p>
+                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
+                    {currentSession?.startTime ? formatFullDate(currentSession.startTime) : 'Awaiting start'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 2. Total Timing with Breaks */}
+              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Hourglass size={14} className="text-sky-600 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
+                    Total Desk Time
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
+                    {currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}
+                  </p>
+                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
+                    Focus: {fmtHMS(activeSec)} • Breaks: {currentSession?.totalBreakMinutes || 0}m ({currentSession?.breakCount || currentSession?.breaks?.length || 0})
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Session Extension */}
+              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Clock size={14} className="text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
+                    Session Extension
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <p
+                    className="font-bold text-base md:text-lg tracking-tight"
+                    style={{ color: (currentSession?.extensionMinutes || 0) > 0 ? 'var(--amber-w)' : 'var(--ink)' }}
+                  >
+                    {(currentSession?.extensionMinutes || 0) > 0 ? `+${currentSession?.extensionMinutes} mins` : 'No Extension'}
+                  </p>
+                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
+                    {(currentSession?.extensionMinutes || 0) > 0
+                      ? `Extended Target: ${targetMin} mins`
+                      : `Standard Target: ${targetMin} mins`}
+                  </p>
+                </div>
+              </div>
+
+              {/* 4. Resumed Timing */}
+              <div className="p-3.5 rounded-xl border flex flex-col justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <RotateCcw size={14} className="text-violet-600 shrink-0" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-4)' }}>
+                    Last Resumed
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <p className="font-mono font-bold text-base md:text-lg tracking-tight" style={{ color: 'var(--ink)' }}>
+                    {currentSession?.lastResumedAt
+                      ? formatTime(currentSession.lastResumedAt)
+                      : isRunning
+                      ? 'Continuous'
+                      : '—'}
+                </p>
+                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: 'var(--ink-4)' }}>
+                    {currentSession?.lastResumedAt
+                      ? 'Resumed from pause'
+                      : isRunning
+                      ? 'Running without breaks'
+                      : 'No resume events'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Sketch Rules Footer */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

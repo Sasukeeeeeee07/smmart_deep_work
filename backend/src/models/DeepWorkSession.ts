@@ -24,6 +24,7 @@ export interface IDeepWorkSession extends Document {
   breakCount: number;
   totalBreakMinutes: number;
   status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED' | 'INVALID';
+  lastResumedAt?: Date;
   alarmActive: boolean;          // true when away/invalid alarm is sounding
   alarmMessage: string;          // alert text to show
   invalidReason?: string;        // e.g. "Exceeded 3 breaks limit"
@@ -58,6 +59,7 @@ const DeepWorkSessionSchema: Schema = new Schema<IDeepWorkSession>(
     breakCount:            { type: Number, default: 0 },
     totalBreakMinutes:     { type: Number, default: 0 },
     status:                { type: String, enum: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'], default: 'ACTIVE' },
+    lastResumedAt:         { type: Date },
     alarmActive:           { type: Boolean, default: false },
     alarmMessage:          { type: String, default: '' },
     invalidReason:         { type: String, default: '' },

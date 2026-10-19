@@ -3913,6 +3913,26 @@ void loop() {
             }
 
 
+            // 3. User paused / took a break from Web while device is ACTIVE
+            else if (sessionState == SESSION_ACTIVE && beStatus == "BREAK") {
+              sessionState = SESSION_BREAK;
+              breakStartMs = millis();
+              currentBreakCounted = false;
+              if (sessionStartMs > 0 && millis() >= sessionStartMs) {
+                sessionTotalMs += (millis() - sessionStartMs);
+              }
+              sessionStartMs = 0; // stop ticking active focus time
+              if (beRemSec > 0) {
+                unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+                unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+                sessionTotalMs = serverActiveSec * 1000UL;
+              }
+              sessionBreakCount = doc["data"]["breakCount"] | 0;
+              totalBreakMs = (doc["data"]["totalBreakMinutes"] | 0) * 60000UL;
+              Serial.println("[SYNC] Web triggered BREAK! Device timer paused.");
+              drawHomePage();
+            }
+
             // 4. User resumed session from Web while device is in BREAK
             else if (sessionState == SESSION_BREAK && beStatus == "ACTIVE") {
               sessionState = SESSION_ACTIVE;
