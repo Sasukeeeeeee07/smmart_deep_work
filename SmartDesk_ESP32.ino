@@ -330,7 +330,7 @@ TaskHandle_t cameraTaskHandle = nullptr;
 
 uint32_t lastTouchTime = 0;
 
-#define TOUCH_DEBOUNCE_MS 250
+#define TOUCH_DEBOUNCE_MS 500
 
 // =====================================================
 // JPEG DISPLAY CALLBACK
@@ -2471,6 +2471,12 @@ void startSessionFromDevice() {
 // =====================================================
 void resumeSessionFromDevice() {
   if (sessionState != SESSION_BREAK) return;
+
+  // Guard against rapid duplicate taps on resistive touch while resume is in flight
+  static unsigned long lastResumeCallMs = 0;
+  if (millis() - lastResumeCallMs < 2000) return;
+  lastResumeCallMs = millis();
+
   unsigned long breakDuration = millis() - breakStartMs;
   if (currentBreakCounted) {
     totalBreakMs += breakDuration;
@@ -3956,10 +3962,22 @@ void loop() {
               unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
               unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
               unsigned long currentDevActiveSec = (sessionTotalMs / 1000) + ((sessionStartMs > 0) ? (millis() - sessionStartMs) / 1000 : 0);
-              if (abs((long)currentDevActiveSec - (long)serverActiveSec) > 3) {
+              if (abs((long)currentDevActiveSec - (long)serverActiveSec) > 1) {
                 sessionTotalMs = serverActiveSec * 1000UL;
                 sessionStartMs = millis();
                 Serial.printf("[SYNC] Auto-aligned device timer with server: activeSec=%lu remSec=%lu\n", serverActiveSec, beRemSec);
+              }
+            }
+
+            // 6. Keep BREAK timer tightly synchronized with server while paused
+            else if (sessionState == SESSION_BREAK && beStatus == "BREAK" && beRemSec > 0) {
+              unsigned long targetSec = (unsigned long)targetDurationMinutes * 60UL;
+              unsigned long serverActiveSec = (targetSec > beRemSec) ? (targetSec - beRemSec) : 0;
+              unsigned long currentDevActiveSec = sessionTotalMs / 1000;
+              if (abs((long)currentDevActiveSec - (long)serverActiveSec) > 1) {
+                sessionTotalMs = serverActiveSec * 1000UL;
+                sessionStartMs = 0;
+                Serial.printf("[SYNC] Auto-aligned paused break timer with server: activeSec=%lu remSec=%lu\n", serverActiveSec, beRemSec);
               }
             }
 
