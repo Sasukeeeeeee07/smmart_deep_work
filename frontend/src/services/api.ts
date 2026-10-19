@@ -146,10 +146,6 @@ export const sessionService = {
     const response = await api.post(`/sessions/${uid}/start`);
     return response.data;
   },
-  pauseSession: async (uid: string, activeMinutes?: number) => {
-    const response = await api.post(`/sessions/${uid}/break`, { activeMinutes, isAwayAlert: false });
-    return response.data;
-  },
   resumeSession: async (uid: string) => {
     const response = await api.post(`/sessions/${uid}/resume`);
     return response.data;

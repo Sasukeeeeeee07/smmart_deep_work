@@ -7,7 +7,7 @@ import {
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Shield, Mic, Activity, Wifi, WifiOff,
-  Coffee, Calendar, Hourglass
+  Calendar, Hourglass
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -40,7 +40,6 @@ export default function DeepWorkPage() {
 
   // Action states
   const [starting, setStarting]       = useState(false);
-  const [pausing, setPausing]         = useState(false);
   const [resuming, setResuming]       = useState(false);
   const [ending, setEnding]           = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
@@ -248,27 +247,6 @@ export default function DeepWorkPage() {
       setOfflineNotice(msg);
     } finally {
       setStarting(false);
-    }
-  };
-
-  const handlePauseSession = async () => {
-    if (!currentSession || currentSession.status !== 'ACTIVE') return;
-    setPausing(true);
-    try {
-      await sessionService.pauseSession(selectedUid, Math.floor(activeSec / 60));
-      const live = await sessionService.getCurrentSession(selectedUid);
-      if (live) {
-        setCurrentSession(live);
-        if (typeof live.activeSeconds === 'number') {
-          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
-        }
-      }
-      await loadData();
-    } catch (err: any) {
-      console.error('Failed to pause session for break', err);
-      alert(err.response?.data?.message || err.message || 'Failed to pause session');
-    } finally {
-      setPausing(false);
     }
   };
 
@@ -626,21 +604,6 @@ export default function DeepWorkPage() {
                   <span>{resuming ? 'Resuming…' : 'Resume Now'}</span>
                   <ArrowRight size={15} />
                 </button>
-              ) : currentSession?.status === 'ACTIVE' ? (
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
-                    Live: {fmtHMS(activeSec)}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handlePauseSession(); }}
-                    disabled={pausing}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer hover:border-[var(--amber-w)] hover:bg-amber-500/10 text-amber-700 border-amber-500/30 bg-amber-500/5"
-                    title="Take a break (pauses timer and session on desk)"
-                  >
-                    <Coffee size={13} className="text-amber-600" />
-                    <span>{pausing ? 'Pausing…' : 'Take Break'}</span>
-                  </button>
-                </div>
               ) : isRunning ? (
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
