@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate, Outlet, Link, useNavigate } from 'react-router-dom';
-import { LogOut, Bell } from 'lucide-react';
+import { LogOut, Bell, ArrowLeft } from 'lucide-react';
 import { notificationService, deviceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 
@@ -80,28 +80,50 @@ export default function DashboardLayout() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        {/* Left: Brand Logo only */}
-        <Link to="/select-mode" className="flex items-center gap-2.5 group">
-          <div
-            className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
-            style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--forest)' }}
+        {/* Left: Back Button & Brand Logo */}
+        <div className="flex items-center gap-3.5">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/dashboard');
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border hover:shadow-xs hover:border-[var(--forest)]"
+            style={{
+              color: 'var(--ink)',
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+            }}
+            title="Go back to previous page"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-            </svg>
-          </div>
-          <div>
-            <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-              smmart
-            </p>
-            <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 10 }}>
-              deep work
-            </p>
-          </div>
-        </Link>
+            <ArrowLeft size={14} />
+            <span>Back</span>
+          </button>
+
+          <Link to="/select-mode" className="flex items-center gap-2.5 group">
+            <div
+              className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
+              style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--forest)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
+                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                smmart
+              </p>
+              <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 10 }}>
+                deep work
+              </p>
+            </div>
+          </Link>
+        </div>
 
         {/* Right: Notifications, User & Logout */}
         <div className="flex items-center gap-3">

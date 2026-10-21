@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { employeeService } from '../services/api';
-import { Users, Plus, Trash2, Edit2, X, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Trash2, Edit2, X, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const ROLES = ['EMPLOYEE', 'MANAGER', 'ADMIN'] as const;
 type Role = typeof ROLES[number];
@@ -57,6 +58,7 @@ const Modal = ({ title, onClose, children }: { title: string; onClose: () => voi
 
 /* ── Main ──────────────────────────────────────────────────────────────── */
 const Employees = () => {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
@@ -171,10 +173,22 @@ const Employees = () => {
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="section-label mb-0.5">Workspace</p>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-            Team
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+              title="Back"
+            >
+              <ArrowLeft size={13} />
+              <span>Back</span>
+            </button>
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+              Team
+            </h1>
+          </div>
         </div>
+
         <button onClick={() => { setShowAdd(true); setFormError(''); setNewEmp(emptyForm); }} className="btn btn-primary text-sm">
           <Plus size={15} /> Add member
         </button>

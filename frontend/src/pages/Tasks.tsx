@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { taskService, employeeService } from '../services/api';
-import { Plus, X, Trash2, ChevronRight, ChevronLeft, Flag, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, X, Trash2, ChevronRight, ChevronLeft, Flag, Calendar, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 type TaskStatus   = 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
 type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -143,6 +144,7 @@ function TaskCard({
 
 /* ── Main ─────────────────────────────────────────────────────────────── */
 const Tasks = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks]       = useState<Task[]>([]);
   const [employees, setEmps]    = useState<Employee[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -211,10 +213,22 @@ const Tasks = () => {
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="section-label mb-0.5">Board</p>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-            Tasks
-          </h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+              title="Back"
+            >
+              <ArrowLeft size={13} />
+              <span>Back</span>
+            </button>
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+              Tasks
+            </h1>
+          </div>
         </div>
+
         <button onClick={() => setShowModal(true)} className="btn btn-primary text-sm">
           <Plus size={15} /> New task
         </button>

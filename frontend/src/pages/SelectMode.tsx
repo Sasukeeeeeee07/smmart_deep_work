@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, LogOut } from 'lucide-react';
+import { Lock, LogOut, ArrowLeft } from 'lucide-react';
 
 export default function SelectMode() {
   const navigate = useNavigate();
@@ -56,23 +56,36 @@ export default function SelectMode() {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-          style={{ color: 'var(--ink-4)', border: '1px solid var(--border)', background: 'var(--surface)' }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = 'var(--error)';
-            e.currentTarget.style.borderColor = 'var(--error)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = 'var(--ink-4)';
-            e.currentTarget.style.borderColor = 'var(--border)';
-          }}
-        >
-          <LogOut size={12} />
-          <span>Sign out</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            style={{ color: 'var(--ink-3)', border: '1px solid var(--border)', background: 'var(--surface)' }}
+            title="Back to login"
+          >
+            <ArrowLeft size={12} />
+            <span>Back to Login</span>
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+            style={{ color: 'var(--ink-4)', border: '1px solid var(--border)', background: 'var(--surface)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--error)';
+              e.currentTarget.style.borderColor = 'var(--error)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--ink-4)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }}
+          >
+            <LogOut size={12} />
+            <span>Sign out</span>
+          </button>
+        </div>
       </div>
+
 
       {/* ── Split Screen Sections ── */}
       <div className="flex-1 w-full flex flex-col md:flex-row pt-14 md:pt-0">

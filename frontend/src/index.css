@@ -387,6 +387,25 @@ h1, h2, h3, h4, h5, h6 {
 .animate-pulse-gentle { animation: pulse-gentle 2s ease infinite; }
 .animate-spin-slow  { animation: rotate-slow 2s linear infinite; }
 
+@keyframes blink-red {
+  0%, 100% {
+    opacity: 1;
+    background-color: #dc2626;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(220, 38, 38, 0.7);
+  }
+  50% {
+    opacity: 0.25;
+    background-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 2px rgba(220, 38, 38, 0.1);
+  }
+}
+.animate-blink-red {
+  animation: blink-red 0.9s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+
 /* ─── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   body { font-size: 14px; }

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { deviceService, sessionService, notificationService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 import {
-  Timer, ArrowRight, Play, Pause, Square, AlertTriangle,
+  Timer, ArrowRight, ArrowLeft, Play, Pause, AlertTriangle,
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Shield, Mic, Activity, Wifi, WifiOff,
@@ -41,7 +41,6 @@ export default function DeepWorkPage() {
   // Action states
   const [starting, setStarting]       = useState(false);
   const [resuming, setResuming]       = useState(false);
-  const [ending, setEnding]           = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [extending, setExtending]     = useState(false);
@@ -273,19 +272,6 @@ export default function DeepWorkPage() {
     }
   };
 
-  const handleEndSession = async () => {
-    if (!confirm('Are you sure you want to end this deep work session?')) return;
-    setEnding(true);
-    try {
-      await sessionService.endSession(selectedUid, Math.floor(activeSec / 60), currentSession?._id);
-      await loadData();
-    } catch {
-      alert('Failed to end session');
-    } finally {
-      setEnding(false);
-    }
-  };
-
   const handleStopSound = async () => {
     setStoppingSound(true);
     try {
@@ -359,6 +345,15 @@ export default function DeepWorkPage() {
         <div className="flex items-center justify-between flex-wrap gap-4 pb-1">
           <div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+                title="Back to Dashboard"
+              >
+                <ArrowLeft size={14} />
+                <span>Back</span>
+              </button>
               <h1
                 className="text-3xl md:text-4xl font-extrabold tracking-tight"
                 style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
@@ -527,7 +522,7 @@ export default function DeepWorkPage() {
                 </div>
                 <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
                   {isRunning
-                    ? 'Reverse Countdown Timer running in H - M - S'
+                    ? 'Reverse Countdown Timer running in H - M - S • Max 3 breaks (5m+) will abort session'
                     : !isDeviceOnline
                     ? 'Desk device is offline • Power on device before starting'
                     : 'Click to start reverse timer (120:00) • Desk connected'}
@@ -539,20 +534,11 @@ export default function DeepWorkPage() {
               {isRunning ? (
                 <div className="flex items-center gap-2">
                   <div
-                    className="font-mono font-bold text-lg md:text-2xl px-3.5 py-1.5 rounded-xl tabular-nums shadow-xs"
+                    className="font-mono font-bold text-lg md:text-2xl px-4 py-1.5 rounded-xl tabular-nums shadow-xs"
                     style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)', border: '1px solid rgba(66, 84, 67, 0.25)' }}
                   >
                     {fmtHMS(remainingSec)}
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleEndSession(); }}
-                    disabled={ending}
-                    className="btn btn-danger text-xs py-2 px-3 flex items-center gap-1 cursor-pointer"
-                    title="End session"
-                  >
-                    <Square size={13} />
-                    <span>{ending ? '…' : 'End'}</span>
-                  </button>
                 </div>
               ) : !isDeviceOnline ? (
                 <div className="flex items-center gap-1.5 font-bold text-xs text-rose-600 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
@@ -621,6 +607,11 @@ export default function DeepWorkPage() {
                 </button>
               ) : isRunning ? (
                 <div className="flex items-center gap-2">
+                  {(currentSession?.breakCount || currentSession?.breaks?.length || 0) > 0 && (
+                    <span className="text-xs font-black px-2.5 py-1 rounded-xl animate-blink-red shadow-xs">
+                      {(currentSession?.breakCount || currentSession?.breaks?.length || 0)} {(currentSession?.breakCount || currentSession?.breaks?.length || 0) === 1 ? 'BREAK' : 'BREAKS'} TAKEN
+                    </span>
+                  )}
                   <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
                     Live: {fmtHMS(activeSec)}
                   </span>
@@ -848,12 +839,36 @@ export default function DeepWorkPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
-                    <Timer size={13} className="text-sky-600" /> Focus / Breaks:
+                    <Timer size={13} className="text-sky-600" /> Focus Time:
                   </span>
-                  <span className="font-semibold">
-                    {fmtHMS(activeSec)} / {currentSession?.totalBreakMinutes || 0}m ({currentSession?.breakCount || currentSession?.breaks?.length || 0})
+                  <span className="font-semibold font-mono">
+                    {fmtHMS(activeSec)}
                   </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
+                    <Hourglass size={13} className="text-amber-600" /> Break Duration:
+                  </span>
+                  <span className="font-semibold font-mono">
+                    {currentSession?.totalBreakMinutes || 0}m
+                  </span>
+                </div>
+                {/* ── HIGHLIGHTED NUMBER OF BREAKS TAKEN (RED & BLINKING) ── */}
+                <div className="flex items-center justify-between p-2 rounded-xl border border-rose-300/60 bg-rose-50/50 shadow-xs">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-rose-800">
+                    <Pause size={13} className="text-rose-600" /> Breaks Taken (5m+):
+                  </span>
+                  <span
+                    className={`font-mono text-xs px-2.5 py-1 rounded-lg transition-all ${
+                      (currentSession?.breakCount || currentSession?.breaks?.length || 0) > 0
+                        ? 'animate-blink-red font-black tracking-wide'
+                        : 'text-rose-700 bg-rose-100/80 border border-rose-200 font-bold'
+                    }`}
+                  >
+                    {(currentSession?.breakCount || currentSession?.breaks?.length || 0)} / 3 Breaks
+                  </span>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
                     <RotateCcw size={13} className="text-violet-600" /> Resumed:
@@ -972,15 +987,27 @@ export default function DeepWorkPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between p-2 rounded-xl border border-rose-200/70 bg-rose-50/40">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle size={15} className="text-amber-600" />
-                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Break Limit Rule</span>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span className="text-xs font-bold text-rose-950">Break Limit Rule</span>
                   </div>
-                  <span className="font-bold text-xs" style={{ color: 'var(--amber-w)' }}>
-                    Max 3 Breaks (5m+)
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`font-mono text-xs px-2.5 py-0.5 rounded-lg transition-all ${
+                        (currentSession?.breakCount || currentSession?.breaks?.length || 0) > 0
+                          ? 'animate-blink-red font-black shadow-xs'
+                          : 'bg-rose-100 text-rose-700 border border-rose-200 font-bold'
+                      }`}
+                    >
+                      {(currentSession?.breakCount || currentSession?.breaks?.length || 0)} Taken
+                    </span>
+                    <span className="font-bold text-xs text-rose-800">
+                      / 3 Max Allowed
+                    </span>
+                  </div>
                 </div>
+
               </div>
             </div>
 
@@ -1115,8 +1142,9 @@ export default function DeepWorkPage() {
                             </div>
 
                             <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
-                              Focus: <strong className="font-mono">{durMin}m</strong> • Breaks: {s.totalBreakMinutes || 0}m ({s.breakCount || s.breaks?.length || 0}) • SDW Points: +{s.sdwPointsEarned || 0}
+                              Focus: <strong className="font-mono">{durMin}m</strong> • Breaks: {s.totalBreakMinutes || 0}m (<span className={`font-black text-rose-600 px-1.5 py-0.5 rounded ${(s.breakCount || s.breaks?.length || 0) > 0 ? 'bg-rose-50 border border-rose-300 animate-pulse' : ''}`}>{(s.breakCount || s.breaks?.length || 0)} breaks</span>) • SDW Points: +{s.sdwPointsEarned || 0}
                             </p>
+
                           </div>
                         </div>
 

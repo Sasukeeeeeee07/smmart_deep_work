@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/api';
-import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
+import { TrendingUp, Timer, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -228,6 +228,24 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 select-none py-2">
+      {/* ── Top Bar: Back to Workspace Mode & Mode Indicator ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-1">
+        <button
+          onClick={() => navigate('/select-mode')}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+          title="Back to Workspace Selection"
+        >
+          <ArrowLeft size={14} />
+          <span>Back to Workspaces</span>
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border shadow-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink-3)' }}>
+            {mode === 'entrepreneur' ? 'Entrepreneur Mode' : 'Individual Mode'}
+          </span>
+        </div>
+      </div>
+
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}
@@ -236,20 +254,21 @@ const Dashboard = () => {
             <div className="flex items-start justify-between mb-6 flex-wrap gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  <span
-                    className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs"
+                  {/* EYE-CATCHING HIGHLIGHTED HEADER BADGE */}
+                  <div
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-emerald-950 border border-emerald-400"
                     style={{
-                      background: 'rgba(66, 84, 67, 0.12)',
-                      color: 'var(--forest)',
-                      border: '1px solid rgba(66, 84, 67, 0.25)',
+                      background: 'linear-gradient(135deg, #A7F3D0 0%, #6EE7B7 50%, #34D399 100%)',
+                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.28)'
                     }}
                   >
-                    Weekly Focus Assessment
-                  </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-800 animate-ping" />
+                    <span className="tracking-wide">WEEKLY FOCUS ASSESSMENT</span>
+                  </div>
                   {selectedWeek && (
                     <button
                       onClick={() => setSelectedWeek(null)}
-                      className="text-xs font-semibold px-2.5 py-0.5 rounded-full transition-all cursor-pointer hover:opacity-80 flex items-center gap-1"
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer hover:opacity-80 flex items-center gap-1 shadow-xs"
                       style={{ background: 'rgba(182, 83, 75, 0.1)', color: 'var(--error)', border: '1px solid rgba(182, 83, 75, 0.25)' }}
                       title="Reset to current 7 days"
                     >
@@ -258,12 +277,15 @@ const Dashboard = () => {
                   )}
                 </div>
                 <h3
-                  className="text-xl font-bold mt-2.5"
-                  style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
+                  className="text-2xl font-black mt-3 tracking-tight"
+                  style={{ fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  {selectedWeek ? `${selectedWeek.name} (${selectedWeek.label})` : 'Last 7 Days Assessment'}
+                  <span className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-800 bg-clip-text text-transparent">
+                    {selectedWeek ? `${selectedWeek.name} (${selectedWeek.label})` : 'Weekly Focus Assessment (Last 7 Days)'}
+                  </span>
                 </h3>
               </div>
+
               {selectedWeek && (
                 <div className="text-right">
                   <p className="text-xs" style={{ color: 'var(--ink-4)' }}>Week Productivity</p>
@@ -314,22 +336,26 @@ const Dashboard = () => {
           <div>
             <div className="flex items-start justify-between mb-4">
               <div>
-                <span
-                  className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-xs"
+                {/* EYE-CATCHING HIGHLIGHTED HEADER BADGE */}
+                <div
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-amber-950 border border-amber-400"
                   style={{
-                    background: 'rgba(184, 121, 57, 0.12)',
-                    color: 'var(--amber-w)',
-                    border: '1px solid rgba(184, 121, 57, 0.25)',
+                    background: 'linear-gradient(135deg, #FDE68A 0%, #FCD34D 50%, #F59E0B 100%)',
+                    boxShadow: '0 4px 15px rgba(245, 158, 11, 0.28)'
                   }}
                 >
-                  Monthly Productivity Assessment
-                </span>
+                  <span className="w-2 h-2 rounded-full bg-amber-800 animate-ping" />
+                  <span className="tracking-wide">MONTHLY PRODUCTIVITY ASSESSMENT</span>
+                </div>
                 <h3
-                  className="text-xl font-bold mt-2.5"
-                  style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
+                  className="text-2xl font-black mt-3 tracking-tight"
+                  style={{ fontFamily: 'DM Sans, sans-serif' }}
                 >
-                  Monthly Productivity Assessment
+                  <span className="bg-gradient-to-r from-amber-900 via-orange-800 to-amber-950 bg-clip-text text-transparent">
+                    Monthly Productivity Assessment
+                  </span>
                 </h3>
+
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
                   {selectedWeek ? `Inspecting ${selectedWeek.name}. Click bar again to reset.` : 'Click any bar to view its 7-day breakdown'}
                 </p>
