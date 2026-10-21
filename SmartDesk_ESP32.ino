@@ -1788,13 +1788,24 @@ void updateHomePageLiveValues() {
   int r2Y = 70;
   tft.fillRect(12, r2Y + 20, 90, 30, COLOR_PANEL);
   if (showProdScore) {
-    tft.setTextColor(productivityScore >= 80 ? COLOR_GREEN : COLOR_YELLOW);
+    uint16_t pColor = COLOR_RED;
+    if (productivityScore >= 80)
+      pColor = COLOR_GREEN;
+    else if (productivityScore >= 50)
+      pColor = COLOR_ORANGE;
+
+    tft.setTextColor(pColor);
     tft.setTextSize(2);
     tft.setCursor(12, r2Y + 26);
     if (statsFetched)
       tft.printf("%d%%", productivityScore);
     else
       tft.print("--%");
+
+    // Mini 3-zone segmented indicator bar (Red <50%, Orange 50-79%, Green >=80%)
+    tft.fillRect(12, r2Y + 44, 25, 3, productivityScore < 50 ? COLOR_RED : COLOR_PANEL2);
+    tft.fillRect(40, r2Y + 44, 25, 3, (productivityScore >= 50 && productivityScore < 80) ? COLOR_ORANGE : COLOR_PANEL2);
+    tft.fillRect(68, r2Y + 44, 25, 3, productivityScore >= 80 ? COLOR_GREEN : COLOR_PANEL2);
   }
 
   // ── Prod Spike + green tick if selfRating > 3.5 ────────
@@ -2151,56 +2162,102 @@ void drawStatsPage() {
 
   tft.print("TIMEFRAME:");
 
-  // Hourly Button (x: 90, y: 43, w: 55, h: 16)
-  tft.fillRoundRect(90, 43, 55, 16, 4,
+  // Hourly Button (x: 82, y: 43, w: 50, h: 16)
+  tft.fillRoundRect(82, 43, 50, 16, 4,
                     showHourlyStats ? COLOR_ACCENT : COLOR_PANEL2);
   tft.setTextColor(showHourlyStats ? COLOR_BG : COLOR_MUTED);
-  tft.setCursor(98, 47);
+  tft.setCursor(88, 47);
   tft.print("HOURS");
 
-  // Weekly Button (x: 155, y: 43, w: 55, h: 16)
-  tft.fillRoundRect(155, 43, 55, 16, 4,
+  // Weekly Button (x: 136, y: 43, w: 50, h: 16)
+  tft.fillRoundRect(136, 43, 50, 16, 4,
                     !showHourlyStats ? COLOR_ACCENT : COLOR_PANEL2);
   tft.setTextColor(!showHourlyStats ? COLOR_BG : COLOR_MUTED);
-  tft.setCursor(163, 47);
+  tft.setCursor(142, 47);
   tft.print("WEEKS");
 
+  // 3-Color Legend at top right: Green >=80%, Orange 50-79%, Red <50%
+  tft.fillRect(198, 46, 5, 5, COLOR_GREEN);
+  tft.setTextColor(COLOR_GREEN);
+  tft.setCursor(205, 46);
+  tft.print("80+");
+
+  tft.fillRect(232, 46, 5, 5, COLOR_ORANGE);
+  tft.setTextColor(COLOR_ORANGE);
+  tft.setCursor(239, 46);
+  tft.print("50+");
+
+  tft.fillRect(266, 46, 5, 5, COLOR_RED);
+  tft.setTextColor(COLOR_RED);
+  tft.setCursor(273, 46);
+  tft.print("<50");
+
   // ===================================================
-  // GRAPH
+  // PRODUCTIVITY GOD GRAPH (RED / ORANGE / GREEN)
   // ===================================================
 
-  tft.drawRect(10, 62, 300,
-               130, // Increased height to fit labels
-               COLOR_PANEL2);
+  // Graph background & stylish rounded frame
+  tft.fillRoundRect(10, 62, 300, 130, 6, COLOR_PANEL);
+  tft.drawRoundRect(10, 62, 300, 130, 6, COLOR_PANEL2);
 
+  // 80% Dotted Threshold Reference Line (Green)
+  for (int dotX = 14; dotX < 304; dotX += 6) {
+    tft.drawFastHLine(dotX, 93, 3, 0x03E0); // Dim subtle green
+  }
+  tft.setTextColor(COLOR_GREEN);
+  tft.setTextSize(1);
+  tft.setCursor(14, 85);
+  tft.print("80%");
+
+  // 50% Dotted Threshold Reference Line (Orange)
+  for (int dotX = 14; dotX < 304; dotX += 6) {
+    tft.drawFastHLine(dotX, 125, 3, 0x8A00); // Dim subtle orange
+  }
+  tft.setTextColor(COLOR_ORANGE);
+  tft.setTextSize(1);
+  tft.setCursor(14, 117);
+  tft.print("50%");
+
+  // Baseline at Y=177
+  tft.drawFastHLine(14, 177, 292, COLOR_MUTED);
+
+  // Draw 6 Bars with Red, Orange, Green zones
   for (int i = 0; i < 6; i++) {
-    int x = 25 + i * 45;
+    int x = 28 + i * 46;
 
     // Convert percentage to bar height (max height 105px)
     int percentage = showHourlyStats ? hourlyHistory[i] : weeklyHistory[i];
     int barHeight = (percentage * 105) / 100;
 
-    // Default tiny bar if 0
-    if (barHeight == 0)
-      barHeight = 2;
+    // Default minimum bar height for visibility
+    if (barHeight < 3)
+      barHeight = 3;
 
-    // Decide color (green if >= 80, yellow if >= 50, else red)
-    uint16_t barColor = COLOR_ACCENT;
+    // Decide color based on percentage:
+    // >= 80% : COLOR_GREEN
+    // 50-79% : COLOR_ORANGE
+    // < 50%  : COLOR_RED
+    uint16_t barColor = COLOR_RED;
     if (percentage >= 80)
       barColor = COLOR_GREEN;
     else if (percentage >= 50)
-      barColor = COLOR_YELLOW;
+      barColor = COLOR_ORANGE;
     else
       barColor = COLOR_RED;
 
-    tft.fillRect(x, 177 - barHeight, 25, barHeight, barColor);
+    // Draw 3D-styled rounded bar
+    tft.fillRoundRect(x, 177 - barHeight, 26, barHeight, 3, barColor);
+    // Shiny white cap on top edge
+    tft.drawFastHLine(x + 2, 177 - barHeight, 22, ILI9341_WHITE);
 
-    // Draw the percentage number on top of the bar
-    tft.setTextColor(COLOR_MUTED);
+    // Draw the percentage number on top of the bar in matching color
+    tft.setTextColor(barColor);
     tft.setTextSize(1);
-    tft.setCursor(x, 177 - barHeight - 12);
+    int numChars = (percentage >= 100) ? 4 : ((percentage >= 10) ? 3 : 2);
+    int pctX = x + 13 - ((numChars * 6) / 2);
+    tft.setCursor(pctX, 177 - barHeight - 11);
     if (statsFetched) {
-      tft.print(percentage);
+      tft.printf("%d%%", percentage);
     } else {
       tft.print("-");
     }
@@ -2210,10 +2267,10 @@ void drawStatsPage() {
     tft.setTextColor(COLOR_TEXT);
     tft.setTextSize(1);
 
-    // Center the label text (roughly 6px per char) under the 25px wide bar
+    // Center the label text under the 26px wide bar
     int textWidth = strlen(label) * 6;
-    int labelX = x + 12 - (textWidth / 2);
-    tft.setCursor(labelX, 182); // Placed just below the line (177)
+    int labelX = x + 13 - (textWidth / 2);
+    tft.setCursor(labelX, 182);
 
     if (statsFetched) {
       tft.print(label);

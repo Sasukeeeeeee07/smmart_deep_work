@@ -4,7 +4,7 @@ import { sessionService } from '../services/api';
 import { TrendingUp, Timer, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell,
+  BarChart, Bar, Cell, ReferenceLine,
 } from 'recharts';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -136,16 +136,46 @@ const AreaTip = ({ active, payload, label }: any) => {
   );
 };
 
+const getProdColor = (pct: number) => {
+  if (pct >= 80) return '#10B981'; // Green
+  if (pct >= 50) return '#F59E0B'; // Orange
+  return '#EF4444'; // Red
+};
+
+const getProdStatus = (pct: number) => {
+  if (pct >= 80) return { label: 'High Flow', color: '#10B981', bg: 'rgba(16,185,129,0.12)' };
+  if (pct >= 50) return { label: 'Moderate', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' };
+  return { label: 'Needs Focus', color: '#EF4444', bg: 'rgba(239,68,68,0.12)' };
+};
+
 const BarTip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as WeekData;
+  const status = getProdStatus(d.productivity);
   return (
-    <div className="card" style={{ padding: '12px 16px', minWidth: 160, fontSize: 12 }}>
-      <p className="font-semibold mb-2" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{d.name}</p>
-      <div className="space-y-1">
-        <div className="flex justify-between gap-4">
+    <div
+      className="card shadow-lg"
+      style={{
+        padding: '12px 16px',
+        minWidth: 175,
+        fontSize: 12,
+        borderColor: status.color,
+        borderWidth: 1.5,
+      }}
+    >
+      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-[var(--border)]">
+        <p className="font-bold" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{d.name}</p>
+        <span
+          className="text-[10px] font-black px-2 py-0.5 rounded-full"
+          style={{ background: status.bg, color: status.color }}
+        >
+          {status.label}
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex justify-between items-center gap-4">
           <span style={{ color: 'var(--ink-3)' }}>Productivity</span>
-          <span className="font-bold" style={{ color: d.productivity >= 80 ? 'var(--sage-dark)' : 'var(--amber-w)' }}>{d.productivity}%</span>
+          <span className="font-extrabold text-sm" style={{ color: status.color }}>{d.productivity}%</span>
         </div>
         <div className="flex justify-between gap-4">
           <span style={{ color: 'var(--ink-3)' }}>Focus</span>
@@ -289,7 +319,7 @@ const Dashboard = () => {
               {selectedWeek && (
                 <div className="text-right">
                   <p className="text-xs" style={{ color: 'var(--ink-4)' }}>Week Productivity</p>
-                  <p className="text-sm font-bold" style={{ color: selectedWeek.productivity >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
+                  <p className="text-sm font-black" style={{ color: getProdColor(selectedWeek.productivity) }}>
                     {selectedWeek.productivity}%
                   </p>
                 </div>
@@ -361,13 +391,18 @@ const Dashboard = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2 text-right">
-                <p
-                  className="font-bold tabular-nums text-2xl leading-none"
-                  style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-                >
-                  {avgScore > 0 ? `${avgScore}%` : '—'}
-                </p>
-                <TrendingUp size={18} style={{ color: 'var(--sage-dark)' }} />
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-4)' }}>Monthly Avg</p>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <p
+                      className="font-black tabular-nums text-2xl leading-none"
+                      style={{ fontFamily: 'DM Sans, sans-serif', color: getProdColor(avgScore) }}
+                    >
+                      {avgScore > 0 ? `${avgScore}%` : '—'}
+                    </p>
+                    <TrendingUp size={18} style={{ color: getProdColor(avgScore) }} />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -375,7 +410,7 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={monthlyData}
-                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
+                  margin={{ top: 15, right: 10, bottom: 0, left: -20 }}
                   onClick={(e: any) => {
                     if (e && e.activePayload && e.activePayload.length > 0) {
                       const clicked = e.activePayload[0].payload as WeekData;
@@ -387,9 +422,14 @@ const Dashboard = () => {
                   <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
                   <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }} />
+                  
+                  {/* Reference Lines for Red/Orange/Green Zones */}
+                  <ReferenceLine y={80} stroke="#10B981" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: '80% High Focus', position: 'insideTopRight', fill: '#059669', fontSize: 10, fontWeight: 700 }} />
+                  <ReferenceLine y={50} stroke="#F59E0B" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: '50% Moderate', position: 'insideTopRight', fill: '#D97706', fontSize: 10, fontWeight: 700 }} />
+
                   <Bar
                     dataKey="productivity"
-                    radius={[6, 6, 0, 0]}
+                    radius={[8, 8, 0, 0]}
                     maxBarSize={48}
                     cursor="pointer"
                     onClick={(entry: any) => {
@@ -400,21 +440,14 @@ const Dashboard = () => {
                   >
                     {monthlyData.map((entry, i) => {
                       const isSelected = selectedWeek?.name === entry.name;
+                      const col = getProdColor(entry.productivity);
                       return (
                         <Cell
                           key={i}
                           cursor="pointer"
-                          stroke={isSelected ? '#425443' : 'none'}
-                          strokeWidth={isSelected ? 3 : 0}
-                          fill={
-                            isSelected
-                              ? '#425443'
-                              : entry.productivity >= 80
-                              ? '#5E7052'
-                              : entry.productivity > 0
-                              ? '#B87939'
-                              : 'var(--border)'
-                          }
+                          stroke={isSelected ? '#111827' : col}
+                          strokeWidth={isSelected ? 3 : 1}
+                          fill={col}
                         />
                       );
                     })}
@@ -424,13 +457,26 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-5 mt-6 pt-4 border-t border-[var(--border)]">
-            {[{ color: '#5E7052', label: '≥80% High Flow' }, { color: '#B87939', label: '<80% Moderate' }].map(l => (
-              <div key={l.label} className="flex items-center gap-2">
-                <span className="rounded-sm" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
+          <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-4 border-t border-[var(--border)]">
+            <div className="flex items-center gap-5 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full shadow-xs" style={{ width: 10, height: 10, background: '#10B981', display: 'block' }} />
+                <span className="text-xs font-bold text-emerald-800">≥80% Green (High Flow)</span>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <span className="rounded-full shadow-xs" style={{ width: 10, height: 10, background: '#F59E0B', display: 'block' }} />
+                <span className="text-xs font-bold text-amber-800">50% - 79% Orange (Pacing)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full shadow-xs" style={{ width: 10, height: 10, background: '#EF4444', display: 'block' }} />
+                <span className="text-xs font-bold text-rose-800">&lt;50% Red (Needs Focus)</span>
+              </div>
+            </div>
+            {selectedWeek && (
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-xs">
+                Inspecting: {selectedWeek.name}
+              </span>
+            )}
           </div>
         </div>
       </div>

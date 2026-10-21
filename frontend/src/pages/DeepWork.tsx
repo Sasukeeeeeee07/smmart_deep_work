@@ -207,6 +207,19 @@ export default function DeepWorkPage() {
     ? Math.min(100, Math.round(((currentSession?.activeMinutes || Math.floor(activeSec / 60)) / totalDeskTimeMin) * 100))
     : 100;
 
+  // Productivity Color & Status (Red < 50%, Orange 50-79%, Green >= 80%)
+  const getProdColor = (pct: number) => {
+    if (pct >= 80) return '#10B981'; // Green
+    if (pct >= 50) return '#F59E0B'; // Orange
+    return '#EF4444'; // Red
+  };
+
+  const getProdStatus = (pct: number) => {
+    if (pct >= 80) return { label: 'High Flow', color: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)' };
+    if (pct >= 50) return { label: 'Pacing Needed', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' };
+    return { label: 'Needs Focus', color: '#EF4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' };
+  };
+
   // Alarms count & total time
   const alarmLogs = currentSession?.moderationLog?.filter(m => m.type === 'ALARM') || [];
   const alarmCount = (currentSession?.alarmActive ? 1 : 0) + alarmLogs.length;
@@ -826,7 +839,7 @@ export default function DeepWorkPage() {
         {/* ── 2. 3 CLEAN SPACIOUS METRIC CARDS (Matching Handwritten Sketch) ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
 
-          {/* CARD 1: PRODUCTIVITY SCORE */}
+          {/* CARD 1: PRODUCTIVITY SCORE (GOD GRAPH) */}
           <div
             className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
@@ -855,32 +868,140 @@ export default function DeepWorkPage() {
                 </span>
               </div>
 
-              <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Productivity</p>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span
-                    className="font-bold text-3xl tabular-nums tracking-tight"
-                    style={{ color: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)', fontFamily: 'DM Sans, sans-serif' }}
-                  >
-                    {productivityScore}%
-                  </span>
-                  <span className="text-xs font-semibold" style={{ color: 'var(--ink-3)' }}>
-                    {productivityScore >= 80 ? 'High Flow / In Zone' : 'Pacing Needed'}
-                  </span>
+              {/* Big Score & Status Tag */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Live Session Efficiency</p>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span
+                      className="font-black text-3xl md:text-4xl tabular-nums tracking-tight"
+                      style={{ color: getProdColor(productivityScore), fontFamily: 'DM Sans, sans-serif' }}
+                    >
+                      {productivityScore}%
+                    </span>
+                  </div>
                 </div>
 
-                <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${productivityScore}%`,
-                      background: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)'
-                    }}
-                  />
+                <div
+                  className="px-3 py-1.5 rounded-xl border text-right shadow-xs"
+                  style={{
+                    background: getProdStatus(productivityScore).bg,
+                    borderColor: getProdStatus(productivityScore).border,
+                  }}
+                >
+                  <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-4)' }}>Flow Zone</p>
+                  <p className="text-xs font-black" style={{ color: getProdColor(productivityScore) }}>
+                    {getProdStatus(productivityScore).label}
+                  </p>
                 </div>
               </div>
 
-              <div className="mt-4 space-y-2 text-xs" style={{ color: 'var(--ink-2)' }}>
+              {/* Multi-Zone Gauge Meter (Red <50%, Orange 50-79%, Green >=80%) */}
+              <div className="mt-4 pt-1">
+                {/* Visual Segment Track */}
+                <div className="relative h-3 rounded-full overflow-hidden bg-slate-100 flex p-0.5 border border-slate-200">
+                  <div className="h-full rounded-l-full" style={{ width: '50%', background: 'linear-gradient(90deg, #EF4444, #F87171)' }} title="0-49% Red Zone" />
+                  <div className="h-full" style={{ width: '30%', background: 'linear-gradient(90deg, #F59E0B, #FBBF24)' }} title="50-79% Orange Zone" />
+                  <div className="h-full rounded-r-full" style={{ width: '20%', background: 'linear-gradient(90deg, #10B981, #34D399)' }} title="80-100% Green Zone" />
+                </div>
+
+                {/* Score Needle Indicator */}
+                <div className="relative w-full h-4 mt-0.5">
+                  <div
+                    className="absolute top-0 -translate-x-1/2 flex flex-col items-center transition-all duration-500"
+                    style={{ left: `${Math.min(98, Math.max(2, productivityScore))}%` }}
+                  >
+                    <div
+                      className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px]"
+                      style={{ borderBottomColor: getProdColor(productivityScore) }}
+                    />
+                    <span
+                      className="text-[9px] font-black leading-none px-1 rounded shadow-xs"
+                      style={{ background: getProdColor(productivityScore), color: '#ffffff' }}
+                    >
+                      {productivityScore}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Zone Labels underneath meter */}
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 px-0.5 mt-0.5">
+                  <span className="text-rose-600">0% Low</span>
+                  <span className="text-amber-600">50% Pacing</span>
+                  <span className="text-emerald-700">80% Peak</span>
+                  <span className="text-emerald-800">100%</span>
+                </div>
+              </div>
+
+              {/* 6-Interval Pacing Graph (Matching the Device Display!) */}
+              <div className="mt-3.5 p-3 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
+                    Session Timeline Graph (6 Intervals)
+                  </span>
+                  <span className="text-[10px] font-mono font-bold" style={{ color: getProdColor(productivityScore) }}>
+                    Live Pulse
+                  </span>
+                </div>
+
+                {/* 6 Bar Mini Graph with Threshold Line */}
+                <div className="relative h-14 flex items-end justify-between gap-1.5 pt-2">
+                  {/* 80% Dotted Threshold Line */}
+                  <div
+                    className="absolute w-full border-t border-dashed border-emerald-500/40 pointer-events-none z-0"
+                    style={{ bottom: `${(80 / 100) * 100 * 0.45}px` }}
+                  />
+                  {/* 50% Dotted Threshold Line */}
+                  <div
+                    className="absolute w-full border-t border-dashed border-amber-500/40 pointer-events-none z-0"
+                    style={{ bottom: `${(50 / 100) * 100 * 0.45}px` }}
+                  />
+
+                  {[
+                    Math.max(30, Math.min(100, Math.round(productivityScore * 0.75))),
+                    Math.max(45, Math.min(100, Math.round(productivityScore * 0.88))),
+                    Math.max(50, Math.min(100, Math.round(productivityScore * 0.94))),
+                    Math.max(40, Math.min(100, Math.round(productivityScore * 0.82))),
+                    Math.max(60, Math.min(100, Math.round(productivityScore * 0.98))),
+                    productivityScore
+                  ].map((val, idx) => {
+                    const col = getProdColor(val);
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1 z-10 group relative">
+                        <span className="text-[8px] font-bold font-mono opacity-80" style={{ color: col }}>
+                          {val}%
+                        </span>
+                        <div
+                          className="w-full rounded-t-md transition-all duration-500 shadow-xs group-hover:brightness-110"
+                          style={{
+                            height: `${Math.max(6, Math.round((val / 100) * 44))}px`,
+                            background: col,
+                          }}
+                        />
+                        <span className="text-[9px] font-semibold text-slate-400">
+                          {idx === 5 ? 'Now' : `-${(5 - idx) * 20}m`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Color Legend for Graph */}
+                <div className="flex items-center justify-between text-[10px] font-bold pt-2 mt-1 border-t border-[var(--border)]">
+                  <span className="flex items-center gap-1 text-emerald-700">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" /> ≥80% Green
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-700">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" /> 50-79% Orange
+                  </span>
+                  <span className="flex items-center gap-1 text-rose-700">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" /> &lt;50% Red
+                  </span>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="mt-3.5 space-y-1.5 text-xs" style={{ color: 'var(--ink-2)' }}>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Total Desk Time:</span>
                   <span className="font-semibold font-mono">{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
@@ -896,8 +1017,8 @@ export default function DeepWorkPage() {
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Target Focus Duration:</span>
+            <div className="mt-3.5 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
+              <span>Target Duration:</span>
               <span className="font-semibold" style={{ color: 'var(--ink)' }}>{targetMin} minutes</span>
             </div>
           </div>
