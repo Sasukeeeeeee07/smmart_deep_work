@@ -1808,44 +1808,49 @@ void updateHomePageLiveValues() {
     tft.fillRect(68, r2Y + 44, 25, 3, productivityScore >= 80 ? COLOR_GREEN : COLOR_PANEL2);
   }
 
-  // ── Prod Spike + green tick if selfRating > 3.5 ────────
-  tft.fillRect(113, r2Y + 20, 90, 32, COLOR_PANEL);
+  // ── Prod Spike + Arrow Graph (Surge/Spike Trajectory) ────
+  tft.fillRect(113, r2Y + 18, 92, 34, COLOR_PANEL);
   if (showProdSpike) {
+    uint16_t spikeColor = productivitySpike ? COLOR_GREEN : (sessionTotalMs >= 45UL * 60UL * 1000UL ? COLOR_ORANGE : COLOR_MUTED);
+    if (productivitySpike && selfRating > 0) {
+      if (selfRating < 3) spikeColor = COLOR_RED;
+      else if (selfRating == 3) spikeColor = COLOR_ORANGE;
+      else spikeColor = COLOR_GREEN;
+    }
+
+    // Left info
+    tft.setTextColor(spikeColor);
+    tft.setTextSize(1);
+    tft.setCursor(114, r2Y + 22);
     if (productivitySpike) {
-      uint16_t spikeColor = COLOR_RED; // Default to red for < 3
-      if (selfRating > 3)
-        spikeColor = COLOR_GREEN;
-      else if (selfRating == 3)
-        spikeColor = COLOR_ORANGE;
-
-      tft.setTextColor(spikeColor);
-      tft.setTextSize(1);
-      tft.setCursor(113, r2Y + 26);
-
-      if (selfRating > 3) {
-        tft.print("YES  OK");
-        tft.fillCircle(195, r2Y + 32, 7, spikeColor);
-        tft.setTextColor(COLOR_BG);
-        tft.setCursor(191, r2Y + 28);
-        tft.print("v");
-      } else if (selfRating == 3) {
-        tft.print("AVG");
-        tft.fillCircle(195, r2Y + 32, 7, spikeColor);
-        tft.setTextColor(COLOR_BG);
-        tft.setCursor(191, r2Y + 28);
-        tft.print("-");
-      } else {
-        tft.print("POOR");
-        tft.fillCircle(195, r2Y + 32, 7, spikeColor);
-        tft.setTextColor(COLOR_BG);
-        tft.setCursor(191, r2Y + 28);
-        tft.print("x");
-      }
+      tft.print("SPIKE!");
+    } else if (sessionTotalMs >= 45UL * 60UL * 1000UL) {
+      tft.print("45M OK");
     } else {
-      tft.setTextColor(COLOR_MUTED);
-      tft.setTextSize(1);
-      tft.setCursor(113, r2Y + 32);
-      tft.print("--");
+      tft.print("TARGET");
+    }
+
+    tft.setCursor(114, r2Y + 36);
+    tft.setTextColor(productivitySpike ? COLOR_GREEN : COLOR_MUTED);
+    tft.print("+10 PTS");
+
+    // Right: ARROW KIND OF GRAPH (Ascending Spike Curve + Arrow Head)
+    // Dim baseline grid line
+    tft.drawFastHLine(158, r2Y + 45, 42, COLOR_PANEL2);
+
+    // Dynamic upward spike arrow trajectory:
+    tft.drawLine(160, r2Y + 44, 170, r2Y + 41, spikeColor);
+    tft.drawLine(170, r2Y + 41, 176, r2Y + 43, spikeColor);
+    // Surge line (2px thick for bold spike feel)
+    tft.drawLine(176, r2Y + 43, 194, r2Y + 24, spikeColor);
+    tft.drawLine(176, r2Y + 44, 194, r2Y + 25, spikeColor);
+
+    // Arrowhead pointing up-right (↗) at (198, r2Y + 20)
+    tft.fillTriangle(198, r2Y + 20, 190, r2Y + 22, 196, r2Y + 28, spikeColor);
+
+    if (productivitySpike) {
+      // Glow dot at peak
+      tft.fillCircle(194, r2Y + 24, 2, ILI9341_WHITE);
     }
   }
 
@@ -2162,34 +2167,34 @@ void drawStatsPage() {
 
   tft.print("TIMEFRAME:");
 
-  // Hourly Button (x: 82, y: 43, w: 50, h: 16)
-  tft.fillRoundRect(82, 43, 50, 16, 4,
+  // Hourly Button (x: 82, y: 43, w: 48, h: 16)
+  tft.fillRoundRect(82, 43, 48, 16, 4,
                     showHourlyStats ? COLOR_ACCENT : COLOR_PANEL2);
   tft.setTextColor(showHourlyStats ? COLOR_BG : COLOR_MUTED);
   tft.setCursor(88, 47);
   tft.print("HOURS");
 
-  // Weekly Button (x: 136, y: 43, w: 50, h: 16)
-  tft.fillRoundRect(136, 43, 50, 16, 4,
+  // Weekly Button (x: 134, y: 43, w: 48, h: 16)
+  tft.fillRoundRect(134, 43, 48, 16, 4,
                     !showHourlyStats ? COLOR_ACCENT : COLOR_PANEL2);
   tft.setTextColor(!showHourlyStats ? COLOR_BG : COLOR_MUTED);
-  tft.setCursor(142, 47);
+  tft.setCursor(140, 47);
   tft.print("WEEKS");
 
   // 3-Color Legend at top right: Green >=80%, Orange 50-79%, Red <50%
-  tft.fillRect(198, 46, 5, 5, COLOR_GREEN);
+  tft.fillRect(194, 46, 5, 5, COLOR_GREEN);
   tft.setTextColor(COLOR_GREEN);
-  tft.setCursor(205, 46);
+  tft.setCursor(201, 46);
   tft.print("80+");
 
-  tft.fillRect(232, 46, 5, 5, COLOR_ORANGE);
+  tft.fillRect(228, 46, 5, 5, COLOR_ORANGE);
   tft.setTextColor(COLOR_ORANGE);
-  tft.setCursor(239, 46);
+  tft.setCursor(235, 46);
   tft.print("50+");
 
-  tft.fillRect(266, 46, 5, 5, COLOR_RED);
+  tft.fillRect(262, 46, 5, 5, COLOR_RED);
   tft.setTextColor(COLOR_RED);
-  tft.setCursor(273, 46);
+  tft.setCursor(269, 46);
   tft.print("<50");
 
   // ===================================================
@@ -2242,8 +2247,6 @@ void drawStatsPage() {
       barColor = COLOR_GREEN;
     else if (percentage >= 50)
       barColor = COLOR_ORANGE;
-    else
-      barColor = COLOR_RED;
 
     // Draw 3D-styled rounded bar
     tft.fillRoundRect(x, 177 - barHeight, 26, barHeight, 3, barColor);
