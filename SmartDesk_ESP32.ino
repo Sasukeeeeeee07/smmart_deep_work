@@ -1808,49 +1808,46 @@ void updateHomePageLiveValues() {
     tft.fillRect(68, r2Y + 44, 25, 3, productivityScore >= 80 ? COLOR_GREEN : COLOR_PANEL2);
   }
 
-  // ── Prod Spike + Arrow Graph (Surge/Spike Trajectory) ────
-  tft.fillRect(113, r2Y + 18, 92, 34, COLOR_PANEL);
+  // ── Prod Spike: Earlier look with just a simple line going according to spike ──
+  tft.fillRect(113, r2Y + 20, 90, 32, COLOR_PANEL);
   if (showProdSpike) {
-    uint16_t spikeColor = productivitySpike ? COLOR_GREEN : (sessionTotalMs >= 45UL * 60UL * 1000UL ? COLOR_ORANGE : COLOR_MUTED);
-    if (productivitySpike && selfRating > 0) {
-      if (selfRating < 3) spikeColor = COLOR_RED;
-      else if (selfRating == 3) spikeColor = COLOR_ORANGE;
-      else spikeColor = COLOR_GREEN;
-    }
-
-    // Left info
-    tft.setTextColor(spikeColor);
-    tft.setTextSize(1);
-    tft.setCursor(114, r2Y + 22);
     if (productivitySpike) {
-      tft.print("SPIKE!");
-    } else if (sessionTotalMs >= 45UL * 60UL * 1000UL) {
-      tft.print("45M OK");
+      uint16_t spikeColor = COLOR_GREEN;
+      if (selfRating > 3)
+        spikeColor = COLOR_GREEN;
+      else if (selfRating == 3)
+        spikeColor = COLOR_ORANGE;
+      else if (selfRating > 0)
+        spikeColor = COLOR_RED;
+
+      tft.setTextColor(spikeColor);
+      tft.setTextSize(1);
+      tft.setCursor(113, r2Y + 24);
+      if (selfRating > 3) {
+        tft.print("YES OK");
+      } else if (selfRating == 3) {
+        tft.print("AVG");
+      } else if (selfRating > 0) {
+        tft.print("POOR");
+      } else {
+        tft.print("SPIKE");
+      }
+
+      // Just a simple line going according to the spike
+      tft.drawLine(155, r2Y + 42, 175, r2Y + 42, spikeColor);
+      tft.drawLine(175, r2Y + 42, 192, r2Y + 24, spikeColor);
+      tft.drawLine(192, r2Y + 24, 202, r2Y + 24, spikeColor);
+      tft.drawLine(155, r2Y + 43, 175, r2Y + 43, spikeColor);
+      tft.drawLine(175, r2Y + 43, 192, r2Y + 25, spikeColor);
+      tft.drawLine(192, r2Y + 25, 202, r2Y + 25, spikeColor);
     } else {
-      tft.print("TARGET");
-    }
+      tft.setTextColor(COLOR_MUTED);
+      tft.setTextSize(1);
+      tft.setCursor(113, r2Y + 28);
+      tft.print("--");
 
-    tft.setCursor(114, r2Y + 36);
-    tft.setTextColor(productivitySpike ? COLOR_GREEN : COLOR_MUTED);
-    tft.print("+10 PTS");
-
-    // Right: ARROW KIND OF GRAPH (Ascending Spike Curve + Arrow Head)
-    // Dim baseline grid line
-    tft.drawFastHLine(158, r2Y + 45, 42, COLOR_PANEL2);
-
-    // Dynamic upward spike arrow trajectory:
-    tft.drawLine(160, r2Y + 44, 170, r2Y + 41, spikeColor);
-    tft.drawLine(170, r2Y + 41, 176, r2Y + 43, spikeColor);
-    // Surge line (2px thick for bold spike feel)
-    tft.drawLine(176, r2Y + 43, 194, r2Y + 24, spikeColor);
-    tft.drawLine(176, r2Y + 44, 194, r2Y + 25, spikeColor);
-
-    // Arrowhead pointing up-right (↗) at (198, r2Y + 20)
-    tft.fillTriangle(198, r2Y + 20, 190, r2Y + 22, 196, r2Y + 28, spikeColor);
-
-    if (productivitySpike) {
-      // Glow dot at peak
-      tft.fillCircle(194, r2Y + 24, 2, ILI9341_WHITE);
+      // Just a simple flat line
+      tft.drawLine(155, r2Y + 42, 202, r2Y + 42, COLOR_MUTED);
     }
   }
 

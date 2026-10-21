@@ -7,7 +7,7 @@ import {
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Mic, Activity, Wifi, WifiOff,
-  History, X, Zap, TrendingUp
+  History, X, Zap
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -948,120 +948,64 @@ export default function DeepWorkPage() {
                   <Zap size={13} className="text-amber-900 animate-bounce" />
                   <span>PRODUCTIVITY SPIKE</span>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20">
-                  +10 SDW pts
+                <span
+                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
+                  style={{
+                    background: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-2)',
+                    color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)',
+                    borderColor: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'
+                  }}
+                >
+                  {currentSession?.productivitySpike ? 'Spike Detected' : 'No Spike'}
                 </span>
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Spike Status</p>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Spike</p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span
-                    className="font-bold text-xl tracking-tight"
+                    className="font-bold text-2xl tracking-tight"
                     style={{
-                      color: currentSession?.productivitySpike ? '#059669' : '#D97706',
+                      color: currentSession?.productivitySpike ? '#059669' : 'var(--ink)',
                       fontFamily: 'DM Sans, sans-serif'
                     }}
                   >
-                    {currentSession?.productivitySpike ? 'SPIKE ACHIEVED' : 'TARGET: 45M FOCUS'}
+                    {currentSession?.productivitySpike ? 'SPIKE' : '--'}
                   </span>
                 </div>
 
-                <p className="text-xs mt-1.5" style={{ color: 'var(--ink-3)' }}>
-                  Achieve 45m continuous focus with ≤1 break to unlock a productivity spike and +10 bonus SDW points.
-                </p>
-
-                {/* ── ARROW KIND OF GRAPH (Ascending Spike Curve + Dynamic Arrowhead) ── */}
-                <div className="mt-3 p-3 rounded-xl border relative overflow-hidden" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <div className="flex items-center justify-between text-[11px] mb-1">
-                    <span className="font-bold flex items-center gap-1.5" style={{ color: currentSession?.productivitySpike ? '#059669' : '#D97706' }}>
-                      <TrendingUp size={14} className={currentSession?.productivitySpike ? 'text-emerald-600' : 'text-amber-600'} />
-                      <span>{currentSession?.productivitySpike ? 'Spike Surge Max Peak' : 'Spike Surge Trajectory'}</span>
-                    </span>
-                    <span className="font-bold font-mono text-xs" style={{ color: 'var(--ink)' }}>
-                      {Math.min(45, Math.floor(activeSec / 60))} / 45m focus
-                    </span>
-                  </div>
-
-                  {/* SVG Arrow Spike Graph */}
-                  <div className="relative h-14 w-full">
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 280 50" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="spikeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor={currentSession?.productivitySpike ? '#059669' : '#F59E0B'} stopOpacity="0.2" />
-                          <stop offset="100%" stopColor={currentSession?.productivitySpike ? '#10B981' : '#F59E0B'} stopOpacity="0.8" />
-                        </linearGradient>
-                        <linearGradient id="spikeStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#94A3B8" />
-                          <stop offset="55%" stopColor={currentSession?.productivitySpike ? '#10B981' : '#F59E0B'} />
-                          <stop offset="100%" stopColor={currentSession?.productivitySpike ? '#059669' : '#D97706'} />
-                        </linearGradient>
-                        <marker id="spikeArrowHead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                          <polygon points="0 1, 8 4, 0 7, 2 4" fill={currentSession?.productivitySpike ? '#059669' : '#D97706'} />
-                        </marker>
-                      </defs>
-
-                      {/* Dotted target line at 45m (Y=12) */}
-                      <line x1="0" y1="12" x2="275" y2="12" stroke="var(--border)" strokeDasharray="3 3" strokeWidth="1" />
-                      <text x="5" y="10" fill="var(--ink-4)" fontSize="8" fontWeight="600">45m Target Spike</text>
-
-                      {/* Baseline */}
-                      <line x1="0" y1="46" x2="275" y2="46" stroke="var(--border)" strokeWidth="1" />
-
-                      {/* Area under spike path */}
+                {/* Just a simple graph: a line going according to the spike, and nothing else */}
+                <div className="mt-4 p-4 rounded-xl border flex items-center justify-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  <svg className="w-full h-16" viewBox="0 0 260 50" preserveAspectRatio="none">
+                    {currentSession?.productivitySpike ? (
+                      // Simple crisp line that spikes upward
                       <path
-                        d="M 5 46 Q 60 44, 110 38 T 190 32 T 260 14 L 260 46 Z"
-                        fill="url(#spikeGrad)"
-                      />
-
-                      {/* Main Dynamic Spike Arrow Curve */}
-                      <path
-                        d="M 5 46 Q 60 44, 110 38 T 190 32 T 260 14"
+                        d="M 10 40 L 100 40 L 140 10 L 250 10"
                         fill="none"
-                        stroke="url(#spikeStroke)"
+                        stroke="#10B981"
                         strokeWidth="3"
                         strokeLinecap="round"
-                        markerEnd="url(#spikeArrowHead)"
+                        strokeLinejoin="round"
                       />
-
-                      {/* Peak Arrow Indicator Circle */}
-                      <circle cx="260" cy="14" r="4" fill={currentSession?.productivitySpike ? '#10B981' : '#F59E0B'} className="animate-ping opacity-75" />
-                      <circle cx="260" cy="14" r="3.5" fill="#ffffff" stroke={currentSession?.productivitySpike ? '#059669' : '#D97706'} strokeWidth="2" />
-                    </svg>
-
-                    {/* Peak badge */}
-                    <div className="absolute right-0 top-0 transform translate-y-[-4px]">
-                      <span
-                        className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded shadow-xs"
-                        style={{
-                          background: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                          color: currentSession?.productivitySpike ? '#065F46' : '#78350F',
-                          border: `1px solid ${currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
-                        }}
-                      >
-                        ↗ {currentSession?.productivitySpike ? '+10 PTS UNLOCKED' : 'SURGE ARROW'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress bar underneath */}
-                  <div className="mt-2 h-1.5 rounded-full overflow-hidden bg-slate-200">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(100, Math.round((Math.min(45, Math.floor(activeSec / 60)) / 45) * 100))}%`,
-                        background: (currentSession?.productivitySpike || Math.floor(activeSec / 60) >= 45) ? 'var(--forest)' : 'var(--amber-w)'
-                      }}
-                    />
-                  </div>
+                    ) : (
+                      // Simple flat line
+                      <path
+                        d="M 10 40 L 250 40"
+                        fill="none"
+                        stroke="#94A3B8"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Spike Bonus Reward:</span>
-              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? 'var(--forest)' : 'var(--amber-w)' }}>
-                {currentSession?.productivitySpike ? 'Earned +10 Points' : 'Pending 45m focus'}
+              <span>Spike Status:</span>
+              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)' }}>
+                {currentSession?.productivitySpike ? 'Productivity Spike Active' : 'Normal Flow'}
               </span>
             </div>
           </div>
