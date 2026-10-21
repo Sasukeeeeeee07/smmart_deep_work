@@ -456,14 +456,15 @@ const Dashboard = () => {
         >
           <div className="flex items-center gap-2.5">
             <Timer size={18} />
-            <span className="tracking-tight font-bold">Deepwork</span>
+            <span className="tracking-tight font-bold">Deepwork Session</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium opacity-90">
-            <span>Enter Deepwork</span>
+            <span>Enter Current Deepwork Session</span>
             <ArrowRight size={15} />
           </div>
         </button>
+
       </div>
     </div>
   );
