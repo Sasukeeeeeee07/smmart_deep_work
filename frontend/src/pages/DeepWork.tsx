@@ -860,51 +860,22 @@ export default function DeepWorkPage() {
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span
                     className="font-bold text-3xl tabular-nums tracking-tight"
-                    style={{
-                      color: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}
+                    style={{ color: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)', fontFamily: 'DM Sans, sans-serif' }}
                   >
                     {productivityScore}%
                   </span>
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded-md"
-                    style={{
-                      background: productivityScore >= 80 ? 'rgba(16, 185, 129, 0.12)' : productivityScore >= 50 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      color: productivityScore >= 80 ? '#065F46' : productivityScore >= 50 ? '#92400E' : '#991B1B'
-                    }}
-                  >
-                    {productivityScore >= 80 ? 'High Flow (Green)' : productivityScore >= 50 ? 'Moderate (Orange)' : 'Needs Focus (Red)'}
+                  <span className="text-xs font-semibold" style={{ color: 'var(--ink-3)' }}>
+                    {productivityScore >= 80 ? 'High Flow / In Zone' : 'Pacing Needed'}
                   </span>
                 </div>
 
-                {/* Progress bar */}
                 <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${productivityScore}%`,
-                      background: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444'
+                      background: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)'
                     }}
-                  />
-                </div>
-
-                {/* Mini 3-zone segmented bar (Red <50, Orange 50-79, Green >=80) */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: productivityScore < 50 ? '#EF4444' : 'rgba(239, 68, 68, 0.2)' }}
-                    title="<50% Red zone"
-                  />
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: (productivityScore >= 50 && productivityScore < 80) ? '#F59E0B' : 'rgba(245, 158, 11, 0.2)' }}
-                    title="50-79% Orange zone"
-                  />
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: productivityScore >= 80 ? '#10B981' : 'rgba(16, 185, 129, 0.2)' }}
-                    title=">=80% Green zone"
                   />
                 </div>
               </div>
@@ -948,64 +919,53 @@ export default function DeepWorkPage() {
                   <Zap size={13} className="text-amber-900 animate-bounce" />
                   <span>PRODUCTIVITY SPIKE</span>
                 </div>
-                <span
-                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
-                  style={{
-                    background: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-2)',
-                    color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)',
-                    borderColor: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'
-                  }}
-                >
-                  {currentSession?.productivitySpike ? 'Spike Detected' : 'No Spike'}
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20">
+                  +10 SDW pts
                 </span>
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Spike</p>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Spike Status</p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span
-                    className="font-bold text-2xl tracking-tight"
+                    className="font-bold text-xl tracking-tight"
                     style={{
-                      color: currentSession?.productivitySpike ? '#059669' : 'var(--ink)',
+                      color: currentSession?.productivitySpike ? 'var(--forest)' : 'var(--amber-w)',
                       fontFamily: 'DM Sans, sans-serif'
                     }}
                   >
-                    {currentSession?.productivitySpike ? 'SPIKE' : '--'}
+                    {currentSession?.productivitySpike ? 'SPIKE ACHIEVED' : 'TARGET: 45M FOCUS'}
                   </span>
                 </div>
 
-                {/* Just a simple graph: a line going according to the spike, and nothing else */}
-                <div className="mt-4 p-4 rounded-xl border flex items-center justify-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <svg className="w-full h-16" viewBox="0 0 260 50" preserveAspectRatio="none">
-                    {currentSession?.productivitySpike ? (
-                      // Simple crisp line that spikes upward
-                      <path
-                        d="M 10 40 L 100 40 L 140 10 L 250 10"
-                        fill="none"
-                        stroke="#10B981"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    ) : (
-                      // Simple flat line
-                      <path
-                        d="M 10 40 L 250 40"
-                        fill="none"
-                        stroke="#94A3B8"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-                    )}
-                  </svg>
+                <p className="text-xs mt-2" style={{ color: 'var(--ink-3)' }}>
+                  Achieve 45m continuous focus with ≤1 break to unlock a productivity spike and +10 bonus SDW points.
+                </p>
+
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-[11px] mb-1">
+                    <span style={{ color: 'var(--ink-4)' }}>Pacing Progress:</span>
+                    <span className="font-bold font-mono" style={{ color: 'var(--ink)' }}>
+                      {Math.min(45, Math.floor(activeSec / 60))} / 45m
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, Math.round((Math.min(45, Math.floor(activeSec / 60)) / 45) * 100))}%`,
+                        background: (currentSession?.productivitySpike || Math.floor(activeSec / 60) >= 45) ? 'var(--forest)' : 'var(--amber-w)'
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Spike Status:</span>
-              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)' }}>
-                {currentSession?.productivitySpike ? 'Productivity Spike Active' : 'Normal Flow'}
+              <span>Spike Bonus Reward:</span>
+              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? 'var(--forest)' : 'var(--amber-w)' }}>
+                {currentSession?.productivitySpike ? 'Earned +10 Points' : 'Pending 45m focus'}
               </span>
             </div>
           </div>

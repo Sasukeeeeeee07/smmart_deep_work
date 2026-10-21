@@ -4,7 +4,7 @@ import { sessionService } from '../services/api';
 import { TrendingUp, Timer, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, ReferenceLine
+  BarChart, Bar, Cell,
 } from 'recharts';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -26,14 +26,6 @@ const fmtMin = (mins: number) => {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-};
-
-const getGodGraphColor = (productivity: number, isSelected = false) => {
-  if (isSelected) return '#065F46';
-  if (productivity >= 80) return '#10B981'; // Green (>=80%)
-  if (productivity >= 50) return '#F59E0B'; // Orange (50-79%)
-  if (productivity > 0)  return '#EF4444'; // Red (<50%)
-  return 'var(--border)';
 };
 
 const computeClientAnalytics = (sessions: any[]) => {
@@ -147,28 +139,20 @@ const AreaTip = ({ active, payload, label }: any) => {
 const BarTip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as WeekData;
-  const color = getGodGraphColor(d.productivity);
-  const statusLabel = d.productivity >= 80 ? 'High Flow (Green)' : d.productivity >= 50 ? 'Moderate (Orange)' : 'Needs Focus (Red)';
   return (
-    <div className="card shadow-xl" style={{ padding: '12px 16px', minWidth: 175, fontSize: 12 }}>
-      <p className="font-semibold mb-2" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{d.name} ({d.label})</p>
-      <div className="space-y-1.5">
-        <div className="flex justify-between items-center gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Productivity:</span>
-          <span className="font-bold text-sm" style={{ color }}>{d.productivity}%</span>
+    <div className="card" style={{ padding: '12px 16px', minWidth: 160, fontSize: 12 }}>
+      <p className="font-semibold mb-2" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{d.name}</p>
+      <div className="space-y-1">
+        <div className="flex justify-between gap-4">
+          <span style={{ color: 'var(--ink-3)' }}>Productivity</span>
+          <span className="font-bold" style={{ color: d.productivity >= 80 ? 'var(--sage-dark)' : 'var(--amber-w)' }}>{d.productivity}%</span>
         </div>
-        <div className="flex justify-between items-center gap-4">
-          <span style={{ color: 'var(--ink-4)' }}>Category:</span>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shadow-2xs" style={{ background: `${color}18`, color, border: `1px solid ${color}40` }}>
-            {statusLabel}
-          </span>
-        </div>
-        <div className="flex justify-between gap-4 pt-1 border-t border-[var(--border)]">
-          <span style={{ color: 'var(--ink-3)' }}>Focus Time:</span>
+        <div className="flex justify-between gap-4">
+          <span style={{ color: 'var(--ink-3)' }}>Focus</span>
           <span className="font-semibold tabular-nums" style={{ color: 'var(--forest)' }}>{fmtMin(d.focus)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Sessions:</span>
+          <span style={{ color: 'var(--ink-3)' }}>Sessions</span>
           <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>{d.sessions}</span>
         </div>
       </div>
@@ -403,12 +387,6 @@ const Dashboard = () => {
                   <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
                   <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }} />
-
-                  {/* 80% High Flow Reference Threshold */}
-                  <ReferenceLine y={80} stroke="#10B981" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: '80% High Flow', fill: '#059669', fontSize: 10, position: 'right' }} />
-                  {/* 50% Target Reference Threshold */}
-                  <ReferenceLine y={50} stroke="#F59E0B" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: '50% Target', fill: '#D97706', fontSize: 10, position: 'right' }} />
-
                   <Bar
                     dataKey="productivity"
                     radius={[6, 6, 0, 0]}
@@ -426,9 +404,17 @@ const Dashboard = () => {
                         <Cell
                           key={i}
                           cursor="pointer"
-                          stroke={isSelected ? '#065F46' : 'none'}
+                          stroke={isSelected ? '#425443' : 'none'}
                           strokeWidth={isSelected ? 3 : 0}
-                          fill={getGodGraphColor(entry.productivity, isSelected)}
+                          fill={
+                            isSelected
+                              ? '#425443'
+                              : entry.productivity >= 80
+                              ? '#5E7052'
+                              : entry.productivity > 0
+                              ? '#B87939'
+                              : 'var(--border)'
+                          }
                         />
                       );
                     })}
@@ -438,16 +424,11 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* 3-Color God Graph Legend: Green >=80%, Orange 50-79%, Red <50% */}
-          <div className="flex items-center gap-5 mt-6 pt-4 border-t border-[var(--border)] flex-wrap">
-            {[
-              { color: '#10B981', label: '≥80% High Flow (Green)' },
-              { color: '#F59E0B', label: '50–79% Moderate (Orange)' },
-              { color: '#EF4444', label: '<50% Needs Focus (Red)' }
-            ].map(l => (
+          <div className="flex items-center gap-5 mt-6 pt-4 border-t border-[var(--border)]">
+            {[{ color: '#5E7052', label: '≥80% High Flow' }, { color: '#B87939', label: '<80% Moderate' }].map(l => (
               <div key={l.label} className="flex items-center gap-2">
-                <span className="rounded-sm shadow-xs" style={{ width: 10, height: 10, background: l.color, display: 'block' }} />
-                <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>{l.label}</span>
+                <span className="rounded-sm" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
               </div>
             ))}
           </div>
