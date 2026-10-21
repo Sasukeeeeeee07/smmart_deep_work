@@ -1274,12 +1274,13 @@ void drawAlarmScreen() {
   tft.setTextSize(2);
   tft.setTextColor(isInvalidSession ? COLOR_RED : COLOR_YELLOW);
   tft.setCursor(20, 62);
+  int currentMaxBreaks = (sessionTotalMs > 180UL * 60UL * 1000UL) ? 4 : 3;
   if (isInvalidSession) {
     tft.print("SESSION INVALID & DIED");
     tft.setTextSize(1);
     tft.setTextColor(COLOR_TEXT);
     tft.setCursor(20, 88);
-    tft.print("Exceeded limit of 3 breaks (5m+ each).");
+    tft.printf("Exceeded limit of %d breaks (5m+ each).", currentMaxBreaks);
     tft.setCursor(20, 104);
     tft.print("Session terminated. 0 SDW points.");
   } else {
@@ -1290,9 +1291,9 @@ void drawAlarmScreen() {
     tft.print("You left desk for 30s. Come back to study!");
     tft.setCursor(20, 104);
     if (currentBreakCounted) {
-      tft.printf("Break %d of 3 max allowed (crossed 5m).", sessionBreakCount);
+      tft.printf("Break %d of %d max allowed (crossed 5m).", sessionBreakCount, currentMaxBreaks);
     } else {
-      tft.printf("Away < 5m (Breaks: %d/3 max. Not a break yet)", sessionBreakCount);
+      tft.printf("Away < 5m (Breaks: %d/%d max. Not a break yet)", sessionBreakCount, currentMaxBreaks);
     }
   }
 
@@ -3625,7 +3626,8 @@ void loop() {
       sessionBreakCount++;
       dailyBreakCount++;
       preferences.putInt("brkCnt", dailyBreakCount);
-      Serial.printf("[BREAK COUNTED] Absence crossed 5 minutes! Counted as Break #%d of 3.\n", sessionBreakCount);
+      int maxBrks = (sessionTotalMs > 180UL * 60UL * 1000UL) ? 4 : 3;
+      Serial.printf("[BREAK COUNTED] Absence crossed 5 minutes! Counted as Break #%d of %d.\n", sessionBreakCount, maxBrks);
 
       // Spike: 45+ min active with first 5m+ break
       if (sessionTotalMs >= 45UL * 60UL * 1000UL && sessionBreakCount == 1) {
@@ -3643,15 +3645,19 @@ void loop() {
         vTaskDelay(pdMS_TO_TICKS(1));
       }
 
-      // RULE: More than 3 breaks (5m+ each) => SESSION BECOMES INVALID AND DIES
-      if (sessionBreakCount > 3) {
+      // RULE: in 2 hr session max 3 breaks; if extended and session > 3 hrs (>180m), allow 1 more break (max 4)
+      int maxAllowedBreaks = 3;
+      if (sessionTotalMs > 180UL * 60UL * 1000UL) {
+        maxAllowedBreaks = 4;
+      }
+      if (sessionBreakCount > maxAllowedBreaks) {
         sessionState = SESSION_INVALID;
         soundAlarmActive = true;
         alarmTriggeredAtMs = millis();
-        soundAlarmMessage = "SESSION INVALID: EXCEEDED 3 BREAKS (5M+)!";
+        soundAlarmMessage = "SESSION INVALID: EXCEEDED " + String(maxAllowedBreaks) + " BREAKS!";
         isInvalidSession = true;
         moderatorAlarms++;
-        Serial.println("[ALARM BEEP] SESSION INVALID & DIED: Exceeded 3 breaks limit (5m+ each)!");
+        Serial.printf("[ALARM BEEP] SESSION INVALID & DIED: Exceeded %d breaks limit (5m+ each)!\n", maxAllowedBreaks);
 
         drawAlarmScreen();
 
@@ -3660,11 +3666,12 @@ void loop() {
           http.begin(String(sessionBaseURL) + "/alarm-trigger");
           http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
-          http.POST("{\"message\":\"SESSION INVALID: Exceeded 3 breaks limit (5m+)\",\"isInvalid\":true}");
+          http.POST("{\"message\":\"SESSION INVALID: Exceeded " + String(maxAllowedBreaks) + " breaks limit\",\"isInvalid\":true}");
           http.end();
           vTaskDelay(pdMS_TO_TICKS(1));
         }
-      } else if (soundAlarmActive) {
+      }
+ else if (soundAlarmActive) {
         drawAlarmScreen(); // Update screen to reflect Break X of 3
       }
     }

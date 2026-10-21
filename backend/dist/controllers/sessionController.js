@@ -262,29 +262,35 @@ const countBreak = async (req, res) => {
             return res.status(404).json({ success: false, error: 'No session in break' });
         }
         session.breakCount = (session.breakCount || 0) + 1;
-        // RULE: More than 3 breaks (5+ mins each) => SESSION BECOMES INVALID AND DIES
-        if (session.breakCount > 3) {
+        // RULE: in 2 hr session max 3 breaks; if extended and session > 3 hrs (>180m), allow 1 more break (max 4)
+        const sessionDurationMinutes = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+        const sessionElapsedMinutes = session.startTime
+            ? Math.floor((Date.now() - new Date(session.startTime).getTime()) / 60000)
+            : (session.activeMinutes || 0) + (session.totalBreakMinutes || 0);
+        const effectiveMinutes = Math.max(sessionDurationMinutes, sessionElapsedMinutes);
+        const maxAllowedBreaks = effectiveMinutes > 180 ? 4 : 3;
+        if (session.breakCount > maxAllowedBreaks) {
             session.status = 'INVALID';
-            session.invalidReason = 'Exceeded maximum 3 breaks (5m+ each) limit in session';
+            session.invalidReason = `Exceeded maximum ${maxAllowedBreaks} breaks limit in session (${effectiveMinutes > 180 ? 'extended session > 3 hrs allows max 4 breaks' : 'standard 2 hr session allows max 3 breaks'})`;
             session.alarmActive = true;
-            session.alarmMessage = 'SESSION INVALID: EXCEEDED 3 BREAKS';
+            session.alarmMessage = `SESSION INVALID: EXCEEDED ${maxAllowedBreaks} BREAKS`;
             session.sdwPointsEarned = 0;
             session.endTime = new Date();
             session.moderationLog.push({
                 type: 'ALARM',
-                message: 'Session died: Exceeded 3 breaks limit (5m+ each)',
+                message: `Session died: Exceeded ${maxAllowedBreaks} breaks limit (5m+ each)`,
                 timestamp: new Date()
             });
             await session.save();
             const lockRes = await handleSessionInvalidation(session.deviceUid);
-            console.log(`[SESSION] Invalidation: ${session._id} exceeded 3 breaks limit (5m+ each). Lockout status: ${lockRes?.isLockedOut}`);
+            console.log(`[SESSION] Invalidation: ${session._id} exceeded ${maxAllowedBreaks} breaks limit. Lockout status: ${lockRes?.isLockedOut}`);
             return res.json({
                 success: true,
                 data: {
                     invalid: true,
                     status: 'INVALID',
                     breakCount: session.breakCount,
-                    message: 'SESSION INVALID: EXCEEDED 3 BREAKS',
+                    message: `SESSION INVALID: EXCEEDED ${maxAllowedBreaks} BREAKS`,
                     lockedOut: lockRes?.isLockedOut || false,
                     remainingSeconds: lockRes?.isLockedOut ? 48 * 3600 : 0,
                     invalidSessionCount: lockRes?.invalidSessionCount || 0
