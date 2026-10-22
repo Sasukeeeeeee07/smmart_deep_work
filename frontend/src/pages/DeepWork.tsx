@@ -7,7 +7,7 @@ import {
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Mic, Activity, Wifi, WifiOff,
-  History, X, Hourglass, Calendar, Shield
+  History, X, Zap
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -217,6 +217,23 @@ export default function DeepWorkPage() {
   const maxAllowedBreaks = isOver3Hours ? 4 : 3;
   const breakCount = currentSession?.breakCount || currentSession?.breaks?.length || 0;
 
+  // Intervention elapsed time formatter: e.g. "45 minutes", "2 hr 14 minutes"
+  const formatInterventionTime = (sessionStartStr?: string, itemTimeStr?: string) => {
+    if (!sessionStartStr || !itemTimeStr) return '45 minutes';
+    try {
+      const start = new Date(sessionStartStr).getTime();
+      const time = new Date(itemTimeStr).getTime();
+      const diffSec = Math.max(0, Math.floor((time - start) / 1000));
+      const hrs = Math.floor(diffSec / 3600);
+      const mins = Math.floor((diffSec % 3600) / 60);
+      if (hrs > 0) {
+        return `${hrs} hr ${mins} min`;
+      }
+      return `${Math.max(1, mins)} min`;
+    } catch {
+      return '45 min';
+    }
+  };
 
   const selectedDevice = devices.find(d => d.uid === selectedUid);
 
@@ -806,17 +823,16 @@ export default function DeepWorkPage() {
           </div>
         )}
 
-        {/* ── 3 Clean Spacious Metric Cards ─────────────────────────────── */}
+        {/* ── 2. 3 CLEAN SPACIOUS METRIC CARDS (Matching Handwritten Sketch) ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
 
-          {/* CARD 1: TIMING & BREAKS */}
+          {/* CARD 1: PRODUCTIVITY SCORE */}
           <div
             className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <div>
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)] flex-wrap gap-2">
-                {/* HIGHLIGHTED CARD 1 HEADER */}
                 <div
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-emerald-950 border border-emerald-400"
                   style={{
@@ -824,8 +840,8 @@ export default function DeepWorkPage() {
                     boxShadow: '0 2px 10px rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  <Hourglass size={13} className="text-emerald-900 animate-pulse" />
-                  <span>SESSION BREAKS & TIMING</span>
+                  <Activity size={13} className="text-emerald-900 animate-pulse" />
+                  <span>SESSION PRODUCTIVITY SCORE</span>
                 </div>
                 <span
                   className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
@@ -840,80 +856,88 @@ export default function DeepWorkPage() {
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Desk Time</p>
-                <p className="font-mono font-bold text-2xl lg:text-3xl tabular-nums tracking-tight mt-0.5" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                  {currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}
-                </p>
-              </div>
-
-              <div className="mt-4 space-y-2.5 text-xs" style={{ color: 'var(--ink-2)' }}>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
-                    <Calendar size={13} className="text-emerald-600" /> Session Started:
-                  </span>
-                  <span className="font-semibold font-mono">
-                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
-                    <Timer size={13} className="text-sky-600" /> Session Focus Time:
-                  </span>
-                  <span className="font-semibold font-mono">
-                    {fmtHMS(activeSec)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
-                    <Hourglass size={13} className="text-amber-600" /> Session Break Duration:
-                  </span>
-                  <span className="font-semibold font-mono">
-                    {currentSession?.totalBreakMinutes || 0}m
-                  </span>
-                </div>
-                {/* ── HIGHLIGHTED NUMBER OF BREAKS TAKEN (RED & BLINKING) ── */}
-                <div className="flex items-center justify-between p-2 rounded-xl border border-rose-300/60 bg-rose-50/50 shadow-xs">
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-rose-800">
-                    <Pause size={13} className="text-rose-600" /> Session Breaks Taken (5m+):
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Productivity</p>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span
+                    className="font-bold text-3xl tabular-nums tracking-tight"
+                    style={{
+                      color: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
+                  >
+                    {productivityScore}%
                   </span>
                   <span
-                    className={`font-mono text-xs px-2.5 py-1 rounded-lg transition-all ${
-                      breakCount > 0
-                        ? 'animate-blink-red font-black tracking-wide'
-                        : 'text-rose-700 bg-rose-100/80 border border-rose-200 font-bold'
-                    }`}
+                    className="text-xs font-bold px-2 py-0.5 rounded-md"
+                    style={{
+                      background: productivityScore >= 80 ? 'rgba(16, 185, 129, 0.12)' : productivityScore >= 50 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                      color: productivityScore >= 80 ? '#065F46' : productivityScore >= 50 ? '#92400E' : '#991B1B'
+                    }}
                   >
-                    {breakCount} / {maxAllowedBreaks} Breaks
+                    {productivityScore >= 80 ? 'High Flow (Green)' : productivityScore >= 50 ? 'Moderate (Orange)' : 'Needs Focus (Red)'}
                   </span>
                 </div>
 
+                {/* Progress bar */}
+                <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${productivityScore}%`,
+                      background: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444'
+                    }}
+                  />
+                </div>
+
+                {/* Mini 3-zone segmented bar (Red <50, Orange 50-79, Green >=80) */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <div
+                    className="h-1 flex-1 rounded-full transition-all"
+                    style={{ background: productivityScore < 50 ? '#EF4444' : 'rgba(239, 68, 68, 0.2)' }}
+                    title="<50% Red zone"
+                  />
+                  <div
+                    className="h-1 flex-1 rounded-full transition-all"
+                    style={{ background: (productivityScore >= 50 && productivityScore < 80) ? '#F59E0B' : 'rgba(245, 158, 11, 0.2)' }}
+                    title="50-79% Orange zone"
+                  />
+                  <div
+                    className="h-1 flex-1 rounded-full transition-all"
+                    style={{ background: productivityScore >= 80 ? '#10B981' : 'rgba(16, 185, 129, 0.2)' }}
+                    title=">=80% Green zone"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2 text-xs" style={{ color: 'var(--ink-2)' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-4)' }}>
-                    <RotateCcw size={13} className="text-violet-600" /> Session Resumed:
-                  </span>
-                  <span className="font-semibold">
-                    {currentSession?.lastResumedAt ? formatTime(currentSession.lastResumedAt) : (isRunning ? 'Continuous' : '—')}
-                  </span>
+                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Total Desk Time:</span>
+                  <span className="font-semibold font-mono">{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Focus Time:</span>
+                  <span className="font-semibold font-mono">{fmtHMS(activeSec)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Break Duration:</span>
+                  <span className="font-semibold font-mono">{currentSession?.totalBreakMinutes || 0}m</span>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Session Extension:</span>
-              <span className="font-semibold" style={{ color: (currentSession?.extensionMinutes || 0) > 0 ? 'var(--amber-w)' : 'var(--ink)' }}>
-                {(currentSession?.extensionMinutes || 0) > 0 ? `+${currentSession?.extensionMinutes}m (Target: ${targetMin}m)` : `Standard 120m`}
-              </span>
+              <span>Target Focus Duration:</span>
+              <span className="font-semibold" style={{ color: 'var(--ink)' }}>{targetMin} minutes</span>
             </div>
           </div>
 
-          {/* CARD 2: PRODUCTIVITY & RATING */}
+          {/* CARD 2: PRODUCTIVITY SPIKE */}
           <div
             className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <div>
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)] flex-wrap gap-2">
-                {/* HIGHLIGHTED CARD 2 HEADER */}
                 <div
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-amber-950 border border-amber-400"
                   style={{
@@ -921,59 +945,117 @@ export default function DeepWorkPage() {
                     boxShadow: '0 2px 10px rgba(245, 158, 11, 0.22)'
                   }}
                 >
-                  <Star size={13} className="text-amber-900 animate-pulse" />
-                  <span>SESSION PRODUCTIVITY & RATING</span>
+                  <Zap size={13} className="text-amber-900 animate-bounce" />
+                  <span>PRODUCTIVITY SPIKE</span>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                  +{currentSession?.sdwPointsEarned || (productivityScore >= 80 ? 10 : 0)} Session pts
+                <span
+                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
+                  style={{
+                    background: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-2)',
+                    color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)',
+                    borderColor: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'
+                  }}
+                >
+                  {currentSession?.productivitySpike ? 'Spike Detected' : 'No Spike'}
                 </span>
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Productivity Score</p>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Spike</p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span
-                    className="font-bold text-2xl lg:text-3xl tabular-nums tracking-tight"
-                    style={{ color: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)', fontFamily: 'DM Sans, sans-serif' }}
+                    className="font-bold text-2xl tracking-tight"
+                    style={{
+                      color: currentSession?.productivitySpike ? '#059669' : 'var(--ink)',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
                   >
-                    {productivityScore}%
-                  </span>
-                  <span className="text-[11px] font-medium" style={{ color: 'var(--ink-4)' }}>
-                    {productivityScore >= 80 ? 'High Focus' : 'Pacing Needed'}
+                    {currentSession?.productivitySpike ? 'SPIKE' : '--'}
                   </span>
                 </div>
-                <div className="mt-2.5 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${productivityScore}%`,
-                      background: productivityScore >= 80 ? 'var(--forest)' : 'var(--amber-w)'
-                    }}
-                  />
+
+                {/* Just a simple graph: a line going according to the spike, and nothing else */}
+                <div className="mt-4 p-4 rounded-xl border flex items-center justify-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                  <svg className="w-full h-16" viewBox="0 0 260 50" preserveAspectRatio="none">
+                    {currentSession?.productivitySpike ? (
+                      // Simple crisp line that spikes upward
+                      <path
+                        d="M 10 40 L 100 40 L 140 10 L 250 10"
+                        fill="none"
+                        stroke="#10B981"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ) : (
+                      // Simple flat line
+                      <path
+                        d="M 10 40 L 250 40"
+                        fill="none"
+                        stroke="#94A3B8"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </svg>
                 </div>
               </div>
+            </div>
 
-              {/* Star Rating */}
-              <div className="mt-4">
-                <p className="text-[10px] uppercase font-semibold tracking-wider mb-1" style={{ color: 'var(--ink-4)' }}>Current Session Self Rating</p>
-                <div className="flex items-center gap-1.5">
+            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
+              <span>Spike Status:</span>
+              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)' }}>
+                {currentSession?.productivitySpike ? 'Productivity Spike Active' : 'Normal Flow'}
+              </span>
+            </div>
+          </div>
+
+          {/* CARD 3: SELF RATING */}
+          <div
+            className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div>
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)] flex-wrap gap-2">
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-indigo-950 border border-indigo-300"
+                  style={{
+                    background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
+                    boxShadow: '0 2px 10px rgba(99, 102, 241, 0.18)'
+                  }}
+                >
+                  <Star size={13} className="text-indigo-800" />
+                  <span>SESSION SELF RATING</span>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                  +{currentSession?.sdwPointsEarned || (productivityScore >= 80 ? 10 : 0)} SDW pts
+                </span>
+              </div>
+
+              <div>
+                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Interactive Rating</p>
+                <div className="flex items-center gap-1.5 mt-2">
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
                       key={star}
                       onClick={() => handleRate(star)}
-                      className="p-1 rounded-md transition-transform hover:scale-125 cursor-pointer"
+                      className="p-1.5 rounded-lg transition-transform hover:scale-125 cursor-pointer bg-slate-50 border border-slate-200 hover:border-amber-400 shadow-xs"
                       title={`Rate ${star} star${star > 1 ? 's' : ''}`}
                     >
                       <Star
-                        size={20}
+                        size={22}
                         style={{
-                          color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'var(--border-strong)',
+                          color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : '#cbd5e1',
                           fill: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'none',
                         }}
                       />
                     </button>
                   ))}
                 </div>
+
+                <p className="text-xs mt-3" style={{ color: 'var(--ink-3)' }}>
+                  Rate your focus depth after or during the session to record your SDW score.
+                </p>
               </div>
             </div>
 
@@ -985,80 +1067,133 @@ export default function DeepWorkPage() {
             </div>
           </div>
 
-          {/* CARD 3: DESK STATUS & RULES */}
-          <div
-            className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <div>
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)] flex-wrap gap-2">
-                {/* HIGHLIGHTED CARD 3 HEADER */}
+        </div>
+
+        {/* ── 3. MD - MODERATOR INTERVENTIONS TIMELINE & 3HR BREAK RULE BANNER ── */}
+        <div
+          className="p-5 rounded-2xl border transition-all shadow-xs"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          {/* Header row from sketch: MD • * Intervention : No. of time */}
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-[var(--border)] flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span
+                className="px-2.5 py-1 rounded-lg text-xs font-black tracking-wide text-white"
+                style={{ background: 'var(--forest)' }}
+              >
+                MD
+              </span>
+              <span className="font-bold text-sm tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                * Intervention : No. of time
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold" style={{ color: 'var(--ink-4)' }}>
+                Session: {selectedUid}
+              </span>
+            </div>
+          </div>
+
+          {/* Timeline of interventions */}
+          <div className="space-y-2.5">
+            {currentSession?.moderationLog && currentSession.moderationLog.length > 0 ? (
+              currentSession.moderationLog.map((item, idx) => (
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-indigo-950 border border-indigo-300"
-                  style={{
-                    background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
-                    boxShadow: '0 2px 10px rgba(99, 102, 241, 0.18)'
-                  }}
+                  key={idx}
+                  className="p-3 rounded-xl border flex items-center justify-between flex-wrap gap-3 transition-colors hover:border-[var(--forest)]"
+                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
                 >
-                  <Shield size={13} className="text-indigo-800" />
-                  <span>CURRENT SESSION STATUS</span>
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                  {selectedUid}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <div className="flex items-center gap-2">
-                    <Volume2 size={15} className={alarmCount > 0 ? 'text-rose-600' : 'text-slate-400'} />
-                    <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Current Session Alarms</span>
-                  </div>
-                  <span className="font-bold text-xs px-2 py-0.5 rounded-md" style={{ background: alarmCount > 0 ? 'rgba(225,29,72,0.1)' : 'var(--surface)', color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
-                    {alarmCount} alerts ({alarmDurationMinutes}m)
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-xl border border-rose-200/70 bg-rose-50/40">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={15} className="text-rose-600" />
-                    <span className="text-xs font-bold text-rose-950">Current Session Break Limit Rule</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-3">
                     <span
-                      className={`font-mono text-xs px-2.5 py-0.5 rounded-lg transition-all ${
-                        breakCount > 0
-                          ? 'animate-blink-red font-black shadow-xs'
-                          : 'bg-rose-100 text-rose-700 border border-rose-200 font-bold'
-                      }`}
+                      className="px-2 py-0.5 rounded-md font-mono text-xs font-bold shrink-0"
+                      style={{
+                        background: item.type === 'ALARM' ? 'rgba(225,29,72,0.1)' : 'rgba(66,84,67,0.1)',
+                        color: item.type === 'ALARM' ? 'var(--error)' : 'var(--forest)'
+                      }}
                     >
-                      {breakCount} Taken
+                      #{idx + 1} time
                     </span>
-                    <span className="font-bold text-xs text-rose-800">
-                      / {maxAllowedBreaks} Max Allowed
+                    <div>
+                      <p className="text-xs font-bold" style={{ color: 'var(--ink)' }}>
+                        {idx + 1} time in {formatInterventionTime(currentSession?.startTime, item.timestamp)}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                        {item.message}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-right">
+                    <span className="text-[11px] font-mono" style={{ color: 'var(--ink-4)' }}>
+                      {formatTime(item.timestamp)}
+                    </span>
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+                      style={{
+                        borderColor: item.type === 'ALARM' ? 'rgba(225,29,72,0.3)' : 'var(--border)',
+                        color: item.type === 'ALARM' ? 'var(--error)' : 'var(--ink-3)'
+                      }}
+                    >
+                      {item.type}
                     </span>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div
+                className="p-4 rounded-xl text-center border border-dashed"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+              >
+                <p className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>
+                  No moderator interventions triggered yet for this session.
+                </p>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--ink-4)' }}>
+                  AI moderator monitors workstation presence, away timers, and focus pacing automatically.
+                </p>
+              </div>
+            )}
+          </div>
 
-                <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-[11px] flex items-center justify-between">
-                  <span>Session &gt; 3 hr rule:</span>
-                  <span className="font-semibold text-emerald-700">
-                    {isOver3Hours ? '4th break active' : '1 extra break allowed if > 3h'}
-                  </span>
-                </div>
-
+          {/* Bottom Banner from Notebook Sketch: "If session > 3 hr then allow 1 break." */}
+          <div
+            className="mt-4 p-4 rounded-xl border flex items-center justify-between flex-wrap gap-3"
+            style={{
+              background: isOver3Hours ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+              borderColor: isOver3Hours ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.35)',
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle size={18} className={isOver3Hours ? 'text-emerald-700 shrink-0' : 'text-amber-700 shrink-0'} />
+              <div>
+                <p className="text-xs font-bold" style={{ color: isOver3Hours ? '#065f46' : '#78350f' }}>
+                  Rule: In 2 hr session customer can take 3 breaks. If session &gt; 3 hr then allow 1 extra break.
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: isOver3Hours ? '#047857' : '#92400e' }}>
+                  {isOver3Hours
+                    ? '🎉 Session crossed 3 hours! 4th break unlocked for this session.'
+                    : 'Standard 2 hr session permits up to 3 breaks (5m+ each).'}
+                </p>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between">
-              <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>History Logs:</span>
+            <div className="flex items-center gap-2.5">
+              {/* Highlighted Red Blinking Break Tracker */}
+              <span
+                className={`text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs ${
+                  breakCount > 0
+                    ? 'animate-blink-red font-black tracking-wide'
+                    : 'text-rose-700 bg-rose-100/90 border border-rose-300 font-bold'
+                }`}
+              >
+                {breakCount} / {maxAllowedBreaks} BREAKS TAKEN
+              </span>
+
               <button
                 onClick={() => setShowHistoryModal(true)}
-                className="text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors hover:text-[var(--forest)]"
-                style={{ color: 'var(--forest)' }}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors flex items-center gap-1.5 cursor-pointer bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50 shadow-xs"
               >
-                <span>View Previous Sessions History</span>
-                <ArrowRight size={13} />
+                <History size={13} />
+                <span>History</span>
               </button>
             </div>
           </div>
