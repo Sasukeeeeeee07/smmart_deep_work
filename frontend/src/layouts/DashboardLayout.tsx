@@ -103,18 +103,12 @@ export default function DashboardLayout() {
           </button>
 
           <Link to="/select-mode" className="flex items-center gap-2.5 group">
-            <div
-              className="flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
-              style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--forest)' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-              </svg>
-            </div>
-            <div>
+            <img
+              src="/smmart-logo.png"
+              alt="smmart"
+              className="h-8 md:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+            />
+            <div className="hidden sm:block">
               <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                 smmart
               </p>

@@ -46,17 +46,12 @@ const Login = () => {
       >
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center justify-center"
-            style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--forest)' }}
-          >
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-              <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-              <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-              <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-            </svg>
-          </div>
+          <img
+            src="/smmart-logo.png"
+            alt="smmart"
+            className="h-10 w-auto object-contain transition-transform hover:scale-105"
+          />
+          <div className="h-5 w-[1px]" style={{ background: 'var(--border)' }} />
           <div>
             <p
               className="font-semibold leading-none"
@@ -90,7 +85,7 @@ const Login = () => {
             className="leading-relaxed max-w-sm"
             style={{ color: 'var(--ink-3)', fontSize: 16 }}
           >
-            SmartDesk OS connects your physical workspace to intelligent session
+            smmart Desk connects your physical workspace to intelligent session
             monitoring — so you can understand how you truly work.
           </p>
         </div>
@@ -135,18 +130,12 @@ const Login = () => {
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2.5 mb-10">
-            <div
-              className="flex items-center justify-center"
-              style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--forest)' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-                <rect x="9" y="2" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="2" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.55"/>
-                <rect x="9" y="9" width="5" height="5" rx="1.5" fill="white" fillOpacity="0.95"/>
-              </svg>
-            </div>
-            <span className="font-semibold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>
+            <img
+              src="/smmart-logo.png"
+              alt="smmart"
+              className="h-8 w-auto object-contain"
+            />
+            <span className="font-semibold text-sm" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>
               smmart deep work
             </span>
           </div>
@@ -241,7 +230,7 @@ const Login = () => {
             className="mt-8 text-center"
             style={{ color: 'var(--ink-4)', fontSize: 12 }}
           >
-            SmartDesk OS — workspace intelligence for focused professionals
+            smmart Desk — workspace intelligence for focused professionals
           </p>
         </div>
       </div>

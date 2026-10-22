@@ -47,11 +47,8 @@ export default function SelectMode() {
           />
           <div className="hidden sm:block h-5 w-[1px]" style={{ background: 'var(--border)' }} />
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)', border: '1px solid var(--border)' }}>
-              {user?.role || 'USER'}
-            </span>
-            <span className="text-xs hidden md:inline" style={{ color: 'var(--ink-4)' }}>
-              {user?.name || user?.email}
+            <span className="text-xs font-bold px-3 py-1 rounded-lg" style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)', border: '1px solid rgba(66, 84, 67, 0.2)' }}>
+              {user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || 'User'}
             </span>
           </div>
         </div>

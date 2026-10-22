@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/api';
-import { TrendingUp, Timer, ArrowRight, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -228,17 +228,8 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 select-none py-2">
-      {/* ── Top Bar: Back to Workspace Mode & Mode Indicator ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-1">
-        <button
-          onClick={() => navigate('/select-mode')}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-          title="Back to Workspace Selection"
-        >
-          <ArrowLeft size={14} />
-          <span>Back to Workspaces</span>
-        </button>
+      {/* ── Top Bar: Mode Indicator ── */}
+      <div className="flex items-center justify-end flex-wrap gap-3 pb-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border shadow-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink-3)' }}>
             {mode === 'entrepreneur' ? 'Entrepreneur Mode' : 'Individual Mode'}
@@ -435,11 +426,11 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── 1 Long Button: Deepwork (Thin & Sleek) ───────────── */}
+      {/* ── 1 Long Button: Deepwork (Centered Single Title) ───────────── */}
       <div className="pt-2">
         <button
           onClick={() => navigate('/deepwork')}
-          className="w-full py-3 px-6 rounded-xl flex items-center justify-between font-semibold text-sm md:text-base transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+          className="w-full py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 font-bold text-sm md:text-base transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
           style={{
             background: 'var(--forest)',
             color: '#ffffff',
@@ -454,17 +445,10 @@ const Dashboard = () => {
             e.currentTarget.style.background = 'var(--forest)';
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <Timer size={18} />
-            <span className="tracking-tight font-bold">Deepwork Session</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium opacity-90">
-            <span>Enter Current Deepwork Session</span>
-            <ArrowRight size={15} />
-          </div>
+          <Timer size={18} />
+          <span className="tracking-tight">Deepwork Session</span>
+          <ArrowRight size={16} />
         </button>
-
       </div>
     </div>
   );

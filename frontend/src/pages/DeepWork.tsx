@@ -3,11 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { deviceService, sessionService, notificationService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 import {
-  Timer, ArrowRight, ArrowLeft, Play, Pause, AlertTriangle,
+  Timer, ArrowRight, Play, Pause, AlertTriangle,
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Mic, Activity, Wifi, WifiOff,
-  History, X, Zap
+  History, X, Zap, User
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -53,7 +53,12 @@ export default function DeepWorkPage() {
   // User & role
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
+  const workspaceMode = localStorage.getItem('workspaceMode') || 'individual';
+  const isIndividual = workspaceMode === 'individual';
   const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const personName = currentSession?.employeeId
+    ? `${currentSession.employeeId.firstName} ${currentSession.employeeId.lastName}`
+    : (user?.name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'Individual User'));
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Tick timer every second & fetch notifications
@@ -205,7 +210,12 @@ export default function DeepWorkPage() {
   const totalDeskTimeMin = (currentSession?.activeMinutes || Math.floor(activeSec / 60)) + (currentSession?.totalBreakMinutes || 0);
   const productivityScore = totalDeskTimeMin > 0
     ? Math.min(100, Math.round(((currentSession?.activeMinutes || Math.floor(activeSec / 60)) / totalDeskTimeMin) * 100))
-    : 100;
+    : 0;
+
+  // SDW Points strictly capped at 5 points: seated 20 mins = +2 pts, session completed = 5 pts.
+  const isCompleted = currentSession?.status === 'COMPLETED';
+  const is20MinsSeated = (currentSession?.activeMinutes || Math.floor(activeSec / 60)) >= 20;
+  const currentSdwPoints = isCompleted ? 5 : (is20MinsSeated ? 2 : 0);
 
   // Alarms count & total time
   const alarmLogs = currentSession?.moderationLog?.filter(m => m.type === 'ALARM') || [];
@@ -217,23 +227,6 @@ export default function DeepWorkPage() {
   const maxAllowedBreaks = isOver3Hours ? 4 : 3;
   const breakCount = currentSession?.breakCount || currentSession?.breaks?.length || 0;
 
-  // Intervention elapsed time formatter: e.g. "45 minutes", "2 hr 14 minutes"
-  const formatInterventionTime = (sessionStartStr?: string, itemTimeStr?: string) => {
-    if (!sessionStartStr || !itemTimeStr) return '45 minutes';
-    try {
-      const start = new Date(sessionStartStr).getTime();
-      const time = new Date(itemTimeStr).getTime();
-      const diffSec = Math.max(0, Math.floor((time - start) / 1000));
-      const hrs = Math.floor(diffSec / 3600);
-      const mins = Math.floor((diffSec % 3600) / 60);
-      if (hrs > 0) {
-        return `${hrs} hr ${mins} min`;
-      }
-      return `${Math.max(1, mins)} min`;
-    } catch {
-      return '45 min';
-    }
-  };
 
   const selectedDevice = devices.find(d => d.uid === selectedUid);
 
@@ -366,49 +359,42 @@ export default function DeepWorkPage() {
 
         {/* ── Top Header Bar ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between flex-wrap gap-4 pb-1">
-          <div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-                title="Back to Dashboard"
-              >
-                <ArrowLeft size={14} />
-                <span>Back</span>
-              </button>
-              <h1
-                className="text-3xl md:text-4xl font-extrabold tracking-tight"
-                style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-              >
-                CURRENT SESSION DEEP WORK
-              </h1>
-              <span
-                className="text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
-                style={{
-                  background: currentSession?.status === 'ACTIVE'
-                    ? 'rgba(74,124,89,0.18)'
-                    : currentSession?.status === 'BREAK'
-                    ? 'rgba(184,121,57,0.18)'
-                    : 'var(--surface-3)',
-                  color: currentSession?.status === 'ACTIVE'
-                    ? 'var(--forest)'
-                    : currentSession?.status === 'BREAK'
-                    ? 'var(--amber-w)'
-                    : 'var(--ink-3)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
-              </span>
+          <div className="flex items-center gap-3.5">
+            <img src="/smmart-logo.png" alt="smmart" className="h-9 w-auto object-contain shrink-0" />
+            <div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1
+                  className="text-2xl md:text-3xl font-extrabold tracking-tight"
+                  style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+                >
+                  CURRENT SESSION DEEP WORK
+                </h1>
+                <span
+                  className="text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
+                  style={{
+                    background: currentSession?.status === 'ACTIVE'
+                      ? 'rgba(74,124,89,0.18)'
+                      : currentSession?.status === 'BREAK'
+                      ? 'rgba(184,121,57,0.18)'
+                      : 'var(--surface-3)',
+                    color: currentSession?.status === 'ACTIVE'
+                      ? 'var(--forest)'
+                      : currentSession?.status === 'BREAK'
+                      ? 'var(--amber-w)'
+                      : 'var(--ink-3)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
+                </span>
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
+                Current Session Target Block: {targetMin}m • Format: <span className="font-mono font-semibold">H - M - S</span>
+              </p>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
-              Current Session Target Block: {targetMin}m • Format: <span className="font-mono font-semibold">H - M - S</span>
-            </p>
           </div>
 
-
-          {/* Device Selector, Online/Offline Pill & Session History Trigger */}
+          {/* Device Selector / Person Display, Online/Offline Pill & Session History Trigger */}
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => setShowHistoryModal(true)}
@@ -433,8 +419,8 @@ export default function DeepWorkPage() {
               }`}
               title={
                 isDeviceOnline
-                  ? `Device ${selectedUid} is online and ready`
-                  : `Device ${selectedUid} is offline. Turn on your desk device to start.`
+                  ? `Device is online and ready`
+                  : `Device is offline. Turn on your desk device to start.`
               }
             >
               {isDeviceOnline ? (
@@ -450,17 +436,29 @@ export default function DeepWorkPage() {
               )}
             </div>
 
-            <span className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>Device:</span>
-            <select
-              value={selectedUid}
-              onChange={e => { setSelectedUid(e.target.value); setOfflineNotice(null); }}
-              className="input-base text-xs font-semibold py-1.5 px-3 rounded-lg"
-              style={{ width: 'auto' }}
-            >
-              {devices.map(d => (
-                <option key={d.uid} value={d.uid}>{d.uid} {d.name ? `(${d.name})` : ''}</option>
-              ))}
-            </select>
+            {isIndividual ? (
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-xs"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
+              >
+                <span className="text-[10px] uppercase font-semibold" style={{ color: 'var(--ink-4)' }}>User:</span>
+                <span>{personName}</span>
+              </div>
+            ) : (
+              <>
+                <span className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>Device:</span>
+                <select
+                  value={selectedUid}
+                  onChange={e => { setSelectedUid(e.target.value); setOfflineNotice(null); }}
+                  className="input-base text-xs font-semibold py-1.5 px-3 rounded-lg"
+                  style={{ width: 'auto' }}
+                >
+                  {devices.map(d => (
+                    <option key={d.uid} value={d.uid}>{d.uid} {d.name ? `(${d.name})` : ''}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
         </div>
 
@@ -840,7 +838,7 @@ export default function DeepWorkPage() {
                     boxShadow: '0 2px 10px rgba(16, 185, 129, 0.22)'
                   }}
                 >
-                  <Activity size={13} className="text-emerald-900 animate-pulse" />
+                  <Activity size={13} className="text-emerald-900" />
                   <span>SESSION PRODUCTIVITY SCORE</span>
                 </div>
                 <span
@@ -857,66 +855,29 @@ export default function DeepWorkPage() {
 
               <div>
                 <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Productivity</p>
-                <div className="flex items-baseline gap-2 mt-0.5">
+                <div className="flex items-baseline gap-2 mt-1">
                   <span
-                    className="font-bold text-3xl tabular-nums tracking-tight"
+                    className="font-bold text-4xl tabular-nums tracking-tight"
                     style={{
-                      color: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444',
+                      color: 'var(--ink)',
                       fontFamily: 'DM Sans, sans-serif'
                     }}
                   >
-                    {productivityScore}%
+                    {isRunning && activeSec >= 60 ? `${productivityScore}%` : '--%'}
                   </span>
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded-md"
-                    style={{
-                      background: productivityScore >= 80 ? 'rgba(16, 185, 129, 0.12)' : productivityScore >= 50 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      color: productivityScore >= 80 ? '#065F46' : productivityScore >= 50 ? '#92400E' : '#991B1B'
-                    }}
-                  >
-                    {productivityScore >= 80 ? 'High Flow (Green)' : productivityScore >= 50 ? 'Moderate (Orange)' : 'Needs Focus (Red)'}
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-3 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${productivityScore}%`,
-                      background: productivityScore >= 80 ? '#10B981' : productivityScore >= 50 ? '#F59E0B' : '#EF4444'
-                    }}
-                  />
-                </div>
-
-                {/* Mini 3-zone segmented bar (Red <50, Orange 50-79, Green >=80) */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: productivityScore < 50 ? '#EF4444' : 'rgba(239, 68, 68, 0.2)' }}
-                    title="<50% Red zone"
-                  />
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: (productivityScore >= 50 && productivityScore < 80) ? '#F59E0B' : 'rgba(245, 158, 11, 0.2)' }}
-                    title="50-79% Orange zone"
-                  />
-                  <div
-                    className="h-1 flex-1 rounded-full transition-all"
-                    style={{ background: productivityScore >= 80 ? '#10B981' : 'rgba(16, 185, 129, 0.2)' }}
-                    title=">=80% Green zone"
-                  />
                 </div>
               </div>
 
-              <div className="mt-4 space-y-2 text-xs" style={{ color: 'var(--ink-2)' }}>
+              <div className="mt-5 space-y-2 text-xs" style={{ color: 'var(--ink-2)' }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Session Start Time:</span>
+                  <span className="font-semibold font-mono">
+                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Total Desk Time:</span>
                   <span className="font-semibold font-mono">{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Focus Time:</span>
-                  <span className="font-semibold font-mono">{fmtHMS(activeSec)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Break Duration:</span>
@@ -936,77 +897,41 @@ export default function DeepWorkPage() {
             className="p-5 rounded-2xl border flex flex-col justify-between transition-all shadow-xs"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
-            <div>
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)] flex-wrap gap-2">
-                <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-amber-950 border border-amber-400"
-                  style={{
-                    background: 'linear-gradient(135deg, #FDE68A 0%, #FCD34D 50%, #F59E0B 100%)',
-                    boxShadow: '0 2px 10px rgba(245, 158, 11, 0.22)'
-                  }}
-                >
-                  <Zap size={13} className="text-amber-900 animate-bounce" />
-                  <span>PRODUCTIVITY SPIKE</span>
-                </div>
-                <span
-                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
-                  style={{
-                    background: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-2)',
-                    color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)',
-                    borderColor: currentSession?.productivitySpike ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'
-                  }}
-                >
-                  {currentSession?.productivitySpike ? 'Spike Detected' : 'No Spike'}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Spike</p>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span
-                    className="font-bold text-2xl tracking-tight"
-                    style={{
-                      color: currentSession?.productivitySpike ? '#059669' : 'var(--ink)',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}
-                  >
-                    {currentSession?.productivitySpike ? 'SPIKE' : '--'}
-                  </span>
-                </div>
-
-                {/* Just a simple graph: a line going according to the spike, and nothing else */}
-                <div className="mt-4 p-4 rounded-xl border flex items-center justify-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                  <svg className="w-full h-16" viewBox="0 0 260 50" preserveAspectRatio="none">
-                    {currentSession?.productivitySpike ? (
-                      // Simple crisp line that spikes upward
-                      <path
-                        d="M 10 40 L 100 40 L 140 10 L 250 10"
-                        fill="none"
-                        stroke="#10B981"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    ) : (
-                      // Simple flat line
-                      <path
-                        d="M 10 40 L 250 40"
-                        fill="none"
-                        stroke="#94A3B8"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-                    )}
-                  </svg>
-                </div>
+            <div className="flex items-center justify-between pb-3 mb-2 border-b border-[var(--border)] flex-wrap gap-2">
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-xs font-black uppercase tracking-wider text-amber-950 border border-amber-400"
+                style={{
+                  background: 'linear-gradient(135deg, #FDE68A 0%, #FCD34D 50%, #F59E0B 100%)',
+                  boxShadow: '0 2px 10px rgba(245, 158, 11, 0.22)'
+                }}
+              >
+                <Zap size={13} className="text-amber-900" />
+                <span>PRODUCTIVITY SPIKE</span>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Spike Status:</span>
-              <span className="font-semibold" style={{ color: currentSession?.productivitySpike ? '#059669' : 'var(--ink-4)' }}>
-                {currentSession?.productivitySpike ? 'Productivity Spike Active' : 'Normal Flow'}
-              </span>
+            {/* In this card I just want a single 1 line graph & nothing else */}
+            <div className="flex-1 flex items-center justify-center py-6">
+              <svg className="w-full h-24" viewBox="0 0 280 60" preserveAspectRatio="none">
+                {currentSession?.productivitySpike ? (
+                  <path
+                    d="M 10 50 L 110 50 L 150 15 L 270 15"
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ) : (
+                  <path
+                    d="M 10 40 L 270 40"
+                    fill="none"
+                    stroke="#94A3B8"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                )}
+              </svg>
             </div>
           </div>
 
@@ -1028,7 +953,7 @@ export default function DeepWorkPage() {
                   <span>SESSION SELF RATING</span>
                 </div>
                 <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                  +{currentSession?.sdwPointsEarned || (productivityScore >= 80 ? 10 : 0)} SDW pts
+                  +{currentSdwPoints} / 5 SDW pts
                 </span>
               </div>
 
@@ -1053,8 +978,8 @@ export default function DeepWorkPage() {
                   ))}
                 </div>
 
-                <p className="text-xs mt-3" style={{ color: 'var(--ink-3)' }}>
-                  Rate your focus depth after or during the session to record your SDW score.
+                <p className="text-xs mt-3 leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                  Self rating is independent of SDW points. Seated 20 mins = +2 pts • Session completed = 5 pts (Max 5 pts).
                 </p>
               </div>
             </div>
@@ -1069,12 +994,12 @@ export default function DeepWorkPage() {
 
         </div>
 
-        {/* ── 3. MD - MODERATOR INTERVENTIONS TIMELINE & 3HR BREAK RULE BANNER ── */}
+        {/* ── 3. MD - MODERATOR INTERVENTIONS OF TIME ── */}
         <div
           className="p-5 rounded-2xl border transition-all shadow-xs"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          {/* Header row from sketch: MD • * Intervention : No. of time */}
+          {/* Header row */}
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-[var(--border)] flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span
@@ -1084,119 +1009,55 @@ export default function DeepWorkPage() {
                 MD
               </span>
               <span className="font-bold text-sm tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                * Intervention : No. of time
+                MD INTERVENTION OF TIME
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold" style={{ color: 'var(--ink-4)' }}>
-                Session: {selectedUid}
+                {isIndividual ? `Person: ${personName}` : `Session: ${selectedUid}`}
               </span>
             </div>
           </div>
 
-          {/* Timeline of interventions */}
-          <div className="space-y-2.5">
-            {currentSession?.moderationLog && currentSession.moderationLog.length > 0 ? (
-              currentSession.moderationLog.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-xl border flex items-center justify-between flex-wrap gap-3 transition-colors hover:border-[var(--forest)]"
-                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="px-2 py-0.5 rounded-md font-mono text-xs font-bold shrink-0"
-                      style={{
-                        background: item.type === 'ALARM' ? 'rgba(225,29,72,0.1)' : 'rgba(66,84,67,0.1)',
-                        color: item.type === 'ALARM' ? 'var(--error)' : 'var(--forest)'
-                      }}
-                    >
-                      #{idx + 1} time
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold" style={{ color: 'var(--ink)' }}>
-                        {idx + 1} time in {formatInterventionTime(currentSession?.startTime, item.timestamp)}
-                      </p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
-                        {item.message}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-right">
-                    <span className="text-[11px] font-mono" style={{ color: 'var(--ink-4)' }}>
-                      {formatTime(item.timestamp)}
-                    </span>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
-                      style={{
-                        borderColor: item.type === 'ALARM' ? 'rgba(225,29,72,0.3)' : 'var(--border)',
-                        color: item.type === 'ALARM' ? 'var(--error)' : 'var(--ink-3)'
-                      }}
-                    >
-                      {item.type}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div
-                className="p-4 rounded-xl text-center border border-dashed"
-                style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
-              >
-                <p className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>
-                  No moderator interventions triggered yet for this session.
-                </p>
-                <p className="text-[11px] mt-1" style={{ color: 'var(--ink-4)' }}>
-                  AI moderator monitors workstation presence, away timers, and focus pacing automatically.
-                </p>
-              </div>
+          {/* In this just show how many breaks taken in how many minutes */}
+          <div className="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-4)' }}>
+                Session Break Summary
+              </p>
+              <p className="text-xl md:text-2xl font-extrabold tracking-tight mt-0.5" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                {breakCount} {breakCount === 1 ? 'break' : 'breaks'} taken in {currentSession?.totalBreakMinutes || 0} minutes
+              </p>
+            </div>
+            {breakCount > 0 && (
+              <span className="text-xs font-black px-3 py-1.5 rounded-xl animate-blink-red self-start md:self-auto">
+                {breakCount} BREAKS RECORDED
+              </span>
             )}
           </div>
 
-          {/* Bottom Banner from Notebook Sketch: "If session > 3 hr then allow 1 break." */}
-          <div
-            className="mt-4 p-4 rounded-xl border flex items-center justify-between flex-wrap gap-3"
-            style={{
-              background: isOver3Hours ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-              borderColor: isOver3Hours ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.35)',
-            }}
-          >
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle size={18} className={isOver3Hours ? 'text-emerald-700 shrink-0' : 'text-amber-700 shrink-0'} />
-              <div>
-                <p className="text-xs font-bold" style={{ color: isOver3Hours ? '#065f46' : '#78350f' }}>
-                  Rule: In 2 hr session customer can take 3 breaks. If session &gt; 3 hr then allow 1 extra break.
-                </p>
-                <p className="text-[11px] mt-0.5" style={{ color: isOver3Hours ? '#047857' : '#92400e' }}>
-                  {isOver3Hours
-                    ? '🎉 Session crossed 3 hours! 4th break unlocked for this session.'
-                    : 'Standard 2 hr session permits up to 3 breaks (5m+ each).'}
-                </p>
-              </div>
+          {/* Breakdown if breaks exist */}
+          {currentSession?.breaks && currentSession.breaks.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {currentSession.breaks.map((b, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl border flex items-center justify-between text-xs"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                >
+                  <span className="font-bold" style={{ color: 'var(--ink)' }}>
+                    Break #{idx + 1}
+                  </span>
+                  <span className="font-mono font-bold text-rose-600">
+                    {b.durationMinutes || 0} min taken
+                  </span>
+                  <span className="font-mono" style={{ color: 'var(--ink-4)' }}>
+                    at {formatTime(b.startTime)}
+                  </span>
+                </div>
+              ))}
             </div>
-
-            <div className="flex items-center gap-2.5">
-              {/* Highlighted Red Blinking Break Tracker */}
-              <span
-                className={`text-xs px-3 py-1.5 rounded-xl transition-all shadow-xs ${
-                  breakCount > 0
-                    ? 'animate-blink-red font-black tracking-wide'
-                    : 'text-rose-700 bg-rose-100/90 border border-rose-300 font-bold'
-                }`}
-              >
-                {breakCount} / {maxAllowedBreaks} BREAKS TAKEN
-              </span>
-
-              <button
-                onClick={() => setShowHistoryModal(true)}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors flex items-center gap-1.5 cursor-pointer bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50 shadow-xs"
-              >
-                <History size={13} />
-                <span>History</span>
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
       </div>
@@ -1364,7 +1225,7 @@ export default function DeepWorkPage() {
           SLIM RIGHT-SIDE MENU BAR (Requested on Right Side)
          ══════════════════════════════════════════════════════════════════ */}
       <aside
-        className="w-full lg:w-16 shrink-0 lg:sticky lg:top-2 lg:h-[calc(100vh-100px)] flex lg:flex-col items-center justify-between p-2.5 rounded-2xl border transition-all"
+        className="w-full lg:w-60 shrink-0 lg:sticky lg:top-2 lg:h-[calc(100vh-100px)] flex lg:flex-col justify-between p-3.5 rounded-2xl border transition-all"
         style={{
           background: 'rgba(255, 254, 250, 0.95)',
           backdropFilter: 'blur(16px)',
@@ -1373,108 +1234,120 @@ export default function DeepWorkPage() {
         }}
         aria-label="Navigation Menu"
       >
-        {/* Top/Upper Nav Icons */}
-        <div className="flex lg:flex-col items-center gap-2.5">
+        {/* Top/Upper Nav Links */}
+        <div className="flex lg:flex-col items-stretch gap-1.5 w-full">
           {/* Dashboard */}
           <Link
             to="/dashboard"
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--ink-3)' }}
-            title="Dashboard Overview"
           >
-            <LayoutDashboard size={20} />
+            <LayoutDashboard size={18} />
+            <span>Dashboard</span>
           </Link>
 
           {/* Deep Work (Active) */}
           <div
-            className="relative p-2.5 rounded-xl shadow-xs cursor-default flex items-center justify-center transition-all duration-200"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-xs cursor-default"
             style={{ background: 'rgba(66, 84, 67, 0.12)', color: 'var(--forest)' }}
-            title="Deep Work (Active)"
           >
-            <Timer size={20} />
-            <span
-              className="hidden lg:block absolute -right-1.5 w-1 h-4 rounded-full"
-              style={{ background: 'var(--forest)' }}
-            />
+            <Timer size={18} />
+            <span>Deep Work</span>
           </div>
-
-          {/* Activity / Sensor Log */}
-          <Link
-            to="/activity"
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
-            style={{ color: 'var(--ink-3)' }}
-            title="Sensor Log & Activity"
-          >
-            <Activity size={20} />
-          </Link>
-
-          {/* Devices */}
-          <Link
-            to="/devices"
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
-            style={{ color: 'var(--ink-3)' }}
-            title="Desk Devices"
-          >
-            <Cpu size={20} />
-          </Link>
 
           {/* Tasks */}
           <Link
             to="/tasks"
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--ink-3)' }}
-            title="Tasks & Deadlines"
           >
-            <CheckSquare size={20} />
+            <CheckSquare size={18} />
+            <span>Tasks</span>
           </Link>
 
-          {/* Team / Employees (Leadership only) */}
-          {isLeadership && (
-            <Link
-              to="/employees"
-              className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
-              style={{ color: 'var(--ink-3)' }}
-              title="Team Members"
-            >
-              <Users size={20} />
-            </Link>
+          {/* Profile */}
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            <User size={18} />
+            <span>Profile</span>
+          </Link>
+
+          {/* Activity / Devices / Staff Members: Hidden in individual mode */}
+          {!isIndividual && (
+            <>
+              <Link
+                to="/activity"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                <Activity size={18} />
+                <span>Activity Monitor</span>
+              </Link>
+
+              <Link
+                to="/devices"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                <Cpu size={18} />
+                <span>Devices</span>
+              </Link>
+
+              {isLeadership && (
+                <Link
+                  to="/employees"
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  <Users size={18} />
+                  <span>Staff Members</span>
+                </Link>
+              )}
+            </>
           )}
 
           {/* Notifications */}
           <Link
             to="/notifications"
-            className="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
             style={{ color: 'var(--ink-3)' }}
-            title="Notifications"
           >
-            <Bell size={20} />
+            <div className="flex items-center gap-3">
+              <Bell size={18} />
+              <span>Notifications</span>
+            </div>
             {unreadCount > 0 && (
               <span
-                className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white"
+                className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold"
                 style={{ background: 'var(--error)' }}
-              />
+              >
+                {unreadCount}
+              </span>
             )}
           </Link>
         </div>
 
         {/* Bottom Actions: Refresh & Sign Out */}
-        <div className="flex lg:flex-col items-center gap-2 pt-3 lg:border-t lg:border-[var(--border)]">
+        <div className="flex lg:flex-col items-stretch gap-1.5 pt-3 lg:border-t lg:border-[var(--border)] w-full">
           <button
             onClick={() => { setLoading(true); loadData(); }}
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] hover:scale-105"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] text-left w-full"
             style={{ color: 'var(--ink-3)' }}
-            title="Refresh Live Data"
           >
             <RotateCcw size={18} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh Live Data</span>
           </button>
 
           <button
             onClick={handleLogout}
-            className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] hover:scale-105"
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
             style={{ color: 'var(--ink-4)' }}
-            title="Sign out"
           >
             <LogOut size={18} />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>

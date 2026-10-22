@@ -9,6 +9,7 @@ import Devices from './pages/Devices';
 import Notifications from './pages/Notifications';
 import ActivityPage from './pages/Activity';
 import DeepWorkPage from './pages/DeepWork';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/deepwork" element={<DeepWorkPage />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
         </Route>
         

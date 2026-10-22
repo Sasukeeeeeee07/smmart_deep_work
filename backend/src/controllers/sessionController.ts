@@ -193,18 +193,19 @@ export const startSession = async (req: Request, res: Response) => {
         stale.activeMinutes = Math.max(0, totalMin - (stale.totalBreakMinutes || 0));
       }
 
-      if (stale.activeMinutes >= 120 && stale.sdwPointsEarned === 0) {
-        stale.sdwPointsEarned = 5;
+      const stalePoints = stale.status === 'COMPLETED' ? 5 : (stale.activeMinutes >= 20 ? 2 : 0);
+      if (stalePoints > 0 && stale.sdwPointsEarned === 0) {
+        stale.sdwPointsEarned = stalePoints;
         await SDWPoints.create({
           employeeId: stale.employeeId,
           sessionId: stale._id,
-          points: 5,
+          points: stalePoints,
           earnedAt: nowEnd,
           weekNumber: getWeekNumber(nowEnd),
           month: nowEnd.getMonth() + 1,
           year: nowEnd.getFullYear(),
         });
-        console.log(`[SDW] +5 points earned for orphaned session ${stale._id}`);
+        console.log(`[SDW] +${stalePoints} points earned for orphaned session ${stale._id}`);
       }
       await stale.save();
     }
@@ -455,29 +456,37 @@ export const endSession = async (req: Request, res: Response) => {
       session.selfRating = selfRating;
     }
 
-    // Award SDW points if active time >= target duration (default 120 minutes)
-    const targetMin = session.targetDurationMinutes || 120;
+    // Award SDW points: if session completed then 5 points; if seated for 20 mins then +2 points (capped at 5)
     let pointsEarned = 0;
-    if (session.activeMinutes >= targetMin && session.status === 'COMPLETED') {
+    if (session.status === 'COMPLETED') {
       session.sdwPointsEarned = 5;
       pointsEarned = 5;
+    } else if (session.activeMinutes >= 20) {
+      session.sdwPointsEarned = 2;
+      pointsEarned = 2;
+    } else {
+      session.sdwPointsEarned = 0;
+      pointsEarned = 0;
+    }
 
+    if (pointsEarned > 0) {
       await SDWPoints.create({
         employeeId: session.employeeId,
         sessionId: session._id,
-        points: 5,
+        points: pointsEarned,
         earnedAt: now,
         weekNumber: getWeekNumber(now),
         month: now.getMonth() + 1,
         year: now.getFullYear(),
       });
 
-      console.log(`[SDW] +5 points earned for employee ${session.employeeId}`);
+      console.log(`[SDW] +${pointsEarned} points earned for employee ${session.employeeId}`);
     }
 
     await session.save();
 
     // Voice feedback
+    const targetMin = session.targetDurationMinutes || 120;
     if (pointsEarned > 0) {
       voiceService.queueMessage(req.params.uid as string, `Incredible work! You completed your ${targetMin} minute deep work session and earned 5 points.`);
     } else {
@@ -686,6 +695,7 @@ export const getCurrentSession = async (req: Request, res: Response) => {
       success: true,
       data: {
         ...session.toObject(),
+        sdwPointsEarned: session.status === 'COMPLETED' ? 5 : Math.max(session.sdwPointsEarned || 0, liveActiveMinutes >= 20 ? 2 : 0),
         activeMinutes: liveActiveMinutes,
         activeSeconds: liveActiveSeconds,
         totalBreakMinutes: liveTotalBreakMinutes,
