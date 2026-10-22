@@ -688,26 +688,92 @@ exports.rateSession = rateSession;
 const getSDWPoints = async (req, res) => {
     try {
         const device = await Device_1.Device.findOne({ uid: req.params.uid });
-        if (!device || !device.assignedTo) {
-            return res.json({ success: true, data: { weekly: 0, monthly: 0 } });
+        let targetEmployeeId = device?.assignedTo;
+        if (!targetEmployeeId) {
+            const lastSession = await DeepWorkSession_1.DeepWorkSession.findOne({
+                deviceUid: req.params.uid,
+                employeeId: { $exists: true, $ne: null },
+            }).sort({ createdAt: -1 });
+            if (lastSession?.employeeId) {
+                targetEmployeeId = lastSession.employeeId;
+            }
         }
         const now = new Date();
         const week = getWeekNumber(now);
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
-        const [weeklyResult, monthlyResult] = await Promise.all([
-            SDWPoints_1.SDWPoints.aggregate([
-                { $match: { employeeId: device.assignedTo, year, weekNumber: week } },
-                { $group: { _id: null, total: { $sum: '$points' } } },
-            ]),
-            SDWPoints_1.SDWPoints.aggregate([
-                { $match: { employeeId: device.assignedTo, year, month } },
-                { $group: { _id: null, total: { $sum: '$points' } } },
-            ]),
-        ]);
-        const weekly = weeklyResult[0]?.total || 0;
-        const monthly = monthlyResult[0]?.total || 0;
-        res.json({ success: true, data: { weekly, monthly } });
+        const startOfMonth = new Date(year, month - 1, 1);
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
+        let weekly = 0;
+        let monthly = 0;
+        // 1. Query SDWPoints aggregation if employee is known
+        if (targetEmployeeId) {
+            const [weeklyResult, monthlyResult] = await Promise.all([
+                SDWPoints_1.SDWPoints.aggregate([
+                    { $match: { employeeId: targetEmployeeId, year, weekNumber: week } },
+                    { $group: { _id: null, total: { $sum: '$points' } } },
+                ]),
+                SDWPoints_1.SDWPoints.aggregate([
+                    { $match: { employeeId: targetEmployeeId, year, month } },
+                    { $group: { _id: null, total: { $sum: '$points' } } },
+                ]),
+            ]);
+            weekly = weeklyResult[0]?.total || 0;
+            monthly = monthlyResult[0]?.total || 0;
+        }
+        // 2. Fallback to DeepWorkSession if SDWPoints collection has 0
+        if (weekly === 0 && monthly === 0) {
+            const queryMatcher = targetEmployeeId
+                ? { $or: [{ employeeId: targetEmployeeId }, { deviceUid: req.params.uid }] }
+                : { deviceUid: req.params.uid };
+            const [weeklySessions, monthlySessions] = await Promise.all([
+                DeepWorkSession_1.DeepWorkSession.find({
+                    ...queryMatcher,
+                    createdAt: { $gte: startOfWeek },
+                    sdwPointsEarned: { $gt: 0 },
+                }),
+                DeepWorkSession_1.DeepWorkSession.find({
+                    ...queryMatcher,
+                    createdAt: { $gte: startOfMonth },
+                    sdwPointsEarned: { $gt: 0 },
+                }),
+            ]);
+            weekly = weeklySessions.reduce((acc, s) => acc + (s.sdwPointsEarned || 0), 0);
+            monthly = monthlySessions.reduce((acc, s) => acc + (s.sdwPointsEarned || 0), 0);
+        }
+        // 3. Count sessions for Bloom badge milestone
+        const sessionMatcher = targetEmployeeId
+            ? { $or: [{ employeeId: targetEmployeeId }, { deviceUid: req.params.uid }] }
+            : { deviceUid: req.params.uid };
+        const completedMonthlySessionsCount = await DeepWorkSession_1.DeepWorkSession.countDocuments({
+            ...sessionMatcher,
+            createdAt: { $gte: startOfMonth },
+            status: 'COMPLETED',
+        });
+        const sessionsThisMonth = Math.max(completedMonthlySessionsCount, Math.floor(monthly / 5));
+        // 4. Fetch recent point logs
+        const recentLogs = await SDWPoints_1.SDWPoints.find(targetEmployeeId ? { employeeId: targetEmployeeId } : {})
+            .sort({ earnedAt: -1 })
+            .limit(6);
+        res.json({
+            success: true,
+            data: {
+                weekly,
+                monthly,
+                sessionsThisMonth,
+                bloomBadge: {
+                    targetSessions: 5,
+                    completedSessions: sessionsThisMonth,
+                    unlocked: sessionsThisMonth >= 5,
+                    progressPercent: Math.min(100, Math.round((sessionsThisMonth / 5) * 100)),
+                },
+                recentLogs,
+            },
+        });
     }
     catch (err) {
         console.error('[SDW] points error:', err);

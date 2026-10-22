@@ -10,6 +10,7 @@ import Notifications from './pages/Notifications';
 import ActivityPage from './pages/Activity';
 import DeepWorkPage from './pages/DeepWork';
 import Profile from './pages/Profile';
+import SettingsPage from './pages/Settings';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/deepwork" element={<DeepWorkPage />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/notifications" element={<Notifications />} />
         </Route>
         
