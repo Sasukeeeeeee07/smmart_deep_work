@@ -206,10 +206,12 @@ export default function DeepWorkPage() {
     }
   };
 
-  // Productivity Score: e.g. 81%
-  const totalDeskTimeMin = (currentSession?.activeMinutes || Math.floor(activeSec / 60)) + (currentSession?.totalBreakMinutes || 0);
-  const productivityScore = totalDeskTimeMin > 0
-    ? Math.min(100, Math.round(((currentSession?.activeMinutes || Math.floor(activeSec / 60)) / totalDeskTimeMin) * 100))
+  // Productivity Score: Calculated strictly from valid active session data (>= 60s)
+  const isSessionActiveWithData = isRunning && activeSec >= 60;
+  const activeFocusMinutes = currentSession?.activeMinutes || Math.floor(activeSec / 60);
+  const totalSessionDeskMinutes = activeFocusMinutes + (currentSession?.totalBreakMinutes || 0);
+  const productivityScore = isSessionActiveWithData && totalSessionDeskMinutes > 0
+    ? Math.min(100, Math.round((activeFocusMinutes / totalSessionDeskMinutes) * 100))
     : 0;
 
   // SDW Points strictly capped at 5 points: seated 20 mins = +2 pts, session completed = 5 pts.
@@ -386,8 +388,8 @@ export default function DeepWorkPage() {
                 {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
               </span>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
-              Current Session Target Block: {targetMin}m • Format: <span className="font-mono font-semibold">H - M - S</span>
+            <p className="text-sm font-semibold mt-1" style={{ color: 'var(--ink-2)' }}>
+              Target Focus Block: {targetMin} minutes
             </p>
           </div>
 
@@ -402,14 +404,14 @@ export default function DeepWorkPage() {
               <History size={14} style={{ color: 'var(--forest)' }} />
               <span>Session History</span>
               {allSessions.length > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold ml-0.5" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
                   {allSessions.length}
                 </span>
               )}
             </button>
 
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide transition-colors ${
                 isDeviceOnline
                   ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30'
                   : 'bg-rose-500/10 text-rose-600 border border-rose-500/30'
@@ -422,12 +424,12 @@ export default function DeepWorkPage() {
             >
               {isDeviceOnline ? (
                 <>
-                  <Wifi size={12} className="text-emerald-500 animate-pulse" />
+                  <Wifi size={13} className="text-emerald-500 animate-pulse" />
                   <span>DEVICE ONLINE</span>
                 </>
               ) : (
                 <>
-                  <WifiOff size={12} className="text-rose-500" />
+                  <WifiOff size={13} className="text-rose-500" />
                   <span>DEVICE OFFLINE</span>
                 </>
               )}
@@ -435,15 +437,15 @@ export default function DeepWorkPage() {
 
             {isIndividual ? (
               <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold shadow-xs"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold shadow-xs"
                 style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
               >
-                <span className="text-[10px] uppercase font-semibold" style={{ color: 'var(--ink-4)' }}>User:</span>
-                <span>{personName}</span>
+                <span className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>User:</span>
+                <span className="text-sm font-bold">{personName}</span>
               </div>
             ) : (
               <>
-                <span className="text-xs font-medium" style={{ color: 'var(--ink-4)' }}>Device:</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Device:</span>
                 <select
                   value={selectedUid}
                   onChange={e => { setSelectedUid(e.target.value); setOfflineNotice(null); }}
@@ -534,12 +536,12 @@ export default function DeepWorkPage() {
                     {isRunning ? 'CURRENT SESSION COUNTDOWN' : 'START CURRENT SESSION'}
                   </p>
                   {!isRunning && !isDeviceOnline && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                    <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
                       Device Offline
                     </span>
                   )}
                 </div>
-                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {isRunning
                     ? `Countdown in H - M - S • Max ${maxAllowedBreaks} breaks allowed`
                     : !isDeviceOnline
@@ -589,7 +591,7 @@ export default function DeepWorkPage() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{
                   background: currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--surface-2)',
-                  color: currentSession?.status === 'BREAK' ? '#ffffff' : 'var(--ink-3)',
+                  color: currentSession?.status === 'BREAK' ? '#ffffff' : 'var(--ink-2)',
                 }}
               >
                 {currentSession?.status === 'BREAK' ? <Play size={18} className="ml-0.5" /> : <Pause size={18} />}
@@ -601,7 +603,7 @@ export default function DeepWorkPage() {
                 >
                   RESUME CURRENT SESSION
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {currentSession?.status === 'BREAK'
                     ? 'Current session break active — click Resume Now'
                     : currentSession?.lastResumedAt
@@ -636,7 +638,7 @@ export default function DeepWorkPage() {
                   </span>
                 </div>
               ) : (
-                <span className="font-mono text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'var(--surface-2)', color: 'var(--ink-4)' }}>
+                <span className="font-mono text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
                   00:00:00
                 </span>
               )}
@@ -658,7 +660,7 @@ export default function DeepWorkPage() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{
                   background: currentSession?.alarmActive ? 'var(--error)' : 'var(--surface-2)',
-                  color: currentSession?.alarmActive ? '#ffffff' : 'var(--ink-3)',
+                  color: currentSession?.alarmActive ? '#ffffff' : 'var(--ink-2)',
                 }}
               >
                 {currentSession?.alarmActive ? <Volume2 size={20} /> : <AlertTriangle size={18} />}
@@ -670,7 +672,7 @@ export default function DeepWorkPage() {
                 >
                   CURRENT SESSION ALARMS
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {currentSession?.alarmActive
                     ? (currentSession.alarmMessage || 'Away Alert: Person away from workstation!')
                     : 'Away detection & break threshold alarms'}
@@ -683,8 +685,8 @@ export default function DeepWorkPage() {
                 className="px-3 py-1.5 rounded-xl text-center border"
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
               >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--ink-4)' }}>No. of times</p>
-                <p className="font-bold text-sm leading-tight" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
+                <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>No. of times</p>
+                <p className="font-extrabold text-base leading-tight mt-0.5" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
                   {alarmCount}
                 </p>
               </div>
@@ -693,8 +695,8 @@ export default function DeepWorkPage() {
                 className="px-3 py-1.5 rounded-xl text-center border"
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
               >
-                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--ink-4)' }}>Total time</p>
-                <p className="font-bold text-sm leading-tight" style={{ color: 'var(--ink)' }}>
+                <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>Total time</p>
+                <p className="font-extrabold text-base leading-tight mt-0.5" style={{ color: 'var(--ink)' }}>
                   {alarmDurationMinutes}m
                 </p>
               </div>
@@ -735,7 +737,7 @@ export default function DeepWorkPage() {
                     </p>
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                      <p className="text-[11px] font-medium" style={{ color: 'var(--forest)' }}>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--forest)' }}>
                         AI Voice Speaker Active
                       </p>
                     </div>
@@ -753,8 +755,8 @@ export default function DeepWorkPage() {
                       key={v.label}
                       onClick={() => handleSendVoice(v.msg)}
                       disabled={sendingVoice}
-                      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors border cursor-pointer hover:border-[var(--forest)]"
-                      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink-2)' }}
+                      className="text-xs font-bold px-2.5 py-1 rounded-lg transition-colors border cursor-pointer hover:border-[var(--forest)]"
+                      style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink)' }}
                     >
                       {v.label}
                     </button>
@@ -839,10 +841,10 @@ export default function DeepWorkPage() {
                   <span>SESSION PRODUCTIVITY SCORE</span>
                 </div>
                 <span
-                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                  className="text-xs font-bold px-2.5 py-0.5 rounded-full"
                   style={{
                     background: isRunning ? (currentSession?.status === 'BREAK' ? 'rgba(184,121,57,0.1)' : 'rgba(74,124,89,0.1)') : 'var(--surface-2)',
-                    color: isRunning ? (currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--forest)') : 'var(--ink-4)',
+                    color: isRunning ? (currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--forest)') : 'var(--ink-2)',
                     border: '1px solid var(--border)'
                   }}
                 >
@@ -851,41 +853,65 @@ export default function DeepWorkPage() {
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Current Session Productivity</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span
-                    className="font-bold text-4xl tabular-nums tracking-tight"
-                    style={{
-                      color: 'var(--ink)',
-                      fontFamily: 'DM Sans, sans-serif'
-                    }}
-                  >
-                    {isRunning && activeSec >= 60 ? `${productivityScore}%` : '--%'}
-                  </span>
+                <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>Current Session Productivity</p>
+                <div className="flex items-baseline gap-2 mt-1.5">
+                  {isSessionActiveWithData ? (
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className="font-extrabold text-4xl tabular-nums tracking-tight"
+                        style={{
+                          color: 'var(--ink)',
+                          fontFamily: 'DM Sans, sans-serif'
+                        }}
+                      >
+                        {productivityScore}%
+                      </span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                        Active Focus
+                      </span>
+                    </div>
+                  ) : (
+                    <span
+                      className="font-extrabold text-2xl md:text-3xl tracking-tight"
+                      style={{
+                        color: 'var(--ink)',
+                        fontFamily: 'DM Sans, sans-serif'
+                      }}
+                    >
+                      Ready to focus
+                    </span>
+                  )}
+                </div>
+
+                {/* Score explanation: clear and high contrast */}
+                <div
+                  className="mt-3 p-3 rounded-xl border"
+                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+                >
+                  <p className="text-xs font-semibold leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+                    {isSessionActiveWithData
+                      ? `Productivity measures active focus time (${activeFocusMinutes}m) as a percentage of total desk time (${Math.max(1, totalSessionDeskMinutes)}m), excluding breaks.`
+                      : 'Productivity measures active focus time against total desk time (breaks excluded). Score activates once your session begins.'}
+                  </p>
                 </div>
               </div>
 
-              <div className="mt-5 space-y-2 text-xs" style={{ color: 'var(--ink-2)' }}>
+              <div className="mt-4 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Session Start Time:</span>
-                  <span className="font-semibold font-mono">
+                  <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Session Start Time:</span>
+                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>
                     {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Total Desk Time:</span>
-                  <span className="font-semibold font-mono">{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
+                  <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Total Desk Time:</span>
+                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Break Duration:</span>
-                  <span className="font-semibold font-mono">{currentSession?.totalBreakMinutes || 0}m</span>
+                  <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Break Duration:</span>
+                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{currentSession?.totalBreakMinutes || 0}m</span>
                 </div>
               </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Target Focus Duration:</span>
-              <span className="font-semibold" style={{ color: 'var(--ink)' }}>{targetMin} minutes</span>
             </div>
           </div>
 
@@ -949,13 +975,13 @@ export default function DeepWorkPage() {
                   <Star size={13} className="text-indigo-800" />
                   <span>SESSION SELF RATING</span>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
                   +{currentSdwPoints} / 5 SDW pts
                 </span>
               </div>
 
               <div>
-                <p className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: 'var(--ink-4)' }}>Interactive Rating</p>
+                <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>Interactive Rating</p>
                 <div className="flex items-center gap-1.5 mt-2">
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
@@ -975,17 +1001,10 @@ export default function DeepWorkPage() {
                   ))}
                 </div>
 
-                <p className="text-xs mt-3 leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                <p className="text-xs mt-3 font-semibold leading-relaxed" style={{ color: 'var(--ink-2)' }}>
                   Self rating is independent of SDW points. Seated 20 mins = +2 pts • Session completed = 5 pts (Max 5 pts).
                 </p>
               </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-[var(--border)] text-[11px] flex items-center justify-between" style={{ color: 'var(--ink-4)' }}>
-              <span>Current Session Rating:</span>
-              <span className="font-semibold" style={{ color: 'var(--ink)' }}>
-                {currentSession?.selfRating ? `${currentSession.selfRating} / 5 stars` : 'Tap star to rate'}
-              </span>
             </div>
           </div>
 
@@ -1010,7 +1029,7 @@ export default function DeepWorkPage() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold" style={{ color: 'var(--ink-4)' }}>
+              <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>
                 {isIndividual ? `Person: ${personName}` : `Session: ${selectedUid}`}
               </span>
             </div>
@@ -1019,7 +1038,7 @@ export default function DeepWorkPage() {
           {/* In this just show how many breaks taken in how many minutes */}
           <div className="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
             <div>
-              <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-4)' }}>
+              <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
                 Session Break Summary
               </p>
               <p className="text-xl md:text-2xl font-extrabold tracking-tight mt-0.5" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
@@ -1048,7 +1067,7 @@ export default function DeepWorkPage() {
                   <span className="font-mono font-bold text-rose-600">
                     {b.durationMinutes || 0} min taken
                   </span>
-                  <span className="font-mono" style={{ color: 'var(--ink-4)' }}>
+                  <span className="font-mono text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
                     at {formatTime(b.startTime)}
                   </span>
                 </div>
@@ -1078,7 +1097,7 @@ export default function DeepWorkPage() {
                   <h3 className="font-bold text-lg" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                     Previous Session History
                   </h3>
-                  <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
                     Device: {selectedUid} • Total {allSessions.filter(s => !selectedUid || s.deviceUid === selectedUid).length} recorded sessions
                   </p>
                 </div>
@@ -1094,7 +1113,7 @@ export default function DeepWorkPage() {
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         historyFilter === f
                           ? 'bg-white shadow-xs text-[var(--forest)]'
-                          : 'text-[var(--ink-4)] hover:text-[var(--ink)]'
+                          : 'text-[var(--ink-2)] hover:text-[var(--ink)]'
                       }`}
                     >
                       {f}
@@ -1104,7 +1123,7 @@ export default function DeepWorkPage() {
 
                 <button
                   onClick={() => setShowHistoryModal(false)}
-                  className="p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)] text-[var(--ink-4)] hover:text-[var(--ink)] cursor-pointer"
+                  className="p-2 rounded-xl transition-colors hover:bg-[var(--surface-2)] text-[var(--ink-2)] hover:text-[var(--ink)] cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -1205,7 +1224,7 @@ export default function DeepWorkPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-[var(--border)] flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink-4)' }}>
+            <div className="p-4 border-t border-[var(--border)] flex items-center justify-between text-xs font-semibold" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
               <span>Showing filtered sessions for {selectedUid}</span>
               <button
                 onClick={() => setShowHistoryModal(false)}
@@ -1341,7 +1360,7 @@ export default function DeepWorkPage() {
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
-            style={{ color: 'var(--ink-4)' }}
+            style={{ color: 'var(--ink-2)' }}
           >
             <LogOut size={18} />
             <span>Sign Out</span>
