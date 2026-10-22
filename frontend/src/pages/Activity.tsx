@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { activityService, deviceService } from '../services/api';
-import { Filter, RefreshCw, Radar, ArrowLeft } from 'lucide-react';
+import { Filter, RefreshCw, Radar } from 'lucide-react';
 
 interface ActivitySession {
   _id: string; deviceUid: string; state: string;
@@ -31,7 +30,6 @@ const parsePillStyle = (styleStr: string): React.CSSProperties => {
 };
 
 const ActivityPage = () => {
-  const navigate = useNavigate();
   const [sessions, setSessions] = useState<ActivitySession[]>([]);
   const [devices, setDevices]   = useState<Device[]>([]);
   const [total, setTotal]       = useState(0);
@@ -62,20 +60,9 @@ const ActivityPage = () => {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="section-label mb-0.5">ESP32 Radar</p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-              title="Back"
-            >
-              <ArrowLeft size={13} />
-              <span>Back</span>
-            </button>
-            <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-              Sensor log
-            </h1>
-          </div>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+            Sensor log
+          </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--ink-4)' }}>
             {total.toLocaleString()} total records
           </p>

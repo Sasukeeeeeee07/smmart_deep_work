@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../services/api';
-import { CheckCheck, Trash2, Cpu, ClipboardList, Info, BellOff, ArrowLeft } from 'lucide-react';
+import { CheckCheck, Trash2, Cpu, ClipboardList, Info, BellOff } from 'lucide-react';
 
 type NotifType = 'TASK' | 'DEVICE' | 'SYSTEM';
 interface Notification {
@@ -26,7 +25,6 @@ function timeAgo(dateStr: string) {
 }
 
 const Notifications = () => {
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount]     = useState(0);
   const [loading, setLoading]             = useState(true);
@@ -70,29 +68,18 @@ const Notifications = () => {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="section-label mb-0.5">Inbox</p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-              title="Back"
-            >
-              <ArrowLeft size={13} />
-              <span>Back</span>
-            </button>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-                Notifications
-              </h1>
-              {unreadCount > 0 && (
-                <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(182,83,75,0.1)', color: 'var(--error)', border: '1px solid rgba(182,83,75,0.2)' }}
-                >
-                  {unreadCount}
-                </span>
-              )}
-            </div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+              Notifications
+            </h1>
+            {unreadCount > 0 && (
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(182,83,75,0.1)', color: 'var(--error)', border: '1px solid rgba(182,83,75,0.2)' }}
+              >
+                {unreadCount}
+              </span>
+            )}
           </div>
         </div>
 

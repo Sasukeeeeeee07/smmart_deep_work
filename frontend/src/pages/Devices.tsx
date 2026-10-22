@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { deviceService, employeeService } from '../services/api';
 import api from '../services/api';
 import {
   Cpu, Wifi, WifiOff, User, UserCheck, Loader2, Sliders,
-  Clock, Calendar, Star, Zap, ShieldAlert, Check, X, Eye, ArrowLeft
+  Clock, Calendar, Star, Zap, ShieldAlert, Check, X, Eye
 } from 'lucide-react';
 
 interface Employee { _id: string; firstName: string; lastName: string; }
@@ -43,7 +42,6 @@ const WIDGETS = [
 ];
 
 const Devices = () => {
-  const navigate = useNavigate();
   const [devices, setDevices]       = useState<Device[]>([]);
   const [employees, setEmployees]   = useState<Employee[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -107,20 +105,9 @@ const Devices = () => {
       {/* Header */}
       <div>
         <p className="section-label mb-0.5">Hardware</p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-            title="Back"
-          >
-            <ArrowLeft size={13} />
-            <span>Back</span>
-          </button>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-            Devices
-          </h1>
-        </div>
+        <h1 className="text-2xl font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+          Devices
+        </h1>
       </div>
 
 

@@ -359,39 +359,36 @@ export default function DeepWorkPage() {
 
         {/* ── Top Header Bar ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between flex-wrap gap-4 pb-1">
-          <div className="flex items-center gap-3.5">
-            <img src="/smmart-logo.png" alt="smmart" className="h-9 w-auto object-contain shrink-0" />
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1
-                  className="text-2xl md:text-3xl font-extrabold tracking-tight"
-                  style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-                >
-                  CURRENT SESSION DEEP WORK
-                </h1>
-                <span
-                  className="text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
-                  style={{
-                    background: currentSession?.status === 'ACTIVE'
-                      ? 'rgba(74,124,89,0.18)'
-                      : currentSession?.status === 'BREAK'
-                      ? 'rgba(184,121,57,0.18)'
-                      : 'var(--surface-3)',
-                    color: currentSession?.status === 'ACTIVE'
-                      ? 'var(--forest)'
-                      : currentSession?.status === 'BREAK'
-                      ? 'var(--amber-w)'
-                      : 'var(--ink-3)',
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
-                </span>
-              </div>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
-                Current Session Target Block: {targetMin}m • Format: <span className="font-mono font-semibold">H - M - S</span>
-              </p>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1
+                className="text-2xl md:text-3xl font-extrabold tracking-tight"
+                style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+              >
+                CURRENT SESSION DEEP WORK
+              </h1>
+              <span
+                className="text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
+                style={{
+                  background: currentSession?.status === 'ACTIVE'
+                    ? 'rgba(74,124,89,0.18)'
+                    : currentSession?.status === 'BREAK'
+                    ? 'rgba(184,121,57,0.18)'
+                    : 'var(--surface-3)',
+                  color: currentSession?.status === 'ACTIVE'
+                    ? 'var(--forest)'
+                    : currentSession?.status === 'BREAK'
+                    ? 'var(--amber-w)'
+                    : 'var(--ink-3)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
+              </span>
             </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
+              Current Session Target Block: {targetMin}m • Format: <span className="font-mono font-semibold">H - M - S</span>
+            </p>
           </div>
 
           {/* Device Selector / Person Display, Online/Offline Pill & Session History Trigger */}
