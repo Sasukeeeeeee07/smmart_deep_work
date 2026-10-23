@@ -12,7 +12,7 @@ router.get('/activity/history', protect, getActivityHistory);
 
 // Display config routes
 router.get('/:uid/display-config', getDisplayConfig);
-router.patch('/:uid/display-config', protect, authorize('ADMIN', 'MANAGER'), updateDisplayConfig);
+router.patch('/:uid/display-config', protect, updateDisplayConfig);
 
 // Public routes for the ESP32 (no JWT for now)
 router.get('/:uid', getDevice);

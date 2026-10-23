@@ -11,6 +11,7 @@ import ActivityPage from './pages/Activity';
 import DeepWorkPage from './pages/DeepWork';
 import Profile from './pages/Profile';
 import SettingsPage from './pages/Settings';
+import RewardsPage from './pages/Rewards';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/deepwork" element={<DeepWorkPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/notifications" element={<Notifications />} />
         </Route>
         

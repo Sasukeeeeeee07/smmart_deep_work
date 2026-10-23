@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navigate, Outlet, Link, useNavigate } from 'react-router-dom';
-import { LogOut, Bell, ArrowLeft, Settings } from 'lucide-react';
+import { LogOut, Bell, ArrowLeft, Settings, Award } from 'lucide-react';
 import { notificationService, deviceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 
@@ -119,15 +119,24 @@ export default function DashboardLayout() {
           </Link>
         </div>
 
-        {/* Right: Settings/SDW Points, Notifications, User & Logout */}
-        <div className="flex items-center gap-3">
+        {/* Right: Rewards, Settings, Notifications, User & Logout */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link
+            to="/rewards"
+            className="p-2 rounded-lg transition-colors hover:text-amber-600"
+            style={{ color: 'var(--ink-3)' }}
+            title="Rewards & Milestones"
+          >
+            <Award size={18} />
+          </Link>
+
           <Link
             to="/settings"
             className="p-2 rounded-lg transition-colors hover:text-[var(--forest)]"
             style={{ color: 'var(--ink-3)' }}
-            title="Settings & SDW Points Tracker"
+            title="Settings"
           >
-            <Settings size={17} />
+            <Settings size={18} />
           </Link>
 
           <Link

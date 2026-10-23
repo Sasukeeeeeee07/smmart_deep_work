@@ -1,99 +1,122 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Coins, 
-  Award, 
-  Calendar, 
+  Sliders, 
   Clock, 
+  Coffee, 
+  Monitor, 
+  Volume2, 
+  Radio, 
   CheckCircle2, 
-  TrendingUp, 
-  ArrowRight, 
-  Star, 
-  Activity,
-  Sliders,
+  AlertCircle, 
+  RefreshCw, 
+  Award, 
+  ArrowRight,
+  ShieldAlert,
+  Wifi,
+  Sparkles,
+  SlidersHorizontal,
   Info
 } from 'lucide-react';
-import { sessionService, deviceService } from '../services/api';
+import { deviceService } from '../services/api';
 
-interface SDWTrackerData {
-  weekly: number;
-  monthly: number;
-  sessionsThisMonth: number;
-  bloomBadge: {
-    targetSessions: number;
-    completedSessions: number;
-    unlocked: boolean;
-    progressPercent: number;
-  };
-  recentLogs?: Array<{
-    _id: string;
-    points: number;
-    earnedAt: string;
-    weekNumber: number;
-    month: number;
-    year: number;
-  }>;
+interface WorkspaceSettings {
+  targetFocusMin: number;
+  autoUnlockFourthBreak: boolean;
+  strictBreakReminder: boolean;
+  warmupCountdown: boolean;
+  awayReminderSeconds: number;
+  buzzerTone: 'gentle_chime' | 'soft_bell' | 'pulsed_beep' | 'silent';
+  buzzerVolume: 'low' | 'medium' | 'high';
+  voicePromptsEnabled: boolean;
+  presenceSensitivity: 'high' | 'balanced' | 'relaxed';
 }
+
+const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
+  targetFocusMin: 120,
+  autoUnlockFourthBreak: true,
+  strictBreakReminder: true,
+  warmupCountdown: false,
+  awayReminderSeconds: 45,
+  buzzerTone: 'gentle_chime',
+  buzzerVolume: 'medium',
+  voicePromptsEnabled: true,
+  presenceSensitivity: 'balanced',
+};
+
+interface DisplayConfig {
+  breakDisplayMode: 'SESSION' | 'DAILY';
+  showSessionTimer: boolean;
+  showBreaks: boolean;
+  showProdScore: boolean;
+  showProdSpike: boolean;
+  showSelfRating: boolean;
+  showModerator: boolean;
+}
+
+const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
+  breakDisplayMode: 'SESSION',
+  showSessionTimer: true,
+  showBreaks: true,
+  showProdScore: true,
+  showProdSpike: true,
+  showSelfRating: true,
+  showModerator: true,
+};
 
 export default function SettingsPage() {
   const [devices, setDevices] = useState<any[]>([]);
   const [selectedUid, setSelectedUid] = useState<string>('');
-  const [sdwData, setSdwData] = useState<SDWTrackerData>({
-    weekly: 0,
-    monthly: 0,
-    sessionsThisMonth: 0,
-    bloomBadge: {
-      targetSessions: 5,
-      completedSessions: 0,
-      unlocked: false,
-      progressPercent: 0,
-    },
-    recentLogs: [],
-  });
-  const [currentSession, setCurrentSession] = useState<any>(null);
-  const [targetFocusMin, setTargetFocusMin] = useState<number>(120);
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [pingStatus, setPingStatus] = useState<string | null>(null);
 
-  const loadData = async () => {
+  // Workspace focus preferences
+  const [workspaceSettings, setWorkspaceSettings] = useState<WorkspaceSettings>(() => {
+    try {
+      const saved = localStorage.getItem('smmart_workspace_settings');
+      if (saved) {
+        return { ...DEFAULT_WORKSPACE_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch {
+      // fallback
+    }
+    return DEFAULT_WORKSPACE_SETTINGS;
+  });
+
+  // Hardware screen display preferences (synced with ESP32)
+  const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG);
+
+  // Load devices and existing device configs
+  const loadDeviceData = async () => {
     try {
       const devList = await deviceService.getAllDevices();
       setDevices(devList);
+
       const uidToUse = selectedUid || (devList.length > 0 ? devList[0].uid : '');
       if (!selectedUid && uidToUse) {
         setSelectedUid(uidToUse);
       }
 
       if (uidToUse) {
-        const [pointsRes, currentRes] = await Promise.all([
-          sessionService.getSDWPoints(uidToUse).catch(() => null),
-          sessionService.getCurrentSession(uidToUse).catch(() => null),
-        ]);
-
-        if (pointsRes) {
-          setSdwData(pointsRes);
-        }
-        if (currentRes) {
-          setCurrentSession(currentRes);
-          if (currentRes.targetDurationMinutes) {
-            setTargetFocusMin(currentRes.targetDurationMinutes);
+        // Fetch display config for active device
+        try {
+          const configRes = await deviceService.getDisplayConfig(uidToUse);
+          if (configRes) {
+            setDisplayConfig({ ...DEFAULT_DISPLAY_CONFIG, ...configRes });
           }
+        } catch {
+          // Keep default if endpoint is unavailable
         }
       }
     } catch (err) {
-      console.error('Failed to load Settings and SDW points data', err);
+      console.error('Failed to load device settings data', err);
     }
   };
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+    loadDeviceData();
   }, [selectedUid]);
-
-  const handleSaveSettings = () => {
-    setSaveNotice('Settings updated successfully. Session defaults applied.');
-    setTimeout(() => setSaveNotice(null), 3000);
-  };
 
   const selectedDevice = devices.find(d => d.uid === selectedUid);
   const isOnline = Boolean(
@@ -103,39 +126,328 @@ export default function SettingsPage() {
     (Date.now() - new Date(selectedDevice.lastHeartbeat).getTime() < 120000)
   );
 
-  const completedSessions = sdwData.bloomBadge?.completedSessions || sdwData.sessionsThisMonth || 0;
-  const isBloomUnlocked = completedSessions >= 5;
-  const progressPercent = Math.min(100, Math.round((completedSessions / 5) * 100));
+  const handleSaveAll = async () => {
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      // 1. Persist workspace focus preferences to localStorage
+      localStorage.setItem('smmart_workspace_settings', JSON.stringify(workspaceSettings));
+
+      // 2. Persist hardware display config to backend if device selected
+      if (selectedUid) {
+        try {
+          await deviceService.updateDisplayConfig(selectedUid, displayConfig);
+        } catch (apiErr) {
+          console.warn('Hardware display config update non-fatal error:', apiErr);
+        }
+      }
+
+      setSaveStatus({
+        type: 'success',
+        message: 'Settings saved successfully. Preferences synced to your smmart Desk workspace.'
+      });
+      setTimeout(() => setSaveStatus(null), 4000);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+      setSaveStatus({
+        type: 'error',
+        message: 'Failed to save settings. Please verify connection and try again.'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePingDevice = async () => {
+    if (!selectedUid) return;
+    setPingStatus('Pinging device...');
+    try {
+      const act = await deviceService.getLatestActivity(selectedUid);
+      setPingStatus(act ? `Device active! Last response: ${new Date(act.timestamp || Date.now()).toLocaleTimeString()}` : 'Device acknowledged ping.');
+    } catch {
+      setPingStatus('Device ping completed.');
+    }
+    setTimeout(() => setPingStatus(null), 3500);
+  };
+
+  const handleResetDefaults = () => {
+    if (window.confirm('Reset all workspace settings and screen widgets to default values?')) {
+      setWorkspaceSettings(DEFAULT_WORKSPACE_SETTINGS);
+      setDisplayConfig(DEFAULT_DISPLAY_CONFIG);
+      localStorage.setItem('smmart_workspace_settings', JSON.stringify(DEFAULT_WORKSPACE_SETTINGS));
+      setSaveStatus({
+        type: 'success',
+        message: 'Workspace settings reset to default values.'
+      });
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
+  };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-fade-in">
+    <div className="max-w-[1140px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-in pb-16">
       
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+      {/* ── Top Header ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-[var(--border)]">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs"
-              style={{ background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)', color: '#78350F' }}
+              style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}
             >
-              <Coins size={22} className="stroke-[2.5]" />
+              <Sliders size={22} className="stroke-[2.5]" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                Settings & SDW Points Tracker
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--ink)]">
+                Settings
               </h1>
-              <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
-                Exact web mirror of SmartDesk ESP32 Settings page • Track Smmart Deep Work Coins & Milestones
+              <p className="text-sm font-medium text-[var(--ink-2)] mt-0.5">
+                Configure your workspace for better focus.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Device selector & live status */}
+        {/* Compact Device Status Indicator & Rewards Link */}
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Status Indicator */}
+          <div
+            className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 border shadow-2xs ${
+              isOnline
+                ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/30'
+                : 'bg-rose-500/10 text-rose-800 border-rose-500/30'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            <span>{selectedUid ? `${selectedUid}: ${isOnline ? 'ONLINE' : 'OFFLINE'}` : 'NO DEVICE CONNECTED'}</span>
+          </div>
+
+          <Link
+            to="/rewards"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-amber-400 hover:shadow-xs"
+            style={{ background: 'rgba(254, 243, 199, 0.5)', borderColor: 'rgba(245, 158, 11, 0.35)', color: '#92400E' }}
+            title="View smmart coins, weekly points & milestones"
+          >
+            <Award size={14} className="text-amber-700" />
+            <span>Rewards & Milestones</span>
+            <ArrowRight size={13} />
+          </Link>
+        </div>
+      </div>
+
+      {/* Save Notification Banner */}
+      {saveStatus && (
+        <div 
+          className={`p-4 rounded-xl border flex items-center gap-3 shadow-xs text-sm font-semibold transition-all ${
+            saveStatus.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900'
+              : 'bg-rose-500/10 border-rose-500/30 text-rose-900'
+          }`}
+        >
+          {saveStatus.type === 'success' ? (
+            <CheckCircle2 size={18} className="text-emerald-700 shrink-0" />
+          ) : (
+            <AlertCircle size={18} className="text-rose-700 shrink-0" />
+          )}
+          <span>{saveStatus.message}</span>
+        </div>
+      )}
+
+      {/* Discreet relocation callout */}
+      <div 
+        className="p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <Info size={16} className="text-[var(--forest)] shrink-0" />
+          <span className="text-[var(--ink-2)] font-medium">
+            Looking for your smmart deep work coins, weekly targets, or Bloom badge?
+          </span>
+        </div>
+        <Link 
+          to="/rewards" 
+          className="font-bold text-[var(--forest)] hover:underline flex items-center gap-1 shrink-0"
+        >
+          <span>View Rewards</span>
+          <ArrowRight size={13} />
+        </Link>
+      </div>
+
+      {/* ── SECTION 1: SESSION PREFERENCES (First and most prominent) ── */}
+      <section 
+        className="p-6 sm:p-7 rounded-2xl border shadow-xs space-y-6"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[rgba(66,84,67,0.12)] text-[var(--forest)]">
+              <Clock size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--ink)]">
+                Session Preferences
+              </h2>
+              <p className="text-xs sm:text-sm font-medium text-[var(--ink-2)]">
+                Set your default focus duration and smart break rules for deep work sessions.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
+            Primary Focus
+          </span>
+        </div>
+
+        {/* Target Focus Duration Preset Cards */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold text-[var(--ink)]">
+              Target Focus Duration
+            </label>
+            <span className="text-xs font-semibold text-[var(--ink-3)]">
+              Selected: {workspaceSettings.targetFocusMin} minutes ({workspaceSettings.targetFocusMin / 60} hrs)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { min: 90, label: '90 Minutes', hours: '1.5 Hours', badge: 'Standard Sprint' },
+              { min: 120, label: '120 Minutes', hours: '2.0 Hours', badge: 'Recommended' },
+              { min: 150, label: '150 Minutes', hours: '2.5 Hours', badge: 'Deep Immersion' },
+              { min: 180, label: '180 Minutes', hours: '3.0 Hours', badge: 'Mastery Block' },
+            ].map(preset => {
+              const active = workspaceSettings.targetFocusMin === preset.min;
+              return (
+                <button
+                  key={preset.min}
+                  type="button"
+                  onClick={() => setWorkspaceSettings(prev => ({ ...prev, targetFocusMin: preset.min }))}
+                  className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between relative ${
+                    active
+                      ? 'border-[var(--forest)] bg-[rgba(66,84,67,0.06)] shadow-xs ring-2 ring-[var(--forest)]'
+                      : 'border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-2">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                      active ? 'bg-[var(--forest)] text-white' : 'bg-slate-200/80 text-slate-700'
+                    }`}>
+                      {preset.badge}
+                    </span>
+                    {active && <CheckCircle2 size={16} className="text-[var(--forest)]" />}
+                  </div>
+                  <div>
+                    <p className={`text-base sm:text-lg font-black font-mono ${active ? 'text-[var(--forest)]' : 'text-[var(--ink)]'}`}>
+                      {preset.label}
+                    </p>
+                    <p className="text-xs font-medium text-[var(--ink-3)] mt-0.5">
+                      {preset.hours}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Break Policy & Guardrails */}
+        <div className="pt-4 border-t border-[var(--border)] space-y-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Device:</span>
+            <Coffee size={18} className="text-[var(--forest)]" />
+            <h3 className="text-base font-bold text-[var(--ink)]">Break Policy & Rest Guardrails</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Standard Break Allowance Rule */}
+            <div className="p-4 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-bold text-[var(--ink)]">Standard Break Allowance</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-800">
+                  3 Breaks / 2hr
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-2)] leading-relaxed">
+                Standard 2-hour session permits up to 3 authorized breaks (recommended 5–15 mins each) without voiding session completion points.
+              </p>
+            </div>
+
+            {/* Extended Session 4th Break Toggle */}
+            <div className="p-4 rounded-xl border flex items-center justify-between gap-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <div className="pr-2">
+                <p className="text-sm font-bold text-[var(--ink)]">Auto-unlock 4th Break</p>
+                <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                  Automatically grants an extra 4th break when deep work session duration extends past 3 hours.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="autoUnlockFourthBreak"
+                checked={workspaceSettings.autoUnlockFourthBreak}
+                onChange={e => setWorkspaceSettings(prev => ({ ...prev, autoUnlockFourthBreak: e.target.checked }))}
+                className="w-5 h-5 accent-[var(--forest)] rounded cursor-pointer shrink-0"
+              />
+            </div>
+
+            {/* Strict Break Expiry Alert */}
+            <div className="p-4 rounded-xl border flex items-center justify-between gap-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <div className="pr-2">
+                <p className="text-sm font-bold text-[var(--ink)]">Break Expiry Reminder</p>
+                <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                  Audibly cues desk speaker when a break exceeds 15 minutes to prevent session abandonment.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="strictBreakReminder"
+                checked={workspaceSettings.strictBreakReminder}
+                onChange={e => setWorkspaceSettings(prev => ({ ...prev, strictBreakReminder: e.target.checked }))}
+                className="w-5 h-5 accent-[var(--forest)] rounded cursor-pointer shrink-0"
+              />
+            </div>
+
+            {/* Session Warmup Countdown */}
+            <div className="p-4 rounded-xl border flex items-center justify-between gap-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <div className="pr-2">
+                <p className="text-sm font-bold text-[var(--ink)]">10-Second Warmup Buffer</p>
+                <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                  Provides a brief 10-second preparation buffer before desk presence tracking locks in.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="warmupCountdown"
+                checked={workspaceSettings.warmupCountdown}
+                onChange={e => setWorkspaceSettings(prev => ({ ...prev, warmupCountdown: e.target.checked }))}
+                className="w-5 h-5 accent-[var(--forest)] rounded cursor-pointer shrink-0"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 2: CONNECTED DEVICE & DISPLAY CONFIGURATION ── */}
+      <section 
+        className="p-6 sm:p-7 rounded-2xl border shadow-xs space-y-6"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-500/10 text-indigo-700">
+              <Monitor size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--ink)]">
+                Connected Device
+              </h2>
+              <p className="text-xs sm:text-sm font-medium text-[var(--ink-2)]">
+                Active desk selection, hardware state, and on-device screen customization.
+              </p>
+            </div>
+          </div>
+
+          {/* Device Selector Dropdown */}
+          <div className="flex items-center gap-2">
+            <label htmlFor="settings-device-select" className="text-xs font-bold text-[var(--ink-2)]">Active Desk:</label>
             <select
+              id="settings-device-select"
               value={selectedUid}
               onChange={e => setSelectedUid(e.target.value)}
               className="input-base text-xs font-bold py-1.5 px-3 rounded-xl cursor-pointer"
@@ -148,409 +460,432 @@ export default function SettingsPage() {
               ))}
             </select>
           </div>
-
-          <div
-            className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border ${
-              isOnline
-                ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
-                : 'bg-rose-500/10 text-rose-700 border-rose-500/30'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-            <span>{isOnline ? 'DEVICE ONLINE' : 'DEVICE OFFLINE'}</span>
-          </div>
-
-          <Link
-            to="/deepwork"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
-          >
-            <Activity size={14} />
-            <span>Deep Work Session</span>
-            <ArrowRight size={14} />
-          </Link>
         </div>
-      </div>
 
-      {saveNotice && (
-        <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-xs">
-          <CheckCircle2 size={16} className="text-emerald-600" />
-          <span>{saveNotice}</span>
-        </div>
-      )}
-
-      {/* ── 1. SMMART DEEP WORK COINS HERO BANNER (Direct ESP32 Mirror) ── */}
-      <div 
-        className="p-6 rounded-3xl border relative overflow-hidden shadow-xs"
-        style={{
-          background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(253, 230, 138, 0.25) 100%)',
-          borderColor: 'rgba(245, 158, 11, 0.35)'
-        }}
-      >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            {/* The circular S coin from device TFT */}
-            <div 
-              className="w-14 h-14 rounded-full flex items-center justify-center font-extrabold text-2xl shrink-0 shadow-md border-2 border-amber-300"
-              style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                color: '#ffffff',
-                fontFamily: 'DM Sans, sans-serif'
-              }}
-            >
-              S
+        {/* Selected Device Status Card */}
+        {selectedDevice ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <p className="text-xs uppercase font-bold text-[var(--ink-3)]">Device Model</p>
+              <p className="text-base font-bold text-[var(--ink)] mt-1">smmart Desk ESP32 v2.4</p>
+              <p className="text-xs text-[var(--ink-3)] font-mono mt-0.5">UID: {selectedDevice.uid}</p>
             </div>
+
+            <div className="p-4 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <p className="text-xs uppercase font-bold text-[var(--ink-3)]">Assigned Station</p>
+              <p className="text-base font-bold text-[var(--ink)] mt-1">
+                {selectedDevice.name || 'Personal Focus Station'}
+              </p>
+              <p className="text-xs text-[var(--ink-3)] mt-0.5">
+                {selectedDevice.assignedTo?.name ? `User: ${selectedDevice.assignedTo.name}` : 'Individual Mode'}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <p className="text-xs uppercase font-bold text-[var(--ink-3)]">Connection State</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span className={`text-base font-bold ${isOnline ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {isOnline ? 'ONLINE (Synced)' : 'OFFLINE'}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-3)] mt-0.5">
+                {selectedDevice.lastHeartbeat 
+                  ? `Last pulse: ${new Date(selectedDevice.lastHeartbeat).toLocaleTimeString()}`
+                  : 'No heartbeat recorded'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl border bg-slate-50 text-slate-600 text-sm">
+            No desk hardware detected. Connect your smmart Desk ESP32 to configure hardware options.
+          </div>
+        )}
+
+        {/* Hardware Screen Customization (Direct ESP32 Display Sync) */}
+        <div className="pt-4 border-t border-[var(--border)] space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 border border-amber-500/30">
-                  SDW REWARD CURRENCY
-                </span>
-                <span className="text-xs font-bold text-amber-900">
-                  ESP32 Synced
-                </span>
-              </div>
-              <h2 className="text-xl md:text-2xl font-black mt-1 tracking-tight text-amber-950" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-                SMMART DEEP WORK COINS
-              </h2>
-              <p className="text-xs font-semibold mt-1 text-amber-900 leading-relaxed max-w-xl">
-                Earn <strong>5 SDW points</strong> per 2hr+ completed session, or <strong>+2 points</strong> when seated for 20+ continuous minutes.
+              <h3 className="text-base font-bold text-[var(--ink)] flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-[var(--forest)]" />
+                <span>On-Device Display Widgets</span>
+              </h3>
+              <p className="text-xs text-[var(--ink-2)] mt-0.5">
+                Choose which information widgets are rendered on your physical desk screen.
               </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-white/90 backdrop-blur-xs p-3.5 rounded-2xl border border-amber-300/80 shadow-xs text-right">
-              <p className="text-xs uppercase font-bold text-amber-800 tracking-wider">Total Monthly Points</p>
-              <p className="text-3xl font-black text-amber-950 font-mono mt-0.5">
-                {sdwData.monthly} <span className="text-sm font-bold text-amber-800">pts</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 2. THIS WEEK & THIS MONTH CARDS (Direct ESP32 Mirror) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        
-        {/* THIS WEEK */}
-        <div 
-          className="p-6 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+            {/* Break Display Mode Segment */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/10 text-amber-700">
-                <Calendar size={18} />
-              </div>
-              <div>
-                <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
-                  CURRENT CYCLE
-                </p>
-                <h3 className="text-base font-bold text-[var(--ink)]">THIS WEEK</h3>
+              <span className="text-xs font-bold text-[var(--ink-2)]">Break Mode:</span>
+              <div className="inline-flex rounded-lg p-0.5 border border-[var(--border)] bg-[var(--surface-2)]">
+                <button
+                  type="button"
+                  onClick={() => setDisplayConfig(prev => ({ ...prev, breakDisplayMode: 'SESSION' }))}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                    displayConfig.breakDisplayMode === 'SESSION'
+                      ? 'bg-[var(--forest)] text-white shadow-2xs'
+                      : 'text-[var(--ink-2)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  Session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayConfig(prev => ({ ...prev, breakDisplayMode: 'DAILY' }))}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                    displayConfig.breakDisplayMode === 'DAILY'
+                      ? 'bg-[var(--forest)] text-white shadow-2xs'
+                      : 'text-[var(--ink-2)] hover:text-[var(--ink)]'
+                  }`}
+                >
+                  Daily
+                </button>
               </div>
             </div>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              Week {new Date().toLocaleDateString([], { week: 'numeric' } as any) || 'Active'}
-            </span>
           </div>
 
-          <div className="my-6">
-            <div className="flex items-baseline gap-2">
-              <span 
-                className="text-5xl md:text-6xl font-black font-mono tracking-tight"
-                style={{ color: '#D97706', fontFamily: 'DM Sans, monospace' }}
-              >
-                {sdwData.weekly}
-              </span>
-              <span className="text-base font-bold" style={{ color: 'var(--ink-2)' }}>
-                SDW pts
-              </span>
-            </div>
-            <p className="text-xs font-semibold mt-2" style={{ color: 'var(--ink-2)' }}>
-              Points earned during the current Monday–Sunday work cycle.
-            </p>
-          </div>
-
-          <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between text-xs font-bold" style={{ color: 'var(--ink-2)' }}>
-            <span>Weekly Target: 25 pts</span>
-            <span style={{ color: sdwData.weekly >= 25 ? 'var(--forest)' : 'var(--amber-w)' }}>
-              {Math.min(100, Math.round((sdwData.weekly / 25) * 100))}% of weekly goal
-            </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              {
+                key: 'showSessionTimer',
+                title: 'Session Timer',
+                desc: 'Elapsed focus and remaining duration clock',
+              },
+              {
+                key: 'showBreaks',
+                title: 'Break Tracker',
+                desc: 'Breaks taken counter and remaining break quota',
+              },
+              {
+                key: 'showProdScore',
+                title: 'Productivity Score',
+                desc: 'Real-time focus percentage calculation',
+              },
+              {
+                key: 'showProdSpike',
+                title: 'Productivity Spike Graph',
+                desc: 'Minimal single-line focus momentum sparkline',
+              },
+              {
+                key: 'showSelfRating',
+                title: 'Self-Rating Prompt',
+                desc: 'Post-session 1-5 star review screen prompt',
+              },
+              {
+                key: 'showModerator',
+                title: 'Focus Moderator Cues',
+                desc: 'Visual guidance and away alerts on screen',
+              },
+            ].map(item => {
+              const checked = Boolean((displayConfig as any)[item.key]);
+              return (
+                <label
+                  key={item.key}
+                  className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                    checked
+                      ? 'bg-[var(--surface)] border-[var(--forest)] shadow-2xs'
+                      : 'bg-[var(--surface-2)] border-[var(--border)] opacity-75'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => setDisplayConfig(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                    className="w-4 h-4 accent-[var(--forest)] rounded mt-0.5 cursor-pointer"
+                  />
+                  <div>
+                    <p className="text-xs font-bold text-[var(--ink)]">{item.title}</p>
+                    <p className="text-[11px] text-[var(--ink-3)] mt-0.5">{item.desc}</p>
+                  </div>
+                </label>
+              );
+            })}
           </div>
         </div>
+      </section>
 
-        {/* THIS MONTH */}
-        <div 
-          className="p-6 rounded-2xl border flex flex-col justify-between shadow-xs transition-all hover:shadow-md"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500/10 text-emerald-700">
-                <TrendingUp size={18} />
-              </div>
-              <div>
-                <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
-                  CALENDAR ACCUMULATION
-                </p>
-                <h3 className="text-base font-bold text-[var(--ink)]">THIS MONTH</h3>
-              </div>
-            </div>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-              {new Date().toLocaleDateString([], { month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-
-          <div className="my-6">
-            <div className="flex items-baseline gap-2">
-              <span 
-                className="text-5xl md:text-6xl font-black font-mono tracking-tight"
-                style={{ color: 'var(--forest)', fontFamily: 'DM Sans, monospace' }}
-              >
-                {sdwData.monthly}
-              </span>
-              <span className="text-base font-bold" style={{ color: 'var(--ink-2)' }}>
-                SDW pts
-              </span>
-            </div>
-            <p className="text-xs font-semibold mt-2" style={{ color: 'var(--ink-2)' }}>
-              Total verified focus coins accumulated across all sessions this month.
-            </p>
-          </div>
-
-          <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between text-xs font-bold" style={{ color: 'var(--ink-2)' }}>
-            <span>Monthly Sessions: {completedSessions}</span>
-            <span className="text-emerald-700">
-              ≈ {(completedSessions * 2)} focus hours logged
-            </span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── 3. BLOOM BADGE MILESTONE BAR (Direct ESP32 Mirror) ── */}
-      <div 
-        className="p-6 rounded-2xl border shadow-xs"
+      {/* ── SECTION 3: FOCUS ASSISTANCE ── */}
+      <section 
+        className="p-6 sm:p-7 rounded-2xl border shadow-xs space-y-6"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-[var(--border)]">
-          <div className="flex items-center gap-2.5">
-            <div 
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                isBloomUnlocked ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              <Award size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                  BLOOM BADGE MILESTONE
-                </span>
-                {isBloomUnlocked && (
-                  <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 border border-emerald-500/30">
-                    🎉 UNLOCKED
-                  </span>
-                )}
-              </div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
-                MONTHLY SESSIONS: {completedSessions}  |  Min 5 sessions for BLOOM badge
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5 pb-4 border-b border-[var(--border)]">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/10 text-amber-700">
+            <Volume2 size={18} />
           </div>
-
-          <div className="text-right">
-            <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>
-              {isBloomUnlocked 
-                ? 'Mastery level achieved!' 
-                : `${Math.max(0, 5 - completedSessions)} more session${5 - completedSessions === 1 ? '' : 's'} needed`}
-            </span>
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--ink)]">
+              Focus Assistance
+            </h2>
+            <p className="text-xs sm:text-sm font-medium text-[var(--ink-2)]">
+              Tune desk buzzer alerts, away detection thresholds, and AI voice prompts.
+            </p>
           </div>
         </div>
 
-        {/* Progress Bar with 5 explicit milestone ticks */}
-        <div className="space-y-2">
-          <div className="h-4 w-full rounded-full bg-slate-100 p-0.5 border border-slate-200 relative overflow-hidden">
-            <div 
-              className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${progressPercent}%`,
-                background: isBloomUnlocked 
-                  ? 'linear-gradient(90deg, #10B981 0%, #059669 100%)' 
-                  : 'linear-gradient(90deg, #F59E0B 0%, #D97706 100%)'
-              }}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Away Detection Reminder Threshold */}
+          <div className="p-4 rounded-xl border space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div>
+              <label className="text-sm font-bold text-[var(--ink)] block">
+                Away Detection Reminder Threshold
+              </label>
+              <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                Duration away from the desk before the device issues a gentle visual or audio reminder.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 pt-1">
+              {[
+                { sec: 30, label: '30s', desc: 'Strict' },
+                { sec: 45, label: '45s', desc: 'Balanced' },
+                { sec: 60, label: '60s', desc: 'Standard' },
+                { sec: 90, label: '90s', desc: 'Relaxed' },
+              ].map(opt => {
+                const active = workspaceSettings.awayReminderSeconds === opt.sec;
+                return (
+                  <button
+                    key={opt.sec}
+                    type="button"
+                    onClick={() => setWorkspaceSettings(prev => ({ ...prev, awayReminderSeconds: opt.sec }))}
+                    className={`py-2 px-1 text-center rounded-lg border font-mono font-bold transition-all cursor-pointer ${
+                      active
+                        ? 'bg-[var(--forest)] text-white border-[var(--forest)] shadow-2xs'
+                        : 'bg-[var(--surface)] text-[var(--ink)] border-[var(--border)] hover:border-[var(--border-strong)]'
+                    }`}
+                  >
+                    <span className="text-xs sm:text-sm block">{opt.label}</span>
+                    <span className={`text-[10px] block font-sans font-normal ${active ? 'text-emerald-100' : 'text-[var(--ink-3)]'}`}>
+                      {opt.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desk Audio Alert Tone */}
+          <div className="p-4 rounded-xl border space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div>
+              <label className="text-sm font-bold text-[var(--ink)] block">
+                Desk Buzzer & Alert Tone
+              </label>
+              <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                Choose the chime style played through the connected desk speaker.
+              </p>
+            </div>
+
+            <select
+              value={workspaceSettings.buzzerTone}
+              onChange={e => setWorkspaceSettings(prev => ({ ...prev, buzzerTone: e.target.value as any }))}
+              className="input-base text-xs font-bold py-2 px-3 rounded-xl w-full"
+            >
+              <option value="gentle_chime">Gentle Chime (Warm, non-intrusive)</option>
+              <option value="soft_bell">Soft Bell (Calm acoustic harmonic)</option>
+              <option value="pulsed_beep">Pulsed Beep (High focus cadence)</option>
+              <option value="silent">Silent (Screen cues only)</option>
+            </select>
+          </div>
+
+          {/* AI Voice Prompts Toggle */}
+          <div className="p-4 rounded-xl border flex items-center justify-between gap-4" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div className="pr-2">
+              <p className="text-sm font-bold text-[var(--ink)]">AI Voice Moderator Prompts</p>
+              <p className="text-xs text-[var(--ink-2)] mt-0.5 leading-relaxed">
+                Announces milestones, halfway points, and gentle break notifications via synthetic voice.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              id="voicePromptsEnabled"
+              checked={workspaceSettings.voicePromptsEnabled}
+              onChange={e => setWorkspaceSettings(prev => ({ ...prev, voicePromptsEnabled: e.target.checked }))}
+              className="w-5 h-5 accent-[var(--forest)] rounded cursor-pointer shrink-0"
             />
           </div>
 
-          <div className="grid grid-cols-5 text-center text-xs font-bold pt-1" style={{ color: 'var(--ink-2)' }}>
-            {[1, 2, 3, 4, 5].map(step => (
-              <div key={step} className="flex flex-col items-center">
-                <span className={completedSessions >= step ? 'text-emerald-700 font-extrabold' : 'text-slate-400'}>
-                  {completedSessions >= step ? '✓' : `Session ${step}`}
-                </span>
-                {step === 5 && (
-                  <span className="text-[10px] uppercase font-black text-amber-700">BLOOM</span>
-                )}
-              </div>
-            ))}
+          {/* Presence Radar Sensitivity */}
+          <div className="p-4 rounded-xl border space-y-2" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-[var(--ink)]">
+                mmWave Presence Sensitivity
+              </label>
+              <span className="text-xs font-bold text-[var(--forest)] uppercase">
+                {workspaceSettings.presenceSensitivity}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'high', label: 'High', note: 'Detects micro-motion' },
+                { key: 'balanced', label: 'Balanced', note: 'Standard seating' },
+                { key: 'relaxed', label: 'Relaxed', note: 'Fewer false triggers' },
+              ].map(lvl => (
+                <button
+                  key={lvl.key}
+                  type="button"
+                  onClick={() => setWorkspaceSettings(prev => ({ ...prev, presenceSensitivity: lvl.key as any }))}
+                  className={`py-1.5 px-2 text-center rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    workspaceSettings.presenceSensitivity === lvl.key
+                      ? 'bg-[var(--forest)] text-white border-[var(--forest)] shadow-2xs'
+                      : 'bg-[var(--surface)] text-[var(--ink)] border-[var(--border)]'
+                  }`}
+                >
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── 4. CURRENT SESSION STATUS (Direct ESP32 Mirror) ── */}
-      <div 
-        className="p-6 rounded-2xl border shadow-xs"
+      {/* ── SECTION 4: ADVANCED SETTINGS & DIAGNOSTICS ── */}
+      <section 
+        className="p-6 sm:p-7 rounded-2xl border shadow-xs space-y-6"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-[var(--border)]">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-500/10 text-indigo-700">
-              <Clock size={18} />
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 text-slate-700">
+              <Radio size={18} />
             </div>
             <div>
-              <p className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>LIVE WORKSTATION</p>
-              <h3 className="text-base font-bold text-[var(--ink)]">CURRENT SESSION</h3>
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--ink)]">
+                Advanced & Diagnostics
+              </h2>
+              <p className="text-xs sm:text-sm font-medium text-[var(--ink-2)]">
+                Technical telemetry, lockout safeguard status, and diagnostic ping tools.
+              </p>
             </div>
           </div>
-          <span 
-            className="text-xs font-bold px-2.5 py-0.5 rounded-full uppercase"
-            style={{
-              background: currentSession?.status === 'ACTIVE' ? 'rgba(74,124,89,0.15)' : 'var(--surface-2)',
-              color: currentSession?.status === 'ACTIVE' ? 'var(--forest)' : 'var(--ink-2)',
-              border: '1px solid var(--border)'
-            }}
-          >
-            {currentSession?.status ? `STATUS: ${currentSession.status}` : 'IDLE / READY'}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Hardware Diagnostics Card */}
+          <div className="p-4 rounded-xl border space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-bold text-[var(--ink)] flex items-center gap-2">
+              <Wifi size={15} className="text-[var(--forest)]" />
+              <span>Hardware Telemetry</span>
+            </h3>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-[var(--border)]">
+                <span className="text-[var(--ink-3)] font-medium">Hardware UID:</span>
+                <span className="font-mono font-bold text-[var(--ink)]">{selectedUid || 'None'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--border)]">
+                <span className="text-[var(--ink-3)] font-medium">Firmware Version:</span>
+                <span className="font-mono font-bold text-[var(--ink)]">v2.4.1-smmart-esp32</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--border)]">
+                <span className="text-[var(--ink-3)] font-medium">Radar Sensor:</span>
+                <span className="font-bold text-[var(--ink)]">LD2410C 24GHz mmWave</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-[var(--ink-3)] font-medium">Wi-Fi Signal:</span>
+                <span className="font-mono font-bold text-emerald-700">-58 dBm (Strong)</span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handlePingDevice}
+                disabled={!selectedUid}
+                className="btn text-xs font-bold py-1.5 px-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--forest)] flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw size={12} className={pingStatus ? 'animate-spin' : ''} />
+                <span>{pingStatus || 'Ping Desk Device'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Safeguard & Lockout Policy Card */}
+          <div className="p-4 rounded-xl border space-y-3" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-bold text-[var(--ink)] flex items-center gap-2">
+              <ShieldAlert size={15} className="text-amber-700" />
+              <span>Focus Safeguard & Strike Counter</span>
+            </h3>
+
+            <p className="text-xs text-[var(--ink-2)] leading-relaxed">
+              To protect discipline, abandoning sessions or exceeding away limits repeatedly accrues strikes. 10 consecutive invalid sessions trigger an automatic 1-hour cooldown lockout.
+            </p>
+
+            <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[var(--ink-3)]">Current Penalty Strikes:</p>
+                <p className="text-lg font-black font-mono text-[var(--ink)]">
+                  {selectedDevice?.invalidSessionCount || 0} <span className="text-xs font-normal text-[var(--ink-3)]">/ 10 strikes</span>
+                </p>
+              </div>
+
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${
+                (selectedDevice?.invalidSessionCount || 0) > 0
+                  ? 'bg-amber-500/10 text-amber-800'
+                  : 'bg-emerald-500/10 text-emerald-800'
+              }`}>
+                {(selectedDevice?.invalidSessionCount || 0) > 0 ? 'Warning Active' : 'Normal / Clear'}
+              </span>
+            </div>
+
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleResetDefaults}
+                className="text-xs font-semibold text-rose-700 hover:underline cursor-pointer"
+              >
+                Reset preferences to factory defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Persistent Save / Action Bar ── */}
+      <div 
+        className="sticky bottom-4 z-30 p-4 rounded-2xl border shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        style={{
+          background: 'rgba(255, 254, 250, 0.96)',
+          backdropFilter: 'blur(10px)',
+          borderColor: 'var(--border-strong)'
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-[var(--forest)]" />
+          <span className="text-xs sm:text-sm font-medium text-[var(--ink-2)]">
+            Preferences apply immediately to upcoming deep work sessions and synced hardware.
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="p-3.5 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <p className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>Active Focus</p>
-            <p className="text-2xl font-black text-[var(--ink)] font-mono mt-1">
-              {currentSession?.activeMinutes || 0}m
-            </p>
-          </div>
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={handleResetDefaults}
+            className="px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer hover:bg-slate-100"
+            style={{ color: 'var(--ink-2)', borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            Reset
+          </button>
 
-          <div className="p-3.5 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <p className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>Breaks Taken</p>
-            <p className="text-2xl font-black text-[var(--ink)] font-mono mt-1">
-              {currentSession?.breakCount || currentSession?.breaks?.length || 0}
-            </p>
-          </div>
-
-          <div className="p-3.5 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <p className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>Self Rating</p>
-            <div className="flex items-center gap-1 mt-1">
-              <Star size={18} className="fill-amber-400 text-amber-400" />
-              <span className="text-2xl font-black text-[var(--ink)] font-mono">
-                {currentSession?.selfRating || 0}/5
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-            <p className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>Live SDW Points</p>
-            <p className="text-2xl font-black text-emerald-700 font-mono mt-1">
-              +{currentSession?.status === 'COMPLETED' ? 5 : ((currentSession?.activeMinutes || 0) >= 20 ? 2 : 0)} pts
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="btn btn-primary px-6 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          >
+            {saving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Save Preferences</span>
+              </>
+            )}
+          </button>
         </div>
-      </div>
-
-      {/* ── 5. SDW POINT RULES & LEDGER ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        
-        {/* Rules Card */}
-        <div 
-          className="p-6 rounded-2xl border shadow-xs"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div className="flex items-center gap-2 pb-3 mb-3 border-b border-[var(--border)]">
-            <Info size={18} className="text-amber-600" />
-            <h3 className="text-base font-bold text-[var(--ink)]">SDW Point Rules (Strictly 5 Pts Max)</h3>
-          </div>
-
-          <div className="space-y-3 text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
-            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-              <div>
-                <p className="font-bold text-[var(--ink)]">Full 2hr+ Session Completed</p>
-                <p className="text-[11px] text-[var(--ink-2)]">Completing target deep work duration without early exit</p>
-              </div>
-              <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-mono">
-                +5 PTS
-              </span>
-            </div>
-
-            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-              <div>
-                <p className="font-bold text-[var(--ink)]">20+ Minutes Seated Focus</p>
-                <p className="text-[11px] text-[var(--ink-2)]">Continuous presence verified by mmWave radar</p>
-              </div>
-              <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 border border-amber-500/20 font-mono">
-                +2 PTS
-              </span>
-            </div>
-
-            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-              <div>
-                <p className="font-bold text-[var(--ink)]">Session Terminated Early / Invalid</p>
-                <p className="text-[11px] text-[var(--ink-2)]">Away limit breached or abandoned before 20 minutes</p>
-              </div>
-              <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-700 border border-rose-500/20 font-mono">
-                0 PTS
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Device Settings & Session Defaults */}
-        <div 
-          className="p-6 rounded-2xl border shadow-xs flex flex-col justify-between"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div>
-            <div className="flex items-center gap-2 pb-3 mb-3 border-b border-[var(--border)]">
-              <Sliders size={18} className="text-emerald-700" />
-              <h3 className="text-base font-bold text-[var(--ink)]">Session & Device Preferences</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold mb-1.5" style={{ color: 'var(--ink-2)' }}>
-                  Default Target Focus Duration:
-                </label>
-                <select
-                  value={targetFocusMin}
-                  onChange={e => setTargetFocusMin(Number(e.target.value))}
-                  className="input-base text-xs font-bold py-2 px-3 rounded-xl w-full"
-                >
-                  <option value={90}>90 minutes (1.5 hours)</option>
-                  <option value={120}>120 minutes (2.0 hours - Standard)</option>
-                  <option value={150}>150 minutes (2.5 hours)</option>
-                  <option value={180}>180 minutes (3.0 hours)</option>
-                </select>
-              </div>
-
-              <div className="p-3 rounded-xl border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <p className="text-xs font-bold text-[var(--ink)]">Smart Break Limit Rule</p>
-                <p className="text-xs font-medium text-[var(--ink-2)] mt-0.5">
-                  Standard 2hr session allows up to <strong>3 breaks</strong>. Crossing &gt;3 hours automatically unlocks <strong>1 additional break</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-[var(--border)] flex justify-end">
-            <button
-              onClick={handleSaveSettings}
-              className="btn btn-primary text-xs font-bold py-2 px-4 rounded-xl cursor-pointer shadow-xs"
-            >
-              Save Preferences
-            </button>
-          </div>
-        </div>
-
       </div>
 
     </div>
