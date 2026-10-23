@@ -3181,7 +3181,7 @@ void setup() {
   tft.setTextColor(COLOR_ACCENT);
   tft.setTextSize(2);
   tft.setCursor(35, 80);
-  tft.print("SMART DESK S3");
+  tft.print("DEEP WORK");
   tft.setTextColor(COLOR_MUTED);
   tft.setTextSize(1);
   tft.setCursor(35, 115);
@@ -3200,7 +3200,7 @@ void setup() {
 
   Serial.println("================================");
 
-  Serial.println("ESP32-S3 SMART UI");
+  Serial.println("ESP32-S3 DEEP WORK UI");
 
   Serial.println("================================");
 
