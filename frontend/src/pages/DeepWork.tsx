@@ -7,7 +7,7 @@ import {
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
   Clock, Mic, Activity, Wifi, WifiOff,
-  History, X, Zap, User, Coins, Award
+  History, X, Zap, User
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -60,22 +60,6 @@ export default function DeepWorkPage() {
     ? `${currentSession.employeeId.firstName} ${currentSession.employeeId.lastName}`
     : (user?.name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'Individual User'));
   const [unreadCount, setUnreadCount] = useState(0);
-  const [sdwTracker, setSdwTracker] = useState<{
-    weekly: number;
-    monthly: number;
-    sessionsThisMonth: number;
-    bloomBadge: {
-      targetSessions: number;
-      completedSessions: number;
-      unlocked: boolean;
-      progressPercent: number;
-    };
-  }>({
-    weekly: 0,
-    monthly: 0,
-    sessionsThisMonth: 0,
-    bloomBadge: { targetSessions: 5, completedSessions: 0, unlocked: false, progressPercent: 0 },
-  });
 
   // Tick timer every second & fetch notifications
   useEffect(() => {
@@ -124,31 +108,22 @@ export default function DeepWorkPage() {
     };
   }, [selectedUid, currentSession?._id, currentSession?.status]);
 
-  // Fetch devices, sessions & SDW points
+  // Fetch devices & sessions
   const loadData = async () => {
     try {
       const devList = await deviceService.getAllDevices();
       setDevices(devList);
-      const uidToUse = selectedUid || (devList.length > 0 ? devList[0].uid : '');
       if (devList.length > 0 && !selectedUid) {
         setSelectedUid(devList[0].uid);
       }
 
-      const res = await sessionService.getAllSessions(uidToUse || undefined);
+      const res = await sessionService.getAllSessions(selectedUid || undefined);
       const list: Session[] = res?.sessions || (Array.isArray(res) ? res : []);
       setAllSessions(list);
 
       // Find currently active or break session for this device
-      const active = list.find(s => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status) && (!uidToUse || s.deviceUid === uidToUse));
+      const active = list.find(s => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status) && (!selectedUid || s.deviceUid === selectedUid));
       setCurrentSession(active || list[0] || null);
-
-      // Fetch SDW points tracker for this device
-      if (uidToUse) {
-        try {
-          const pts = await sessionService.getSDWPoints(uidToUse);
-          if (pts) setSdwTracker(pts);
-        } catch { /* non-fatal */ }
-      }
     } catch (err) {
       console.error('Failed to load deepwork data', err);
     } finally {
@@ -1101,182 +1076,6 @@ export default function DeepWorkPage() {
           )}
         </div>
 
-        {/* ── 4. SETTINGS & SDW POINTS TRACKER (Exact Mirror of ESP32 Device Screen) ── */}
-        <div
-          className="p-5 rounded-2xl border transition-all shadow-xs"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          {/* Header row */}
-          <div className="flex items-center justify-between pb-3 mb-4 border-b border-[var(--border)] flex-wrap gap-2">
-            <div className="flex items-center gap-2.5">
-              <div 
-                className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shadow-xs"
-                style={{ background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 100%)', color: '#78350F' }}
-              >
-                <Coins size={16} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                    SETTINGS & SDW POINTS
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-500/30">
-                    Device Mirror
-                  </span>
-                </div>
-                <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
-                  Hardware settings screen & points tracker • ESP32 synced
-                </p>
-              </div>
-            </div>
-
-            <Link
-              to="/settings"
-              className="text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors flex items-center gap-1.5 cursor-pointer bg-white text-amber-950 border-amber-300 hover:bg-amber-50 shadow-xs"
-            >
-              <span>Settings & Preferences</span>
-              <ArrowRight size={13} />
-            </Link>
-          </div>
-
-          {/* SMMART DEEP WORK COINS Panel (matching tft.print("SMMART DEEP WORK COINS")) */}
-          <div 
-            className="p-4 rounded-xl border flex items-center justify-between flex-wrap gap-3"
-            style={{
-              background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.45) 0%, rgba(253, 230, 138, 0.25) 100%)',
-              borderColor: 'rgba(245, 158, 11, 0.35)'
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div 
-                className="w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-base shadow-xs shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                  color: '#ffffff',
-                  fontFamily: 'DM Sans, sans-serif'
-                }}
-              >
-                S
-              </div>
-              <div>
-                <p className="text-xs uppercase font-extrabold tracking-wider text-amber-950">
-                  SMMART DEEP WORK COINS
-                </p>
-                <p className="text-xs font-semibold text-amber-900 mt-0.5">
-                  Earn 5 pts per 2hr+ session • Seated 20 mins = +2 pts • Capped at 5 pts max
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-3 py-1 rounded-lg bg-amber-500/20 text-amber-950 border border-amber-500/35">
-                Rule: Seated 20m (+2) | Completed (+5)
-              </span>
-            </div>
-          </div>
-
-          {/* Weekly + Monthly Points cards (matching cY = 68, cH = 50 in SmartDesk_ESP32.ino) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mt-3.5">
-            {/* THIS WEEK */}
-            <div 
-              className="p-4 rounded-xl border flex flex-col justify-between"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
-                  THIS WEEK
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                  Current Week
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-3xl md:text-4xl font-black font-mono" style={{ color: '#D97706', fontFamily: 'DM Sans, monospace' }}>
-                  {sdwTracker.weekly}
-                </span>
-                <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>pts</span>
-              </div>
-              <p className="text-[11px] font-semibold mt-1" style={{ color: 'var(--ink-2)' }}>
-                Target: 25 pts/week
-              </p>
-            </div>
-
-            {/* THIS MONTH */}
-            <div 
-              className="p-4 rounded-xl border flex flex-col justify-between"
-              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
-                  THIS MONTH
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Calendar Month
-                </span>
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-3xl md:text-4xl font-black font-mono text-emerald-700" style={{ fontFamily: 'DM Sans, monospace' }}>
-                  {sdwTracker.monthly}
-                </span>
-                <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>pts</span>
-              </div>
-              <p className="text-[11px] font-semibold mt-1" style={{ color: 'var(--ink-2)' }}>
-                Accumulated verified coins
-              </p>
-            </div>
-          </div>
-
-          {/* Milestone bar: sessions needed for next reward (matching mY = 124 in SmartDesk_ESP32.ino) */}
-          <div 
-            className="mt-3.5 p-4 rounded-xl border"
-            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-          >
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <Award size={16} className={sdwTracker.bloomBadge?.unlocked ? 'text-emerald-700' : 'text-amber-700'} />
-                <span className="text-xs font-bold" style={{ color: 'var(--ink)' }}>
-                  MONTHLY SESSIONS: {sdwTracker.bloomBadge?.completedSessions || sdwTracker.sessionsThisMonth || 0} &nbsp;|&nbsp; Min 5 sessions for BLOOM badge
-                </span>
-              </div>
-              <span className="text-xs font-bold" style={{ color: sdwTracker.bloomBadge?.unlocked ? 'var(--forest)' : 'var(--amber-w)' }}>
-                {sdwTracker.bloomBadge?.unlocked ? '🎉 BLOOM BADGE UNLOCKED' : `${Math.max(0, 5 - (sdwTracker.bloomBadge?.completedSessions || sdwTracker.sessionsThisMonth || 0))} more needed`}
-              </span>
-            </div>
-
-            {/* Progress bar */}
-            <div className="h-3 w-full rounded-full bg-slate-200 overflow-hidden relative">
-              <div 
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${sdwTracker.bloomBadge?.progressPercent || Math.min(100, Math.round(((sdwTracker.bloomBadge?.completedSessions || sdwTracker.sessionsThisMonth || 0) / 5) * 100))}%`,
-                  background: sdwTracker.bloomBadge?.unlocked ? 'var(--forest)' : '#F59E0B'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Current session info (matching sY = 153 in SmartDesk_ESP32.ino) */}
-          <div 
-            className="mt-3.5 p-3.5 rounded-xl border flex items-center justify-between flex-wrap gap-3"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <div>
-              <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
-                CURRENT SESSION ON DEVICE
-              </p>
-              <p className="text-xs font-extrabold mt-0.5" style={{ color: isRunning ? 'var(--forest)' : 'var(--ink)' }}>
-                Active: {Math.floor(activeSec / 60)}m &nbsp;•&nbsp; Breaks: {breakCount} &nbsp;•&nbsp; Self Rating: {currentSession?.selfRating || 0}/5 &nbsp;•&nbsp; SDW Points: +{currentSdwPoints}/5
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                +{currentSdwPoints} pts this session
-              </span>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -1490,16 +1289,6 @@ export default function DeepWorkPage() {
           >
             <User size={18} />
             <span>Profile</span>
-          </Link>
-
-          {/* Settings & SDW Points */}
-          <Link
-            to="/settings"
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <Coins size={18} />
-            <span>Settings & Points</span>
           </Link>
 
           {/* Activity / Devices / Staff Members: Hidden in individual mode */}
