@@ -21,6 +21,7 @@ import {
   unlockDevice,
 } from '../controllers/sessionController';
 import { protect, authorize } from '../middleware/auth';
+import { voiceRateLimiter } from '../middleware/rateLimiters';
 
 const router = express.Router();
 
@@ -46,8 +47,8 @@ router.post('/:uid/break-counted', countBreak);
 router.post('/:uid/resume',        resumeSession);
 router.post('/:uid/end',     endSession);
 router.post('/:uid/rate',    rateSession);
-router.post('/:uid/command', sendCommand);
-router.post('/:uid/alarm',   raiseAlarm);
+router.post('/:uid/command', voiceRateLimiter, sendCommand);
+router.post('/:uid/alarm',   voiceRateLimiter, raiseAlarm);
 router.get( '/:uid/sdwpoints', getSDWPoints);
 router.get( '/:uid/moderation-history', protect, authorize('ADMIN', 'MANAGER'), getModerationHistory);
 

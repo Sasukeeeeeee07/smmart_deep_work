@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const sessionController_1 = require("../controllers/sessionController");
 const auth_1 = require("../middleware/auth");
+const rateLimiters_1 = require("../middleware/rateLimiters");
 const router = express_1.default.Router();
 // Authenticated users route — requires JWT
 router.get('/all', auth_1.protect, sessionController_1.getAllSessions);
@@ -26,8 +27,8 @@ router.post('/:uid/break-counted', sessionController_1.countBreak);
 router.post('/:uid/resume', sessionController_1.resumeSession);
 router.post('/:uid/end', sessionController_1.endSession);
 router.post('/:uid/rate', sessionController_1.rateSession);
-router.post('/:uid/command', sessionController_1.sendCommand);
-router.post('/:uid/alarm', sessionController_1.raiseAlarm);
+router.post('/:uid/command', rateLimiters_1.voiceRateLimiter, sessionController_1.sendCommand);
+router.post('/:uid/alarm', rateLimiters_1.voiceRateLimiter, sessionController_1.raiseAlarm);
 router.get('/:uid/sdwpoints', sessionController_1.getSDWPoints);
 router.get('/:uid/moderation-history', auth_1.protect, (0, auth_1.authorize)('ADMIN', 'MANAGER'), sessionController_1.getModerationHistory);
 exports.default = router;

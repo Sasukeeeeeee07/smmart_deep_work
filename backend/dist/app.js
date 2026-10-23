@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const helmet_1 = __importDefault(require("helmet"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
@@ -16,19 +17,31 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const sessionRoutes_1 = __importDefault(require("./routes/sessionRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const voiceRoutes_1 = __importDefault(require("./routes/voiceRoutes"));
+const rateLimiters_1 = require("./middleware/rateLimiters");
 const app = (0, express_1.default)();
-// Middleware
+// Set trust proxy so rate limiters and loggers read the actual client IP when behind Render/Cloudflare
+app.set('trust proxy', 1);
+// HTTP Security Headers (prevents XSS, Clickjacking, MIME-sniffing, etc.)
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: false, // Keep false to allow external TTS audio streaming
+    crossOriginEmbedderPolicy: false,
+}));
+// CORS Policy
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
-// Routes
-app.use('/api/auth', authRoutes_1.default);
+// Strict body size limit to prevent memory exhaustion / DoS attacks
+app.use(express_1.default.json({ limit: '100kb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '100kb' }));
+// Global DDoS and Bot protection limiter across all API endpoints
+app.use('/api', rateLimiters_1.globalApiLimiter);
+// Routes with specialized protection
+app.use('/api/auth', rateLimiters_1.authRateLimiter, authRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 app.use('/api/employees', employeeRoutes_1.default);
 app.use('/api/devices', deviceRoutes_1.default);
 app.use('/api/tasks', taskRoutes_1.default);
 app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/sessions', sessionRoutes_1.default);
-app.use('/api/voice', voiceRoutes_1.default);
+app.use('/api/voice', rateLimiters_1.voiceRateLimiter, voiceRoutes_1.default);
 // API Health Check
 app.get('/api/health', (req, res) => {
     const dbStatus = mongoose_1.default.connection.readyState === 1 ? 'connected' : 'disconnected';
