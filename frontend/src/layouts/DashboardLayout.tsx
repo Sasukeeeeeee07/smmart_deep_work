@@ -319,26 +319,6 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
-
-      {/* ── Global Footer ── */}
-      <footer
-        className="border-t border-[var(--border)] px-4 py-6 md:px-8 text-xs text-[var(--ink-3)] flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto w-full max-w-full"
-        style={{ background: 'var(--surface)' }}
-      >
-        <div className="flex items-center gap-2 text-center sm:text-left">
-          <span className="font-semibold text-[var(--ink)]">smmart deep work</span>
-          <span>&bull;</span>
-          <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
-        </div>
-
-        <div className="flex items-center gap-4 flex-wrap justify-center">
-          <Link to="/dashboard" className="hover:text-[var(--forest)] transition-colors">Dashboard</Link>
-          <Link to="/deepwork" className="hover:text-[var(--forest)] transition-colors">Deep Work</Link>
-          <Link to="/rewards" className="hover:text-[var(--forest)] transition-colors">Rewards</Link>
-          <Link to="/settings" className="hover:text-[var(--forest)] transition-colors">Settings</Link>
-          <Link to="/profile" className="hover:text-[var(--forest)] transition-colors">Profile</Link>
-        </div>
-      </footer>
     </div>
   );
 }
