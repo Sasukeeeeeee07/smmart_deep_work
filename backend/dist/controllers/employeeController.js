@@ -1,10 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEmployee = exports.updateEmployee = exports.createEmployee = exports.getEmployees = void 0;
-const bcrypt_1 = __importDefault(require("bcrypt"));
 const Employee_1 = require("../models/Employee");
 const User_1 = require("../models/User");
 // @desc    Get all employees
@@ -32,13 +28,11 @@ const createEmployee = async (req, res) => {
         if (employeeExists || userExists) {
             return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Employee or User already exists with this email' } });
         }
-        // Create the User first
-        const salt = await bcrypt_1.default.genSalt(10);
-        const passwordHash = await bcrypt_1.default.hash(password || 'defaultpassword123', salt);
+        // Create the User first - let User.pre('save') hook hash it consistently
         const user = await User_1.User.create({
-            name: `${firstName} ${lastName}`,
-            email,
-            passwordHash,
+            name: `${firstName} ${lastName}`.trim(),
+            email: email.trim().toLowerCase(),
+            passwordHash: password || 'defaultpassword123',
             role: role || User_1.Role.EMPLOYEE,
             isActive: true,
         });

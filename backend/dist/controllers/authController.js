@@ -25,17 +25,28 @@ const resetAdmin = async (req, res) => {
 };
 exports.resetAdmin = resetAdmin;
 // @desc    Auth user & get token
+// @desc    Auth user & get token
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
-        const user = await User_1.User.findOne({ email });
+        const cleanLogin = (email || '').trim();
+        if (!cleanLogin || !password) {
+            return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Email and password are required' } });
+        }
+        const escaped = cleanLogin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const user = await User_1.User.findOne({
+            $or: [
+                { email: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+                { name: { $regex: new RegExp(`^${escaped}$`, 'i') } }
+            ]
+        });
         if (user && (await user.matchPassword(password))) {
             if (!user.isActive) {
                 return res.status(403).json({ success: false, error: { code: 'INACTIVE_USER', message: 'User account is inactive' } });
             }
-            res.json({
+            return res.json({
                 success: true,
                 data: {
                     _id: user._id,
@@ -47,11 +58,11 @@ const loginUser = async (req, res) => {
             });
         }
         else {
-            res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
+            return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid email or password' } });
         }
     }
     catch (error) {
-        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+        return res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
     }
 };
 exports.loginUser = loginUser;

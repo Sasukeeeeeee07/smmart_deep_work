@@ -29,13 +29,11 @@ export const createEmployee = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Employee or User already exists with this email' } });
     }
     
-    // Create the User first
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password || 'defaultpassword123', salt);
+    // Create the User first - let User.pre('save') hook hash it consistently
     const user = await User.create({
-      name: `${firstName} ${lastName}`,
-      email,
-      passwordHash,
+      name: `${firstName} ${lastName}`.trim(),
+      email: email.trim().toLowerCase(),
+      passwordHash: password || 'defaultpassword123',
       role: role || Role.EMPLOYEE,
       isActive: true,
     });
