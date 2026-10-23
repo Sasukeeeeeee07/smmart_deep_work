@@ -123,7 +123,7 @@ export default function DeepWorkPage() {
 
       // Find currently active or break session for this device
       const active = list.find(s => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status) && (!selectedUid || s.deviceUid === selectedUid));
-      setCurrentSession(active || list[0] || null);
+      setCurrentSession(active || null);
     } catch (err) {
       console.error('Failed to load deepwork data', err);
     } finally {
@@ -901,16 +901,16 @@ export default function DeepWorkPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Session Start Time:</span>
                   <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>
-                    {currentSession?.startTime ? formatTime(currentSession.startTime) : '—'}
+                    {isRunning && currentSession?.startTime ? formatTime(currentSession.startTime) : '— (Ready to start)'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Total Desk Time:</span>
-                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
+                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{isRunning && currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Break Duration:</span>
-                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{currentSession?.totalBreakMinutes || 0}m</span>
+                  <span className="font-bold font-mono text-sm" style={{ color: 'var(--ink)' }}>{isRunning ? (currentSession?.totalBreakMinutes || 0) : 0}m</span>
                 </div>
               </div>
             </div>
