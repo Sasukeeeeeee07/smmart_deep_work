@@ -115,6 +115,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
+    document.title = 'Settings — smmart Desk';
     loadDeviceData();
   }, [selectedUid]);
 
@@ -327,7 +328,7 @@ export default function SettingsPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between w-full mb-2">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
                       active ? 'bg-[var(--forest)] text-white' : 'bg-slate-200/80 text-slate-700'
                     }`}>
                       {preset.badge}
@@ -596,7 +597,7 @@ export default function SettingsPage() {
                   />
                   <div>
                     <p className="text-xs font-bold text-[var(--ink)]">{item.title}</p>
-                    <p className="text-[11px] text-[var(--ink-3)] mt-0.5">{item.desc}</p>
+                    <p className="text-xs text-[var(--ink-2)] mt-0.5">{item.desc}</p>
                   </div>
                 </label>
               );
@@ -656,7 +657,7 @@ export default function SettingsPage() {
                     }`}
                   >
                     <span className="text-xs sm:text-sm block">{opt.label}</span>
-                    <span className={`text-[10px] block font-sans font-normal ${active ? 'text-emerald-100' : 'text-[var(--ink-3)]'}`}>
+                    <span className={`text-xs block font-sans font-medium ${active ? 'text-emerald-100' : 'text-[var(--ink-2)]'}`}>
                       {opt.desc}
                     </span>
                   </button>

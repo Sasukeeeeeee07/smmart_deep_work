@@ -73,7 +73,10 @@ const Employees = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => { 
+    document.title = 'Employees — smmart Desk';
+    fetchEmployees(); 
+  }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();

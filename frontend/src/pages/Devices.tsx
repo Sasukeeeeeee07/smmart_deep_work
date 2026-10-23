@@ -63,6 +63,7 @@ const Devices = () => {
   }, []);
 
   useEffect(() => {
+    document.title = 'Devices — smmart Desk';
     fetchData();
     const iv = setInterval(fetchData, 10000);
     return () => clearInterval(iv);

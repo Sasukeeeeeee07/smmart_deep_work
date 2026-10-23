@@ -178,6 +178,7 @@ const Dashboard = () => {
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
 
   useEffect(() => {
+    document.title = 'Dashboard — smmart Desk';
     const fetchAll = async () => {
       try {
         let analytics: any = null;

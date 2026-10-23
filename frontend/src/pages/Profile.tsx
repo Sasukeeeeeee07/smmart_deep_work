@@ -20,6 +20,7 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    document.title = 'Profile — smmart Desk';
     // Load any saved local profile overrides
     const savedProfile = localStorage.getItem('smmart_profile');
     if (savedProfile) {

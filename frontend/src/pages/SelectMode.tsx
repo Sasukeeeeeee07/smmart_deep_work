@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Lock, LogOut } from 'lucide-react';
 
 export default function SelectMode() {
@@ -12,6 +12,7 @@ export default function SelectMode() {
   const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   useEffect(() => {
+    document.title = 'Select Mode — smmart Desk';
     if (!token) {
       navigate('/login');
     }
@@ -40,11 +41,15 @@ export default function SelectMode() {
       {/* ── Top Bar: Logo, User details & Sign out ── */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
-          <img
-            src="/smmart-logo.png"
-            alt="smmart"
-            className="h-8 md:h-10 w-auto object-contain transition-transform hover:scale-105"
-          />
+          <Link to="/select-mode" className="flex items-center cursor-pointer" title="smmart">
+            <img
+              src="/smmart-logo.png"
+              alt="smmart logo"
+              loading="lazy"
+              decoding="async"
+              className="h-8 md:h-10 w-auto object-contain transition-transform hover:scale-105"
+            />
+          </Link>
           <div className="hidden sm:block h-5 w-[1px]" style={{ background: 'var(--border)' }} />
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold px-3 py-1 rounded-lg" style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)', border: '1px solid rgba(66, 84, 67, 0.2)' }}>

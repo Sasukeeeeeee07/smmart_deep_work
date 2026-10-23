@@ -167,7 +167,10 @@ const Tasks = () => {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    document.title = 'Tasks — smmart Desk';
+    fetchData(); 
+  }, [fetchData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

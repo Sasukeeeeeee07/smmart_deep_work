@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import SelectMode from './pages/SelectMode';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -12,6 +12,7 @@ import DeepWorkPage from './pages/DeepWork';
 import Profile from './pages/Profile';
 import SettingsPage from './pages/Settings';
 import RewardsPage from './pages/Rewards';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -34,7 +35,7 @@ function App() {
           <Route path="/notifications" element={<Notifications />} />
         </Route>
         
-        <Route path="*" element={<Navigate to="/select-mode" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

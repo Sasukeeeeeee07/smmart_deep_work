@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 
@@ -11,7 +11,10 @@ const Login = () => {
   const [mounted, setMounted]   = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
+  useEffect(() => { 
+    document.title = 'Sign In — smmart Desk';
+    setTimeout(() => setMounted(true), 60); 
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +48,12 @@ const Login = () => {
         style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3">
+        <Link to="/login" className="flex items-center gap-3 cursor-pointer" title="smmart">
           <img
             src="/smmart-logo.png"
             alt="smmart"
+            loading="lazy"
+            decoding="async"
             className="h-10 w-auto object-contain transition-transform hover:scale-105"
           />
           <div className="h-5 w-[1px]" style={{ background: 'var(--border)' }} />
@@ -63,7 +68,7 @@ const Login = () => {
               deep work
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Hero copy */}
         <div>
@@ -129,16 +134,18 @@ const Login = () => {
           }}
         >
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-2.5 mb-10">
+          <Link to="/login" className="flex lg:hidden items-center gap-2.5 mb-10 cursor-pointer" title="smmart">
             <img
               src="/smmart-logo.png"
               alt="smmart"
+              loading="lazy"
+              decoding="async"
               className="h-8 w-auto object-contain"
             />
             <span className="font-semibold text-sm" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>
               smmart deep work
             </span>
-          </div>
+          </Link>
 
           <h2
             className="mb-1"

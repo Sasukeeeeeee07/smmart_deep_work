@@ -132,6 +132,7 @@ export default function DeepWorkPage() {
   };
 
   useEffect(() => {
+    document.title = 'Deep Work — smmart Desk';
     loadData();
     const iv = setInterval(loadData, 4000);
     return () => clearInterval(iv);

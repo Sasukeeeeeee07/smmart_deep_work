@@ -69,6 +69,7 @@ export default function RewardsPage() {
   };
 
   useEffect(() => {
+    document.title = 'Rewards & Milestones — smmart Desk';
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
@@ -163,7 +164,7 @@ export default function RewardsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 border border-amber-500/30">
+                <span className="text-xs font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 border border-amber-500/30">
                   SDW Points Currency
                 </span>
                 <span className="text-xs font-bold text-amber-800 flex items-center gap-1">
@@ -185,7 +186,7 @@ export default function RewardsPage() {
               <p className="text-3xl sm:text-4xl font-black text-amber-950 font-mono mt-1">
                 {sdwData.monthly} <span className="text-base font-bold text-amber-800">pts</span>
               </p>
-              <p className="text-[11px] font-semibold text-amber-700 mt-1">
+              <p className="text-xs font-semibold text-amber-700 mt-1">
                 {completedSessions} sessions logged
               </p>
             </div>
@@ -313,7 +314,7 @@ export default function RewardsPage() {
                 </span>
                 {isBloomUnlocked ? (
                   <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 border border-emerald-500/30">
-                    🎉 UNLOCKED
+                    UNLOCKED
                   </span>
                 ) : (
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-800 border border-amber-500/20">
@@ -333,7 +334,7 @@ export default function RewardsPage() {
             </span>
             <p className="text-xs font-medium text-[var(--ink-3)]">
               {isBloomUnlocked 
-                ? 'Mastery level achieved!' 
+                ? 'Mastery level achieved' 
                 : `${Math.max(0, 5 - completedSessions)} more session${5 - completedSessions === 1 ? '' : 's'} to unlock`}
             </p>
           </div>
@@ -360,8 +361,8 @@ export default function RewardsPage() {
                   {completedSessions >= step ? `✓ Session ${step}` : `Session ${step}`}
                 </span>
                 {step === 5 && (
-                  <span className={`text-[10px] uppercase font-black mt-0.5 ${isBloomUnlocked ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    🌸 Bloom Badge
+                  <span className={`text-xs uppercase font-black mt-0.5 ${isBloomUnlocked ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    Bloom Badge
                   </span>
                 )}
               </div>
@@ -390,14 +391,14 @@ export default function RewardsPage() {
                 <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-mono">
                   +5 PTS
                 </span>
-                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">Standard Full</span>
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Standard Full</span>
               </div>
               <h4 className="font-bold text-base text-[var(--ink)] mt-2">Full 2hr+ Session Completed</h4>
               <p className="text-xs font-medium text-[var(--ink-2)] mt-1 leading-relaxed">
                 Reaching your target deep work duration without abandoning the desk or exceeding break allowances.
               </p>
             </div>
-            <div className="text-[11px] font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
+            <div className="text-xs font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
               Verified by desk timer & mmWave sensor
             </div>
           </div>
@@ -408,14 +409,14 @@ export default function RewardsPage() {
                 <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 border border-amber-500/20 font-mono">
                   +2 PTS
                 </span>
-                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Partial Focus</span>
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">Partial Focus</span>
               </div>
               <h4 className="font-bold text-base text-[var(--ink)] mt-2">20+ Minutes Seated Focus</h4>
               <p className="text-xs font-medium text-[var(--ink-2)] mt-1 leading-relaxed">
                 Continuous seated presence verified by mmWave radar when a full 2-hour duration could not be finished.
               </p>
             </div>
-            <div className="text-[11px] font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
+            <div className="text-xs font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
               Awarded upon orderly session exit
             </div>
           </div>
@@ -426,14 +427,14 @@ export default function RewardsPage() {
                 <span className="font-extrabold text-sm px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-700 border border-rose-500/20 font-mono">
                   0 PTS
                 </span>
-                <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wide">Disqualified</span>
+                <span className="text-xs font-bold text-rose-800 uppercase tracking-wide">Disqualified</span>
               </div>
               <h4 className="font-bold text-base text-[var(--ink)] mt-2">Abandoned / Invalid Session</h4>
               <p className="text-xs font-medium text-[var(--ink-2)] mt-1 leading-relaxed">
                 Leaving the desk past the away limit without taking an authorized break, or terminating under 20 minutes.
               </p>
             </div>
-            <div className="text-[11px] font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
+            <div className="text-xs font-semibold text-[var(--ink-3)] pt-2 border-t border-[var(--border)]">
               Accrues a safeguard strike if repeated
             </div>
           </div>

@@ -52,7 +52,10 @@ const ActivityPage = () => {
     finally { setLoading(false); setRefreshing(false); }
   }, [filterUid, limit]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { 
+    document.title = 'Activity — smmart Desk';
+    fetchData(); 
+  }, [fetchData]);
 
   return (
     <div className="space-y-6">

@@ -39,7 +39,10 @@ const Notifications = () => {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchNotifs(); }, [fetchNotifs]);
+  useEffect(() => { 
+    document.title = 'Notifications — smmart Desk';
+    fetchNotifs(); 
+  }, [fetchNotifs]);
 
   const markRead = async (id: string) => {
     setNotifications(p => p.map(n => n._id === id ? { ...n, isRead: true } : n));
