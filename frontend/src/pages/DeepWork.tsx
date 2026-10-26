@@ -6,7 +6,7 @@ import {
   Timer, ArrowRight, Play, Pause, AlertTriangle,
   Volume2, VolumeX, Star, LayoutDashboard,
   Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
-  Clock, Mic, Activity, Wifi, WifiOff,
+  Clock, Mic, Activity, WifiOff,
   History, X, Zap, User
 } from 'lucide-react';
 
@@ -361,41 +361,16 @@ export default function DeepWorkPage() {
       <div className="flex-1 space-y-6">
 
         {/* ── Top Header Bar ─────────────────────────────────────────── */}
-        <div className="flex items-center justify-between flex-wrap gap-4 pb-1">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1
-                className="text-2xl md:text-3xl font-extrabold tracking-tight"
-                style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-              >
-                CURRENT SESSION DEEP WORK
-              </h1>
-              <span
-                className="text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs"
-                style={{
-                  background: currentSession?.status === 'ACTIVE'
-                    ? 'rgba(74,124,89,0.18)'
-                    : currentSession?.status === 'BREAK'
-                    ? 'rgba(184,121,57,0.18)'
-                    : 'var(--surface-3)',
-                  color: currentSession?.status === 'ACTIVE'
-                    ? 'var(--forest)'
-                    : currentSession?.status === 'BREAK'
-                    ? 'var(--amber-w)'
-                    : 'var(--ink-3)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                {isRunning ? `CURRENT SESSION: ${currentSession?.status}` : 'CURRENT SESSION: READY TO START'}
-              </span>
-            </div>
-            <p className="text-sm font-semibold mt-1" style={{ color: 'var(--ink-2)' }}>
-              Target Focus Block: {targetMin} minutes
-            </p>
-          </div>
+        <div className="relative flex flex-col sm:flex-row items-center justify-center gap-2 pb-2">
+          <h1
+            className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
+            style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+          >
+            DEEPWORK SESSION
+          </h1>
 
-          {/* Device Selector / Person Display, Online/Offline Pill & Session History Trigger */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Session History Trigger */}
+          <div className="sm:absolute sm:right-0 flex items-center gap-2.5">
             <button
               onClick={() => setShowHistoryModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-xs"
@@ -410,55 +385,6 @@ export default function DeepWorkPage() {
                 </span>
               )}
             </button>
-
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide transition-colors ${
-                isDeviceOnline
-                  ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-600 border border-rose-500/30'
-              }`}
-              title={
-                isDeviceOnline
-                  ? `Device is online and ready`
-                  : `Device is offline. Turn on your desk device to start.`
-              }
-            >
-              {isDeviceOnline ? (
-                <>
-                  <Wifi size={13} className="text-emerald-500 animate-pulse" />
-                  <span>DEVICE ONLINE</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff size={13} className="text-rose-500" />
-                  <span>DEVICE OFFLINE</span>
-                </>
-              )}
-            </div>
-
-            {isIndividual ? (
-              <div
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-bold shadow-xs"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-              >
-                <span className="text-xs uppercase font-bold" style={{ color: 'var(--ink-2)' }}>User:</span>
-                <span className="text-sm font-bold">{personName}</span>
-              </div>
-            ) : (
-              <>
-                <span className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Device:</span>
-                <select
-                  value={selectedUid}
-                  onChange={e => { setSelectedUid(e.target.value); setOfflineNotice(null); }}
-                  className="input-base text-xs font-semibold py-1.5 px-3 rounded-lg"
-                  style={{ width: 'auto' }}
-                >
-                  {devices.map(d => (
-                    <option key={d.uid} value={d.uid}>{d.uid} {d.name ? `(${d.name})` : ''}</option>
-                  ))}
-                </select>
-              </>
-            )}
           </div>
         </div>
 
