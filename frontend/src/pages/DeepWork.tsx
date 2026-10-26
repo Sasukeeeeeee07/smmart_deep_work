@@ -405,7 +405,7 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── 1. TOP FOUR BOXES (Square Cards: 2 Cards, Space, 2 Cards) ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 lg:gap-12 xl:gap-16">
 
           {/* Pair 1: Card 1 (Start) & Card 2 (Resume) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -413,7 +413,7 @@ export default function DeepWorkPage() {
             {/* CARD 1: START SESSION */}
             <div
               onClick={!isRunning ? handleStartSession : undefined}
-              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs aspect-square min-h-[240px] ${
+              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-full aspect-square min-h-[240px] ${
                 !isRunning
                   ? (isDeviceOnline
                       ? 'cursor-pointer hover:shadow-md hover:border-[var(--forest)] hover:-translate-y-0.5'
@@ -516,7 +516,7 @@ export default function DeepWorkPage() {
             {/* CARD 2: RESUME SESSION */}
             <div
               onClick={currentSession?.status === 'BREAK' ? handleResumeSession : (!isRunning ? handleStartSession : undefined)}
-              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs aspect-square min-h-[240px] ${
+              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-full aspect-square min-h-[240px] ${
                 currentSession?.status === 'BREAK' ? 'cursor-pointer hover:shadow-md hover:border-[var(--amber-w)] hover:-translate-y-0.5' : ''
               }`}
               style={{
@@ -599,7 +599,7 @@ export default function DeepWorkPage() {
 
             {/* CARD 3: ALARMS RAISED */}
             <div
-              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs aspect-square min-h-[240px] ${
+              className={`p-5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-full aspect-square min-h-[240px] ${
                 currentSession?.alarmActive ? 'animate-pulse-gentle' : ''
               }`}
               style={{
@@ -677,7 +677,7 @@ export default function DeepWorkPage() {
 
             {/* CARD 4: MODERATOR INTERVENTION */}
             <div
-              className="p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between shadow-xs aspect-square min-h-[240px]"
+              className="p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between shadow-xs w-full aspect-square min-h-[240px]"
               style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               {/* Top row: Icon & Status */}
