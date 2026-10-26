@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, LogOut } from 'lucide-react';
+import { soundFX } from '../utils/sound';
 
 export default function SelectMode() {
   const navigate = useNavigate();
@@ -19,11 +20,19 @@ export default function SelectMode() {
   }, [token, navigate]);
 
   const handleSelect = (mode: 'entrepreneur' | 'individual') => {
-    if (mode === 'entrepreneur' && !isLeadership) {
-      return; // Restricted by RBAC
+    if (mode === 'entrepreneur') {
+      if (!isLeadership) {
+        return; // Restricted by RBAC
+      }
+      soundFX.playEntrepreneurClick();
+    } else {
+      soundFX.playIndividualClick();
     }
+
     localStorage.setItem('workspaceMode', mode);
-    navigate('/dashboard');
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 180);
   };
 
   const handleLogout = () => {
