@@ -370,7 +370,7 @@ export default function DeepWorkPage() {
       {/* ══════════════════════════════════════════════════════════════════
           MAIN WORKSPACE (Layout Matching Hand-Drawn Notebook Sketch)
          ══════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 max-w-4xl mx-auto w-full space-y-8">
+      <div className="flex-1 w-full px-2 sm:px-6 lg:px-8 space-y-8">
 
         {/* ── Page Header: Centered 'Deepwork Session' ── */}
         <div className="relative flex flex-col items-center justify-center pt-2 pb-2 text-center">
@@ -444,18 +444,18 @@ export default function DeepWorkPage() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            ROW 1: TWO PERFECT SQUARE BOXES (SHRUNK SIZE: 290px x 290px)
+            ROW 1: TWO PERFECT SQUARE BOXES ADJUSTED AT THE CORNERS
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10">
+        <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6 sm:gap-8 w-full">
 
-          {/* BOX 1: PERFECT SQUARE BOX - (▶) START SESSION / (▶) LIVE SESSION */}
+          {/* BOX 1: PERFECT SQUARE BOX AT LEFT CORNER */}
           <div
-            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[300px] h-[300px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               !isRunning ? 'hover:shadow-md hover:border-[var(--forest)]' : ''
             }`}
             style={{
-              width: '290px',
-              height: '290px',
+              width: '300px',
+              height: '300px',
               aspectRatio: '1 / 1',
               background: 'var(--surface)',
               borderColor: isRunning ? 'rgba(74, 124, 89, 0.4)' : 'var(--border)',
@@ -575,14 +575,14 @@ export default function DeepWorkPage() {
             </div>
           </div>
 
-          {/* BOX 2: PERFECT SQUARE BOX - RESUME CURRENT SESSION */}
+          {/* BOX 2: PERFECT SQUARE BOX AT RIGHT CORNER */}
           <div
-            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[300px] h-[300px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               currentSession?.status === 'BREAK' ? 'hover:shadow-md hover:border-[var(--amber-w)]' : ''
             }`}
             style={{
-              width: '290px',
-              height: '290px',
+              width: '300px',
+              height: '300px',
               aspectRatio: '1 / 1',
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.05)' : 'var(--surface)',
               borderColor: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.4)' : 'var(--border)',
@@ -645,11 +645,11 @@ export default function DeepWorkPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            MIDDLE GAP WITH 2 VERTICAL DIVIDER LINES (MATCHING NOTEPAD SKETCH)
+            MIDDLE SECTION: 2 VERTICAL DIVIDER LINES SPANNING ACROSS WORKSPACE
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="my-6 sm:my-8 flex justify-center">
+        <div className="w-full my-6 sm:my-8">
           <div
-            className="w-full max-w-[620px] rounded-3xl border p-4 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x shadow-xs"
+            className="w-full rounded-3xl border p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x shadow-xs"
             style={{
               background: 'var(--surface)',
               borderColor: 'var(--border)',
@@ -730,18 +730,18 @@ export default function DeepWorkPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            ROW 2: TWO PERFECT SQUARE BOXES (SHRUNK SIZE: 290px x 290px)
+            ROW 2: TWO PERFECT SQUARE BOXES ADJUSTED AT THE CORNERS
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10">
+        <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6 sm:gap-8 w-full">
 
-          {/* BOX 3: PERFECT SQUARE BOX - ALARMS [N] [ ] */}
+          {/* BOX 3: PERFECT SQUARE BOX AT BOTTOM-LEFT CORNER */}
           <div
-            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[300px] h-[300px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               currentSession?.alarmActive ? 'animate-pulse' : ''
             }`}
             style={{
-              width: '290px',
-              height: '290px',
+              width: '300px',
+              height: '300px',
               aspectRatio: '1 / 1',
               background: currentSession?.alarmActive ? 'rgba(225, 29, 72, 0.05)' : 'var(--surface)',
               borderColor: currentSession?.alarmActive ? 'rgba(225, 29, 72, 0.4)' : 'var(--border)',
@@ -818,12 +818,12 @@ export default function DeepWorkPage() {
             </div>
           </div>
 
-          {/* BOX 4: PERFECT SQUARE BOX - MODERATOR INTERVENTION (NO MD TEXT!) */}
+          {/* BOX 4: PERFECT SQUARE BOX AT BOTTOM-RIGHT CORNER */}
           <div
-            className="w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden"
+            className="w-[300px] h-[300px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden"
             style={{
-              width: '290px',
-              height: '290px',
+              width: '300px',
+              height: '300px',
               aspectRatio: '1 / 1',
               background: 'var(--surface)',
               borderColor: 'var(--border)',
