@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Lock, LogOut } from 'lucide-react';
+import { LogOut, Sparkles, X } from 'lucide-react';
 import { soundFX } from '../utils/sound';
 
 export default function SelectMode() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState<'entrepreneur' | 'individual' | null>(null);
+  const [motivationalNotice, setMotivationalNotice] = useState<string | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const token = localStorage.getItem('token');
   const userStr = localStorage.getItem('user');
@@ -22,7 +24,12 @@ export default function SelectMode() {
   const handleSelect = (mode: 'entrepreneur' | 'individual') => {
     if (mode === 'entrepreneur') {
       if (!isLeadership) {
-        return; // Restricted by RBAC
+        if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        setMotivationalNotice("Work harder in deep work so one day you will be an entrepreneur! 💼🚀");
+        noticeTimerRef.current = setTimeout(() => {
+          setMotivationalNotice(null);
+        }, 5000);
+        return;
       }
       soundFX.playEntrepreneurClick();
     } else {
@@ -88,6 +95,41 @@ export default function SelectMode() {
       </div>
 
 
+      {/* ── Motivational Toast when Individual clicks Entrepreneur ── */}
+      {motivationalNotice && (
+        <div
+          role="alert"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] p-4 rounded-2xl shadow-2xl border flex items-center justify-between gap-3 animate-fade-in"
+          style={{
+            background: 'rgba(255, 254, 250, 0.98)',
+            backdropFilter: 'blur(20px)',
+            borderColor: '#f59e0b',
+            boxShadow: '0 12px 36px -6px rgba(245, 158, 11, 0.28)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/15 text-amber-700">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">
+                Aspiration
+              </p>
+              <p className="text-sm font-bold text-[var(--ink)] mt-0.5 leading-snug">
+                {motivationalNotice}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setMotivationalNotice(null)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 cursor-pointer transition-colors"
+            title="Dismiss message"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* ── Split Screen Sections ── */}
       <div className="flex-1 w-full flex flex-col md:flex-row pt-14 md:pt-0">
         {/* ── Section 1: Entrepreneur (RBAC: Admin & Manager Only) ── */}
@@ -95,13 +137,13 @@ export default function SelectMode() {
           onMouseEnter={() => setHovered('entrepreneur')}
           onMouseLeave={() => setHovered(null)}
           onClick={() => handleSelect('entrepreneur')}
-          className={`flex-1 flex flex-col items-center justify-center p-8 md:p-16 transition-colors duration-300 relative ${isLeadership ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+          className="flex-1 flex flex-col items-center justify-center p-8 md:p-16 transition-colors duration-300 relative cursor-pointer"
           style={{
             background: hovered === 'entrepreneur'
-              ? (isLeadership ? 'rgba(66, 84, 67, 0.04)' : 'rgba(182, 83, 75, 0.02)')
+              ? (isLeadership ? 'rgba(66, 84, 67, 0.04)' : 'rgba(245, 158, 11, 0.04)')
               : 'transparent',
             borderRight: '1px solid var(--border)',
-            opacity: !isLeadership ? 0.65 : 1,
+            opacity: !isLeadership ? 0.85 : 1,
           }}
         >
           <div className="flex flex-col items-center text-center">
@@ -110,9 +152,9 @@ export default function SelectMode() {
               style={{
                 fontFamily: 'DM Sans, sans-serif',
                 color: hovered === 'entrepreneur'
-                  ? (isLeadership ? 'var(--forest)' : 'var(--ink-3)')
+                  ? (isLeadership ? 'var(--forest)' : '#b45309')
                   : 'var(--ink)',
-                transform: hovered === 'entrepreneur' && isLeadership ? 'scale(1.02)' : 'scale(1)',
+                transform: hovered === 'entrepreneur' ? 'scale(1.02)' : 'scale(1)',
               }}
             >
               Entrepreneur
@@ -120,11 +162,19 @@ export default function SelectMode() {
 
             {!isLeadership && (
               <div
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mt-3"
-                style={{ background: 'rgba(182, 83, 75, 0.08)', color: 'var(--error)', border: '1px solid rgba(182, 83, 75, 0.2)' }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold mt-3 transition-all cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect('entrepreneur');
+                }}
+                style={{
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  color: '#b45309',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                }}
               >
-                <Lock size={12} />
-                <span>Requires Admin / Manager Access</span>
+                <Sparkles size={12} className="text-amber-600" />
+                <span>Work harder so one day you will be an entrepreneur 💼</span>
               </div>
             )}
 
@@ -135,17 +185,16 @@ export default function SelectMode() {
                   e.stopPropagation();
                   handleSelect('entrepreneur');
                 }}
-                disabled={!isLeadership}
-                className={`px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 shadow-sm ${
-                  isLeadership ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed'
+                className={`px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 shadow-sm cursor-pointer ${
+                  isLeadership ? 'hover:scale-105' : 'hover:scale-102 hover:border-amber-400'
                 }`}
                 style={{
                   background: isLeadership ? 'var(--forest)' : 'var(--surface-3)',
-                  color: isLeadership ? '#ffffff' : 'var(--ink-4)',
+                  color: isLeadership ? '#ffffff' : 'var(--ink-2)',
                   border: isLeadership ? 'none' : '1px solid var(--border)',
                 }}
               >
-                {isLeadership ? 'Enter Dashboard' : 'Restricted (Admin Only)'}
+                {isLeadership ? 'Enter Dashboard' : 'Work Harder to Unlock 🚀'}
               </button>
             </div>
           </div>
