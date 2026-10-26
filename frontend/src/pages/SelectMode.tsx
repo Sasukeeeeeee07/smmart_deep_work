@@ -140,10 +140,9 @@ export default function SelectMode() {
           className="flex-1 flex flex-col items-center justify-center p-8 md:p-16 transition-colors duration-300 relative cursor-pointer"
           style={{
             background: hovered === 'entrepreneur'
-              ? (isLeadership ? 'rgba(66, 84, 67, 0.04)' : 'rgba(245, 158, 11, 0.04)')
+              ? 'rgba(66, 84, 67, 0.04)'
               : 'transparent',
             borderRight: '1px solid var(--border)',
-            opacity: !isLeadership ? 0.85 : 1,
           }}
         >
           <div className="flex flex-col items-center text-center">
@@ -152,7 +151,7 @@ export default function SelectMode() {
               style={{
                 fontFamily: 'DM Sans, sans-serif',
                 color: hovered === 'entrepreneur'
-                  ? (isLeadership ? 'var(--forest)' : '#b45309')
+                  ? 'var(--forest)'
                   : 'var(--ink)',
                 transform: hovered === 'entrepreneur' ? 'scale(1.02)' : 'scale(1)',
               }}
@@ -160,13 +159,10 @@ export default function SelectMode() {
               Entrepreneur
             </h1>
 
-            {!isLeadership && (
+            {/* Motivational message badge ONLY displayed after an individual clicks */}
+            {motivationalNotice && !isLeadership && (
               <div
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold mt-3 transition-all cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelect('entrepreneur');
-                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold mt-3 transition-all animate-fade-in"
                 style={{
                   background: 'rgba(245, 158, 11, 0.1)',
                   color: '#b45309',
@@ -178,23 +174,21 @@ export default function SelectMode() {
               </div>
             )}
 
-            {/* Button always visible */}
+            {/* Normal Button by default */}
             <div className="mt-8">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSelect('entrepreneur');
                 }}
-                className={`px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 shadow-sm cursor-pointer ${
-                  isLeadership ? 'hover:scale-105' : 'hover:scale-102 hover:border-amber-400'
-                }`}
+                className="px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 shadow-sm cursor-pointer hover:scale-105"
                 style={{
-                  background: isLeadership ? 'var(--forest)' : 'var(--surface-3)',
-                  color: isLeadership ? '#ffffff' : 'var(--ink-2)',
-                  border: isLeadership ? 'none' : '1px solid var(--border)',
+                  background: 'var(--forest)',
+                  color: '#ffffff',
+                  border: 'none',
                 }}
               >
-                {isLeadership ? 'Enter Dashboard' : 'Work Harder to Unlock 🚀'}
+                Enter Dashboard
               </button>
             </div>
           </div>
