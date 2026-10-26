@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Sparkles, X } from 'lucide-react';
+import { LogOut, Sparkles } from 'lucide-react';
 import { soundFX } from '../utils/sound';
 
 export default function SelectMode() {
@@ -95,40 +95,6 @@ export default function SelectMode() {
       </div>
 
 
-      {/* ── Motivational Toast when Individual clicks Entrepreneur ── */}
-      {motivationalNotice && (
-        <div
-          role="alert"
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[92%] p-4 rounded-2xl shadow-2xl border flex items-center justify-between gap-3 animate-fade-in"
-          style={{
-            background: 'rgba(255, 254, 250, 0.98)',
-            backdropFilter: 'blur(20px)',
-            borderColor: '#f59e0b',
-            boxShadow: '0 12px 36px -6px rgba(245, 158, 11, 0.28)',
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/15 text-amber-700">
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">
-                Aspiration
-              </p>
-              <p className="text-sm font-bold text-[var(--ink)] mt-0.5 leading-snug">
-                {motivationalNotice}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setMotivationalNotice(null)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 cursor-pointer transition-colors"
-            title="Dismiss message"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
 
       {/* ── Split Screen Sections ── */}
       <div className="flex-1 w-full flex flex-col md:flex-row pt-14 md:pt-0">
