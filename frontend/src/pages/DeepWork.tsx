@@ -444,83 +444,86 @@ export default function DeepWorkPage() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            ROW 1: TWO SQUARE BOXES (START/LIVE SESSION & RESUME CURRENT SESSION)
+            ROW 1: TWO PERFECT SQUARE BOXES (SHRUNK SIZE: 290px x 290px)
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+        <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10">
 
-          {/* BOX 1: SQUARE BOX - (▶) START SESSION / (▶) LIVE SESSION */}
+          {/* BOX 1: PERFECT SQUARE BOX - (▶) START SESSION / (▶) LIVE SESSION */}
           <div
-            className={`w-full aspect-square rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               !isRunning ? 'hover:shadow-md hover:border-[var(--forest)]' : ''
             }`}
             style={{
+              width: '290px',
+              height: '290px',
+              aspectRatio: '1 / 1',
               background: 'var(--surface)',
               borderColor: isRunning ? 'rgba(74, 124, 89, 0.4)' : 'var(--border)',
             }}
           >
             {/* Top items: (▶) START SESSION & (▶) LIVE SESSION */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Item 1: (▶) START SESSION */}
               <div
                 onClick={!isRunning ? handleStartSession : undefined}
-                className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all ${
                   !isRunning ? 'cursor-pointer hover:bg-[var(--surface-2)] border-[var(--forest)]/40 shadow-xs' : 'opacity-60 border-transparent'
                 }`}
                 style={{ background: !isRunning ? 'rgba(74, 124, 89, 0.08)' : 'transparent' }}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
                     style={{
                       background: !isRunning ? 'var(--forest)' : 'var(--surface-2)',
                       color: !isRunning ? '#ffffff' : 'var(--ink-2)',
                     }}
                   >
-                    <Play size={13} fill="currentColor" />
+                    <Play size={11} fill="currentColor" />
                   </div>
-                  <span className="text-xs uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
+                  <span className="text-[11px] uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
                     START SESSION
                   </span>
                 </div>
                 {!isRunning && (
-                  <span className="text-[11px] font-bold text-[var(--forest)]">Ready</span>
+                  <span className="text-[10px] font-bold text-[var(--forest)]">Ready</span>
                 )}
               </div>
 
               {/* Item 2: (▶) LIVE SESSION with arrow pointing to timer 01:59:30 */}
               <div
-                className={`p-3.5 rounded-2xl border transition-all ${
+                className={`p-3 rounded-2xl border transition-all ${
                   isRunning ? 'bg-emerald-500/10 border-emerald-500/30' : 'border-dashed border-[var(--border)]'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
                       style={{
                         background: isRunning ? 'var(--forest)' : 'var(--surface-2)',
                         color: isRunning ? '#ffffff' : 'var(--ink-3)',
                       }}
                     >
-                      <Play size={13} fill="currentColor" className={isRunning ? 'animate-pulse' : ''} />
+                      <Play size={11} fill="currentColor" className={isRunning ? 'animate-pulse' : ''} />
                     </div>
-                    <span className="text-xs uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
+                    <span className="text-[11px] uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
                       LIVE SESSION
                     </span>
                   </div>
-                  <span className="text-xs font-bold" style={{ color: isRunning ? 'var(--forest)' : 'var(--ink-3)' }}>
+                  <span className="text-[11px] font-bold" style={{ color: isRunning ? 'var(--forest)' : 'var(--ink-3)' }}>
                     {isRunning ? '● Live' : '02:00:00'}
                   </span>
                 </div>
 
-                {/* Arrow and Large Countdown Timer */}
-                <div className="mt-3 pt-2 flex items-center justify-between border-t border-[var(--border)]">
+                {/* Arrow and Countdown Timer */}
+                <div className="mt-2.5 pt-2 flex items-center justify-between border-t border-[var(--border)]">
                   <div className="flex items-center gap-1.5" style={{ color: 'var(--forest)' }}>
-                    <span className="text-base font-bold">↳</span>
-                    <span className="text-xs font-semibold">Remaining</span>
+                    <span className="text-sm font-bold">↳</span>
+                    <span className="text-[11px] font-semibold">Remaining</span>
                   </div>
                   <p
-                    className="font-mono font-extrabold text-2xl sm:text-3xl tracking-tight"
+                    className="font-mono font-extrabold text-2xl tracking-tight"
                     style={{ color: isRunning ? 'var(--forest)' : 'var(--ink)' }}
                   >
                     {isRunning ? fmtHMS(remainingSec) : '01:59:30'}
@@ -530,28 +533,28 @@ export default function DeepWorkPage() {
             </div>
 
             {/* Bottom Controls */}
-            <div className="pt-3 border-t border-[var(--border)]">
+            <div className="pt-2.5 border-t border-[var(--border)]">
               {!isRunning ? (
                 <button
                   type="button"
                   onClick={handleStartSession}
                   disabled={starting}
-                  className="w-full py-3 rounded-2xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-2 shadow-xs transition-all hover:opacity-95 cursor-pointer"
+                  className="w-full py-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-2 shadow-xs transition-all hover:opacity-95 cursor-pointer"
                   style={{ background: 'var(--forest)' }}
                 >
-                  <Play size={16} fill="currentColor" />
+                  <Play size={14} fill="currentColor" />
                   <span>{starting ? 'Starting…' : 'START SESSION'}</span>
                 </button>
               ) : (
-                <div className="w-full flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
+                <div className="w-full flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1">
                     {[15, 30].map(m => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => handleExtend(m)}
                         disabled={extending}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold border hover:border-[var(--forest)] cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold border hover:border-[var(--forest)] cursor-pointer"
                         style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink)' }}
                         title={`Extend by ${m}m`}
                       >
@@ -563,7 +566,7 @@ export default function DeepWorkPage() {
                     type="button"
                     onClick={handleEndSession}
                     disabled={ending}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 cursor-pointer"
+                    className="px-3 py-1 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 cursor-pointer"
                   >
                     {ending ? 'Ending…' : 'End Session'}
                   </button>
@@ -572,12 +575,15 @@ export default function DeepWorkPage() {
             </div>
           </div>
 
-          {/* BOX 2: SQUARE BOX - RESUME CURRENT SESSION */}
+          {/* BOX 2: PERFECT SQUARE BOX - RESUME CURRENT SESSION */}
           <div
-            className={`w-full aspect-square rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               currentSession?.status === 'BREAK' ? 'hover:shadow-md hover:border-[var(--amber-w)]' : ''
             }`}
             style={{
+              width: '290px',
+              height: '290px',
+              aspectRatio: '1 / 1',
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.05)' : 'var(--surface)',
               borderColor: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.4)' : 'var(--border)',
             }}
@@ -585,52 +591,52 @@ export default function DeepWorkPage() {
             {/* Header: RESUME CURRENT SESSION */}
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
+                <span className="text-[11px] uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
                   RESUME CURRENT SESSION
                 </span>
                 {currentSession?.status === 'BREAK' && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                     Break Active
                   </span>
                 )}
               </div>
 
               {/* Arrow and xyz details */}
-              <div className="mt-4 p-4 rounded-2xl border text-center space-y-2" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                <div className="flex justify-center text-lg font-bold" style={{ color: 'var(--ink-2)' }}>
+              <div className="mt-3 p-3 rounded-2xl border text-center space-y-1.5" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex justify-center text-sm font-bold" style={{ color: 'var(--ink-2)' }}>
                   ↓
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
+                  <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--ink-2)' }}>
                     xyz • Live Elapsed Focus
                   </p>
-                  <p className="font-mono font-extrabold text-2xl sm:text-3xl mt-1" style={{ color: 'var(--ink)' }}>
+                  <p className="font-mono font-extrabold text-2xl mt-0.5" style={{ color: 'var(--ink)' }}>
                     {isRunning ? fmtHMS(activeSec) : '00:00:00'}
                   </p>
                 </div>
-                <p className="text-xs font-semibold pt-1 border-t border-[var(--border)]" style={{ color: 'var(--ink-2)' }}>
+                <p className="text-[11px] font-semibold pt-1 border-t border-[var(--border)]" style={{ color: 'var(--ink-2)' }}>
                   xyz: {currentSession?.status === 'BREAK' ? 'Break in progress' : isRunning ? 'Desk presence verified' : 'Standby'}
                 </p>
               </div>
             </div>
 
             {/* Bottom button / action */}
-            <div className="pt-3 border-t border-[var(--border)]">
+            <div className="pt-2.5 border-t border-[var(--border)]">
               {currentSession?.status === 'BREAK' ? (
                 <button
                   type="button"
                   onClick={handleResumeSession}
                   disabled={resuming}
-                  className="w-full py-3 rounded-2xl font-bold text-xs sm:text-sm text-white flex items-center justify-center gap-2 shadow-xs transition-all hover:opacity-95 cursor-pointer"
+                  className="w-full py-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-2 shadow-xs transition-all hover:opacity-95 cursor-pointer"
                   style={{ background: 'var(--amber-w)' }}
                 >
-                  <Play size={16} fill="currentColor" />
+                  <Play size={14} fill="currentColor" />
                   <span>{resuming ? 'Resuming…' : 'RESUME CURRENT SESSION'}</span>
                 </button>
               ) : (
-                <div className="flex items-center justify-between text-xs font-bold" style={{ color: 'var(--ink-2)' }}>
+                <div className="flex items-center justify-between text-[11px] font-bold" style={{ color: 'var(--ink-2)' }}>
                   <span>Breaks: {breakCount} / {maxAllowedBreaks}</span>
-                  <span className="font-mono text-xs">{isRunning ? `Total: ${fmtHMS(totalDeskTimeSec)}` : 'Standby'}</span>
+                  <span className="font-mono">{isRunning ? `Total: ${fmtHMS(totalDeskTimeSec)}` : 'Standby'}</span>
                 </div>
               )}
             </div>
@@ -641,73 +647,73 @@ export default function DeepWorkPage() {
         {/* ══════════════════════════════════════════════════════════════════
             MIDDLE GAP WITH 2 VERTICAL DIVIDER LINES (MATCHING NOTEPAD SKETCH)
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="py-6 sm:py-8 my-2">
+        <div className="my-6 sm:my-8 flex justify-center">
           <div
-            className="rounded-3xl border p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x shadow-xs"
+            className="w-full max-w-[620px] rounded-3xl border p-4 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x shadow-xs"
             style={{
               background: 'var(--surface)',
               borderColor: 'var(--border)',
             }}
           >
             {/* Section 1: Productivity Score */}
-            <div className="px-4 py-2 flex flex-col justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
+            <div className="px-4 py-1.5 flex flex-col justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
                 Productivity Score
               </span>
-              <div className="my-2">
-                <span className="font-extrabold text-3xl font-mono" style={{ color: 'var(--ink)' }}>
+              <div className="my-1">
+                <span className="font-extrabold text-2xl font-mono" style={{ color: 'var(--ink)' }}>
                   {productivityScore}%
                 </span>
               </div>
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--ink-2)' }}>
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--ink-2)' }}>
                 {isRunning ? (currentSession?.status === 'BREAK' ? 'On Break' : 'Active Focus') : 'Idle'}
               </span>
             </div>
 
             {/* Section 2: Productivity Spike / Trajectory Curve */}
-            <div className="px-4 py-2 flex flex-col justify-between">
+            <div className="px-4 py-1.5 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
                   Productivity Spike
                 </span>
-                <span className="text-[11px] font-bold text-emerald-600">
+                <span className="text-[10px] font-bold text-emerald-600">
                   {currentSession?.productivitySpike ? 'Spike' : 'Steady'}
                 </span>
               </div>
               <div className="my-1 flex items-center justify-center">
-                <svg className="w-full h-10" viewBox="0 0 200 40" preserveAspectRatio="none">
+                <svg className="w-full h-8" viewBox="0 0 200 36" preserveAspectRatio="none">
                   {currentSession?.productivitySpike ? (
-                    <path d="M 10 32 L 80 32 L 110 10 L 190 10" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M 10 28 L 80 28 L 110 8 L 190 8" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   ) : (
-                    <path d="M 10 25 L 190 25" fill="none" stroke="var(--border-strong)" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M 10 20 L 190 20" fill="none" stroke="var(--border-strong)" strokeWidth="2" strokeLinecap="round" />
                   )}
                 </svg>
               </div>
-              <span className="text-[11px] font-semibold text-center" style={{ color: 'var(--ink-2)' }}>
+              <span className="text-[10px] font-semibold text-center" style={{ color: 'var(--ink-2)' }}>
                 Live Attention Curve
               </span>
             </div>
 
             {/* Section 3: Session Rating & SDW Coins */}
-            <div className="px-4 py-2 flex flex-col justify-between">
+            <div className="px-4 py-1.5 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
                   Session Rating
                 </span>
-                <span className="text-[11px] font-bold text-emerald-700">
+                <span className="text-[10px] font-bold text-emerald-700">
                   +{currentSdwPoints}/5 pts
                 </span>
               </div>
-              <div className="my-2 flex items-center gap-1.5">
+              <div className="my-1.5 flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
                     onClick={() => handleRate(star)}
-                    className="p-1 rounded-lg transition-transform hover:scale-110 cursor-pointer"
+                    className="p-0.5 rounded-md transition-transform hover:scale-110 cursor-pointer"
                     title={`Rate ${star} star${star > 1 ? 's' : ''}`}
                   >
                     <Star
-                      size={17}
+                      size={15}
                       style={{
                         color: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : '#cbd5e1',
                         fill: star <= (currentSession?.selfRating || 0) ? 'var(--amber-w)' : 'none',
@@ -716,7 +722,7 @@ export default function DeepWorkPage() {
                   </button>
                 ))}
               </div>
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--forest)' }}>
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--forest)' }}>
                 {currentSdwPoints > 0 ? `${currentSdwPoints} Coins Earned` : 'Complete to earn'}
               </span>
             </div>
@@ -724,16 +730,19 @@ export default function DeepWorkPage() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            ROW 2: TWO SQUARE BOXES (ALARMS & MODERATOR INTERVENTION - NO MD TEXT)
+            ROW 2: TWO PERFECT SQUARE BOXES (SHRUNK SIZE: 290px x 290px)
            ══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+        <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-10">
 
-          {/* BOX 3: SQUARE BOX - ALARMS [N] [ ] */}
+          {/* BOX 3: PERFECT SQUARE BOX - ALARMS [N] [ ] */}
           <div
-            className={`w-full aspect-square rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
+            className={`w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden ${
               currentSession?.alarmActive ? 'animate-pulse' : ''
             }`}
             style={{
+              width: '290px',
+              height: '290px',
+              aspectRatio: '1 / 1',
               background: currentSession?.alarmActive ? 'rgba(225, 29, 72, 0.05)' : 'var(--surface)',
               borderColor: currentSession?.alarmActive ? 'rgba(225, 29, 72, 0.4)' : 'var(--border)',
             }}
@@ -741,13 +750,13 @@ export default function DeepWorkPage() {
             {/* Top: ALARMS [N] [ ] */}
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
+                <span className="text-[11px] uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
                   ALARMS
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {/* Square box [N] */}
                   <span
-                    className="w-8 h-8 rounded-xl border flex items-center justify-center font-bold font-mono text-xs shadow-xs"
+                    className="w-7 h-7 rounded-lg border flex items-center justify-center font-bold font-mono text-xs shadow-xs"
                     style={{
                       background: alarmCount > 0 ? 'rgba(225, 29, 72, 0.1)' : 'var(--surface-2)',
                       borderColor: alarmCount > 0 ? 'rgba(225, 29, 72, 0.3)' : 'var(--border)',
@@ -759,7 +768,7 @@ export default function DeepWorkPage() {
                   </span>
                   {/* Square box [ ] for total alarm time */}
                   <span
-                    className="w-12 h-8 rounded-xl border flex items-center justify-center font-bold font-mono text-xs shadow-xs"
+                    className="w-10 h-7 rounded-lg border flex items-center justify-center font-bold font-mono text-xs shadow-xs"
                     style={{
                       background: 'var(--surface-2)',
                       borderColor: 'var(--border)',
@@ -773,16 +782,16 @@ export default function DeepWorkPage() {
               </div>
 
               {/* Ruled lines inside the box matching ruled notepad paper */}
-              <div className="mt-4 space-y-2.5">
-                <div className="p-2.5 rounded-xl border flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <div className="mt-3 space-y-2">
+                <div className="p-2 rounded-xl border flex items-center justify-between text-[11px]" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   <span style={{ color: 'var(--ink-2)' }}>Desk Presence Monitoring</span>
                   <span className="font-bold font-mono text-emerald-600">Active</span>
                 </div>
-                <div className="p-2.5 rounded-xl border flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="p-2 rounded-xl border flex items-center justify-between text-[11px]" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   <span style={{ color: 'var(--ink-2)' }}>Away Alert Threshold</span>
                   <span className="font-bold font-mono" style={{ color: 'var(--ink)' }}>5 mins</span>
                 </div>
-                <div className="p-2.5 rounded-xl border flex items-center justify-between text-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="p-2 rounded-xl border flex items-center justify-between text-[11px]" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                   <span style={{ color: 'var(--ink-2)' }}>Alarm Sound Device</span>
                   <span className="font-bold font-mono" style={{ color: 'var(--ink)' }}>ESP32 Buzzer</span>
                 </div>
@@ -790,51 +799,57 @@ export default function DeepWorkPage() {
             </div>
 
             {/* Bottom: Stop sound button or status */}
-            <div className="pt-3 border-t border-[var(--border)]">
+            <div className="pt-2.5 border-t border-[var(--border)]">
               {currentSession?.alarmActive ? (
                 <button
                   type="button"
                   onClick={handleStopSound}
                   disabled={stoppingSound}
-                  className="w-full py-3 rounded-2xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Volume2 size={16} />
+                  <Volume2 size={14} />
                   <span>{stoppingSound ? 'Stopping…' : 'STOP ALARM SOUND'}</span>
                 </button>
               ) : (
-                <p className="text-xs font-semibold text-center" style={{ color: 'var(--ink-2)' }}>
+                <p className="text-[11px] font-semibold text-center" style={{ color: 'var(--ink-2)' }}>
                   Away detection & desk threshold alarms clear
                 </p>
               )}
             </div>
           </div>
 
-          {/* BOX 4: SQUARE BOX - MODERATOR INTERVENTION (NO MD TEXT!) */}
+          {/* BOX 4: PERFECT SQUARE BOX - MODERATOR INTERVENTION (NO MD TEXT!) */}
           <div
-            className="w-full aspect-square rounded-3xl border p-6 sm:p-7 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            className="w-[290px] h-[290px] shrink-0 rounded-3xl border p-5 flex flex-col justify-between transition-all duration-200 shadow-xs relative overflow-hidden"
+            style={{
+              width: '290px',
+              height: '290px',
+              aspectRatio: '1 / 1',
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+            }}
           >
             {/* Top: MODERATOR INTERVENTION */}
             <div>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Mic size={14} style={{ color: 'var(--forest)' }} />
-                  <span className="text-xs uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
+                <div className="flex items-center gap-1.5">
+                  <Mic size={13} style={{ color: 'var(--forest)' }} />
+                  <span className="text-[11px] uppercase font-extrabold tracking-wider" style={{ color: 'var(--ink)' }}>
                     MODERATOR INTERVENTION
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span className="text-[11px] font-bold text-[var(--forest)]">Voice Speaker Active</span>
+                  <span className="text-[10px] font-bold text-[var(--forest)]">Voice Active</span>
                 </div>
               </div>
 
               {/* Quick Trigger voice chips */}
-              <div className="mt-4 space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-2)' }}>
                   Quick Voice Interventions
                 </p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {[
                     { label: 'Focus', msg: 'Deep work in progress. Stay focused on your core task.' },
                     { label: 'Away',  msg: 'Warning: You are away from your desk. Please return immediately.' },
@@ -845,7 +860,7 @@ export default function DeepWorkPage() {
                       type="button"
                       onClick={() => handleSendVoice(v.msg)}
                       disabled={sendingVoice}
-                      className="text-xs font-bold px-3 py-1.5 rounded-xl transition-colors border cursor-pointer hover:border-[var(--forest)]"
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors border cursor-pointer hover:border-[var(--forest)]"
                       style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink)' }}
                     >
                       {v.label}
@@ -856,20 +871,20 @@ export default function DeepWorkPage() {
             </div>
 
             {/* Bottom voice input */}
-            <div className="pt-3 border-t border-[var(--border)] flex items-center gap-2">
+            <div className="pt-2.5 border-t border-[var(--border)] flex items-center gap-1.5">
               <input
                 type="text"
                 value={customVoice}
                 onChange={e => setCustomVoice(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
                 placeholder="Speak through ESP32 speaker…"
-                className="input-base text-xs flex-1 py-2 px-3 rounded-xl"
+                className="input-base text-[11px] flex-1 py-1.5 px-2.5 rounded-xl"
               />
               <button
                 type="button"
                 onClick={() => handleSendVoice(customVoice)}
                 disabled={sendingVoice || !customVoice.trim()}
-                className="btn btn-primary text-xs py-2 px-3.5 shrink-0 cursor-pointer"
+                className="btn btn-primary text-xs py-1.5 px-3 shrink-0 cursor-pointer"
               >
                 {voiceSuccess ? '✓ Sent' : sendingVoice ? '…' : 'Speak'}
               </button>
