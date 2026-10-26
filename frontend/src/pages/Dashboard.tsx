@@ -136,16 +136,35 @@ const AreaTip = ({ active, payload, label }: any) => {
   );
 };
 
-const BarTip = ({ active, payload }: any) => {
+const BarTip = ({ active, payload, onSelectWeek }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as WeekData;
   return (
-    <div className="card" style={{ padding: '12px 16px', minWidth: 160, fontSize: 12 }}>
-      <p className="font-semibold mb-2" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{d.name}</p>
-      <div className="space-y-1">
+    <div
+      className="card shadow-lg"
+      style={{
+        padding: '12px 16px',
+        minWidth: 180,
+        fontSize: 12,
+        pointerEvents: 'auto',
+        background: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+      }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="font-semibold text-sm" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+          {d.name}
+        </p>
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
+          {d.label}
+        </span>
+      </div>
+      <div className="space-y-1.5">
         <div className="flex justify-between gap-4">
           <span style={{ color: 'var(--ink-3)' }}>Productivity</span>
-          <span className="font-bold" style={{ color: d.productivity >= 80 ? 'var(--sage-dark)' : 'var(--amber-w)' }}>{d.productivity}%</span>
+          <span className="font-bold text-sm" style={{ color: d.productivity >= 80 ? 'var(--sage-dark)' : 'var(--amber-w)' }}>
+            {d.productivity}%
+          </span>
         </div>
         <div className="flex justify-between gap-4">
           <span style={{ color: 'var(--ink-3)' }}>Focus</span>
@@ -155,6 +174,23 @@ const BarTip = ({ active, payload }: any) => {
           <span style={{ color: 'var(--ink-3)' }}>Sessions</span>
           <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>{d.sessions}</span>
         </div>
+      </div>
+
+      {/* Show in detail link */}
+      <div className="pt-2 mt-2.5 border-t border-[var(--border)]">
+        <a
+          href="#weekly-focus-assessment"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onSelectWeek) onSelectWeek(d);
+          }}
+          className="inline-flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer hover:underline"
+          style={{ color: 'var(--forest)' }}
+        >
+          <span>Show in detail</span>
+          <ArrowRight size={13} />
+        </a>
       </div>
     </div>
   );
@@ -176,6 +212,15 @@ const Dashboard = () => {
   const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
   const [avgScore, setAvgScore]       = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
+  const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
+
+  const handleSelectWeek = (week: WeekData) => {
+    setSelectedWeek(prev => (prev?.name === week.name ? null : week));
+    const el = document.getElementById('weekly-focus-assessment');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
 
   useEffect(() => {
     document.title = 'Dashboard — smmart Desk';
@@ -241,7 +286,15 @@ const Dashboard = () => {
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}
-        <div className="card p-6 md:p-8 flex flex-col justify-between" style={{ minHeight: 380 }}>
+        <div 
+          id="weekly-focus-assessment" 
+          className="card p-6 md:p-8 flex flex-col justify-between transition-all duration-300" 
+          style={{ 
+            minHeight: 380,
+            borderColor: selectedWeek ? 'var(--forest)' : 'var(--border)',
+            boxShadow: selectedWeek ? '0 4px 20px rgba(66, 84, 67, 0.12)' : undefined,
+          }}
+        >
           <div>
             <div className="flex items-start justify-between mb-6 flex-wrap gap-2">
               <div>
@@ -348,9 +401,46 @@ const Dashboard = () => {
                   </span>
                 </h3>
 
-                <p className="text-xs mt-1" style={{ color: 'var(--ink-4)' }}>
-                  {selectedWeek ? `Inspecting ${selectedWeek.name}. Click bar again to reset.` : 'Click any bar to view its 7-day breakdown'}
-                </p>
+                {/* Dynamic hover / selection prompt */}
+                <div className="mt-1.5 flex items-center min-h-[26px]">
+                  {hoveredWeek ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>
+                        Inspecting <strong>{hoveredWeek.name}</strong> ({hoveredWeek.label}):
+                      </span>
+                      <a
+                        href="#weekly-focus-assessment"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleSelectWeek(hoveredWeek);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold transition-colors hover:underline cursor-pointer"
+                        style={{ color: 'var(--forest)' }}
+                      >
+                        <span>Show in detail</span>
+                        <ArrowRight size={13} />
+                      </a>
+                    </div>
+                  ) : selectedWeek ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                        Showing {selectedWeek.name} breakdown in weekly chart.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedWeek(null)}
+                        className="text-xs font-bold hover:underline cursor-pointer"
+                        style={{ color: 'var(--error)' }}
+                      >
+                        Reset to Live
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
+                      Hover on any week to view details or click to inspect its 7-day breakdown
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 text-right">
                 <p
@@ -368,17 +458,27 @@ const Dashboard = () => {
                 <BarChart
                   data={monthlyData}
                   margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
+                  onMouseMove={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length > 0) {
+                      setHoveredWeek(e.activePayload[0].payload as WeekData);
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredWeek(null)}
                   onClick={(e: any) => {
                     if (e && e.activePayload && e.activePayload.length > 0) {
                       const clicked = e.activePayload[0].payload as WeekData;
-                      setSelectedWeek(prev => (prev?.name === clicked.name ? null : clicked));
+                      handleSelectWeek(clicked);
                     }
                   }}
                 >
                   <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
-                  <Tooltip content={<BarTip />} cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }} />
+                  <Tooltip
+                    content={(props: any) => <BarTip {...props} onSelectWeek={handleSelectWeek} />}
+                    wrapperStyle={{ pointerEvents: 'auto' }}
+                    cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }}
+                  />
                   <Bar
                     dataKey="productivity"
                     radius={[6, 6, 0, 0]}
@@ -386,7 +486,7 @@ const Dashboard = () => {
                     cursor="pointer"
                     onClick={(entry: any) => {
                       if (entry && entry.name) {
-                        setSelectedWeek(prev => (prev?.name === entry.name ? null : entry));
+                        handleSelectWeek(entry);
                       }
                     }}
                   >
