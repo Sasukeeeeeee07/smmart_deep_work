@@ -105,15 +105,15 @@ export default function DashboardLayout() {
     >
       {/* ── Minimalist Clean Header ── */}
       <header
-        className="sticky top-0 z-40 px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between shrink-0 w-full max-w-full"
+        className="sticky top-0 z-40 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between shrink-0 w-full max-w-full relative"
         style={{
           background: 'rgba(255, 254, 250, 0.95)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--border)',
         }}
       >
-        {/* Left: Back Button, Brand Logo, & Mobile Hamburger */}
-        <div className="flex items-center gap-2 sm:gap-3.5">
+        {/* Left: Back Button */}
+        <div className="flex items-center gap-2 sm:gap-3.5 z-10">
           <button
             type="button"
             onClick={() => {
@@ -135,33 +135,27 @@ export default function DashboardLayout() {
             <ArrowLeft size={14} />
             <span className="hidden xs:inline">Back</span>
           </button>
+        </div>
 
-          {/* Clickable Brand Logo */}
+        {/* Center: Aesthetic 'smmart deep work' Logo placed in the middle */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10 pointer-events-auto">
           <Link 
             to="/dashboard" 
-            className="flex items-center gap-2 sm:gap-2.5 group cursor-pointer"
-            title="Go to smmart dashboard"
+            className="flex items-center group cursor-pointer transition-transform hover:scale-105 active:scale-95"
+            title="smmart deep work"
           >
             <img
               src="/smmart-logo.png"
-              alt="smmart logo"
-              loading="lazy"
+              alt="smmart deep work"
+              loading="eager"
               decoding="async"
-              className="h-8 md:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform"
             />
-            <div className="hidden sm:block">
-              <p className="font-bold text-sm leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                smmart
-              </p>
-              <p className="text-xs leading-none mt-0.5 text-[var(--ink-4)] font-medium">
-                deep work
-              </p>
-            </div>
           </Link>
         </div>
 
         {/* Right: Rewards, Settings, Notifications, User & Mobile Menu Toggle */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
           <Link
             to="/rewards"
             className="p-2 rounded-lg transition-colors hover:text-amber-600 hover:bg-amber-50/50 cursor-pointer"

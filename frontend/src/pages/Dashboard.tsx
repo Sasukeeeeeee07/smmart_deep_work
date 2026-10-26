@@ -547,7 +547,7 @@ const Dashboard = () => {
           }}
         >
           <Timer size={18} />
-          <span className="tracking-tight">Deepwork Session</span>
+          <span className="tracking-tight">Enter Deepwork</span>
           <ArrowRight size={16} />
         </button>
       </div>

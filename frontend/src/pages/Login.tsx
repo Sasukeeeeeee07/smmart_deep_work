@@ -70,26 +70,14 @@ const Login = () => {
         style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
       >
         {/* Logo */}
-        <Link to="/login" className="flex items-center gap-3 cursor-pointer" title="smmart">
+        <Link to="/login" className="flex items-center cursor-pointer group" title="smmart deep work">
           <img
             src="/smmart-logo.png"
-            alt="smmart"
+            alt="smmart deep work"
             loading="lazy"
             decoding="async"
-            className="h-10 w-auto object-contain transition-transform hover:scale-105"
+            className="h-11 md:h-12 w-auto object-contain transition-transform group-hover:scale-105"
           />
-          <div className="h-5 w-[1px]" style={{ background: 'var(--border)' }} />
-          <div>
-            <p
-              className="font-semibold leading-none"
-              style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif', fontSize: 15 }}
-            >
-              smmart
-            </p>
-            <p className="leading-none mt-0.5" style={{ color: 'var(--ink-4)', fontSize: 11 }}>
-              deep work
-            </p>
-          </div>
         </Link>
 
         {/* Hero copy */}
@@ -156,17 +144,14 @@ const Login = () => {
           }}
         >
           {/* Mobile logo */}
-          <Link to="/login" className="flex lg:hidden items-center gap-2.5 mb-10 cursor-pointer" title="smmart">
+          <Link to="/login" className="flex lg:hidden items-center justify-center mb-8 cursor-pointer group" title="smmart deep work">
             <img
               src="/smmart-logo.png"
-              alt="smmart"
+              alt="smmart deep work"
               loading="lazy"
               decoding="async"
-              className="h-8 w-auto object-contain"
+              className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
             />
-            <span className="font-semibold text-sm" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>
-              smmart deep work
-            </span>
           </Link>
 
           <h2
