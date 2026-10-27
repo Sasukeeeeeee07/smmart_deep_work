@@ -404,285 +404,251 @@ export default function DeepWorkPage() {
           </div>
         )}
 
-        {/* ── 1. TOP FOUR BOXES (Small Compact Perfect Squares: 2 in Row 1, Space, 2 in Row 2) ── */}
-        <div className="space-y-4 sm:space-y-5">
+        {/* ── 1. 2x2 ACTION GRID (Matching Handwritten Sketch) ─────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          {/* ROW 1: 2 Compact Square Boxes */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-
-            {/* CARD 1: START SESSION */}
-            <div
-              onClick={!isRunning ? handleStartSession : undefined}
-              className={`p-4 sm:p-4.5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-[240px] sm:w-[250px] h-[240px] sm:h-[250px] aspect-square shrink-0 ${
-                !isRunning
-                  ? (isDeviceOnline
-                      ? 'cursor-pointer hover:shadow-md hover:border-[var(--forest)] hover:-translate-y-0.5'
-                      : 'cursor-pointer hover:border-rose-400')
-                  : ''
-              }`}
-              style={{
-                background: isRunning
-                  ? 'var(--surface)'
-                  : isDeviceOnline
-                  ? 'rgba(66, 84, 67, 0.05)'
-                  : 'rgba(225, 29, 72, 0.04)',
-                borderColor: isRunning
-                  ? 'var(--border)'
-                  : isDeviceOnline
-                  ? 'rgba(66, 84, 67, 0.3)'
-                  : 'rgba(225, 29, 72, 0.25)',
-              }}
-            >
-              {/* Top row: Icon & Status Badge */}
-              <div className="flex items-center justify-between">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    background: isRunning
-                      ? 'var(--surface-2)'
-                      : isDeviceOnline
-                      ? 'var(--forest)'
-                      : 'rgba(225, 29, 72, 0.12)',
-                    color: isRunning
-                      ? 'var(--forest)'
-                      : isDeviceOnline
-                      ? '#ffffff'
-                      : '#e11d48',
-                  }}
-                >
-                  {isRunning ? (
-                    <Timer size={18} className="animate-spin-slow" />
-                  ) : !isDeviceOnline ? (
-                    <WifiOff size={18} />
-                  ) : (
-                    <Play size={18} className="ml-0.5" />
+          {/* TOP-LEFT: 1. START SESSION (Reverse Countdown Timer) */}
+          <div
+            onClick={!isRunning ? handleStartSession : undefined}
+            className={`p-5 rounded-2xl transition-all duration-200 border flex items-center justify-between gap-4 ${
+              !isRunning
+                ? (isDeviceOnline
+                    ? 'cursor-pointer hover:shadow-md hover:border-[var(--forest)]'
+                    : 'cursor-pointer hover:border-rose-400')
+                : ''
+            }`}
+            style={{
+              background: isRunning
+                ? 'var(--surface)'
+                : isDeviceOnline
+                ? 'rgba(66, 84, 67, 0.05)'
+                : 'rgba(225, 29, 72, 0.04)',
+              borderColor: isRunning
+                ? 'var(--border)'
+                : isDeviceOnline
+                ? 'rgba(66, 84, 67, 0.3)'
+                : 'rgba(225, 29, 72, 0.25)',
+            }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  background: isRunning
+                    ? 'var(--surface-2)'
+                    : isDeviceOnline
+                    ? 'var(--forest)'
+                    : 'rgba(225, 29, 72, 0.12)',
+                  color: isRunning
+                    ? 'var(--forest)'
+                    : isDeviceOnline
+                    ? '#ffffff'
+                    : '#e11d48',
+                }}
+              >
+                {isRunning ? (
+                  <Timer size={20} className="animate-spin-slow" />
+                ) : !isDeviceOnline ? (
+                  <WifiOff size={20} />
+                ) : (
+                  <Play size={20} className="ml-0.5" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p
+                    className="font-bold text-base md:text-lg tracking-tight"
+                    style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
+                  >
+                    {isRunning ? 'CURRENT SESSION COUNTDOWN' : 'START CURRENT SESSION'}
+                  </p>
+                  {!isRunning && !isDeviceOnline && (
+                    <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                      Device Offline
+                    </span>
                   )}
                 </div>
-                {!isRunning && !isDeviceOnline && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                    Offline
-                  </span>
-                )}
-                {isRunning && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-                    Active
-                  </span>
-                )}
-              </div>
-
-              {/* Middle: Title & description */}
-              <div className="my-1">
-                <p
-                  className="font-bold text-xs sm:text-sm leading-snug tracking-tight"
-                  style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
-                >
-                  {isRunning ? 'SESSION COUNTDOWN' : 'START CURRENT SESSION'}
-                </p>
-                <p className="text-[11px] font-semibold mt-0.5 leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {isRunning
-                    ? `Max ${maxAllowedBreaks} breaks allowed`
+                    ? `Countdown in H - M - S • Max ${maxAllowedBreaks} breaks allowed`
                     : !isDeviceOnline
-                    ? 'Power on device to start'
-                    : 'Start 120:00 session timer'}
+                    ? 'Desk device is offline • Power on device before starting session'
+                    : 'Click to start current session timer (120:00) • Desk connected'}
                 </p>
               </div>
+            </div>
 
-              {/* Bottom action / timer */}
-              <div className="pt-2 border-t border-[var(--border)]">
-                {isRunning ? (
+            <div className="flex items-center gap-3">
+              {isRunning ? (
+                <div className="flex items-center gap-2">
                   <div
-                    className="font-mono font-bold text-base py-1.5 px-3 rounded-xl tabular-nums text-center shadow-xs"
+                    className="font-mono font-bold text-lg md:text-2xl px-4 py-1.5 rounded-xl tabular-nums shadow-xs"
                     style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)', border: '1px solid rgba(66, 84, 67, 0.25)' }}
                   >
                     {fmtHMS(remainingSec)}
                   </div>
-                ) : !isDeviceOnline ? (
-                  <div className="flex items-center justify-center gap-1.5 font-bold text-xs text-rose-600 bg-rose-500/10 py-1.5 px-3 rounded-xl border border-rose-500/20">
-                    <WifiOff size={13} />
-                    <span>Device Offline</span>
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center justify-center gap-1.5 font-bold text-xs py-2 px-3 rounded-xl text-white shadow-xs"
-                    style={{ background: 'var(--forest)' }}
-                  >
-                    <span>{starting ? 'Starting…' : 'Start Session'}</span>
-                    <ArrowRight size={13} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* CARD 2: RESUME SESSION */}
-            <div
-              onClick={currentSession?.status === 'BREAK' ? handleResumeSession : (!isRunning ? handleStartSession : undefined)}
-              className={`p-4 sm:p-4.5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-[240px] sm:w-[250px] h-[240px] sm:h-[250px] aspect-square shrink-0 ${
-                currentSession?.status === 'BREAK' ? 'cursor-pointer hover:shadow-md hover:border-[var(--amber-w)] hover:-translate-y-0.5' : ''
-              }`}
-              style={{
-                background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : 'var(--surface)',
-                borderColor: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.35)' : 'var(--border)',
-              }}
-            >
-              {/* Top row: Icon & Status */}
-              <div className="flex items-center justify-between">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    background: currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--surface-2)',
-                    color: currentSession?.status === 'BREAK' ? '#ffffff' : 'var(--ink-2)',
-                  }}
-                >
-                  {currentSession?.status === 'BREAK' ? <Play size={16} className="ml-0.5" /> : <Pause size={16} />}
                 </div>
-                {currentSession?.status === 'BREAK' && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30">
-                    On Break
-                  </span>
-                )}
-              </div>
+              ) : !isDeviceOnline ? (
+                <div className="flex items-center gap-1.5 font-bold text-xs text-rose-600 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                  <WifiOff size={14} />
+                  <span>Offline</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 font-bold text-sm" style={{ color: 'var(--forest)' }}>
+                  <span>{starting ? 'Starting…' : 'Start'}</span>
+                  <ArrowRight size={18} />
+                </div>
+              )}
+            </div>
+          </div>
 
-              {/* Middle: Title & description */}
-              <div className="my-1">
+          {/* TOP-RIGHT: 2. RESUME SESSION (Live Elapsed Timer & Blinking Breaks) */}
+          <div
+            onClick={currentSession?.status === 'BREAK' ? handleResumeSession : (!isRunning ? handleStartSession : undefined)}
+            className={`p-5 rounded-2xl transition-all duration-200 border flex items-center justify-between gap-4 ${
+              currentSession?.status === 'BREAK' ? 'cursor-pointer hover:shadow-md hover:border-[var(--amber-w)]' : ''
+            }`}
+            style={{
+              background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : 'var(--surface)',
+              borderColor: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.35)' : 'var(--border)',
+            }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  background: currentSession?.status === 'BREAK' ? 'var(--amber-w)' : 'var(--surface-2)',
+                  color: currentSession?.status === 'BREAK' ? '#ffffff' : 'var(--ink-2)',
+                }}
+              >
+                {currentSession?.status === 'BREAK' ? <Play size={18} className="ml-0.5" /> : <Pause size={18} />}
+              </div>
+              <div>
                 <p
-                  className="font-bold text-xs sm:text-sm leading-snug tracking-tight"
+                  className="font-bold text-base md:text-lg tracking-tight"
                   style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
                   RESUME CURRENT SESSION
                 </p>
-                <p className="text-[11px] font-semibold mt-0.5 leading-relaxed truncate" style={{ color: 'var(--ink-2)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {currentSession?.status === 'BREAK'
-                    ? 'Break active — click Resume'
+                    ? 'Current session break active — click Resume Now'
                     : currentSession?.lastResumedAt
-                    ? `Resumed at ${formatTime(currentSession.lastResumedAt)}`
+                    ? `Current session resumed at ${formatTime(currentSession.lastResumedAt)}`
                     : isRunning
-                    ? `Focusing since ${formatTime(currentSession.startTime)}`
-                    : 'Live elapsed focus timer'}
+                    ? `Running continuously since ${formatTime(currentSession.startTime)}`
+                    : 'Live elapsed focus timer & break resume trigger'}
                 </p>
-              </div>
-
-              {/* Bottom action / live timer */}
-              <div className="pt-2 border-t border-[var(--border)]">
-                {currentSession?.status === 'BREAK' ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleResumeSession(); }}
-                    disabled={resuming}
-                    className="w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                    style={{ background: 'var(--amber-w)', color: '#ffffff', border: 'none' }}
-                  >
-                    <span>{resuming ? 'Resuming…' : 'Resume Now'}</span>
-                    <ArrowRight size={13} />
-                  </button>
-                ) : isRunning ? (
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-mono text-xs font-bold tabular-nums px-2 py-1 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
-                      Live: {fmtHMS(activeSec)}
-                    </span>
-                    {breakCount > 0 && (
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-lg animate-blink-red shadow-xs">
-                        {breakCount} Breaks
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="font-mono text-xs font-bold py-1.5 px-3 rounded-xl text-center" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
-                    00:00:00
-                  </div>
-                )}
               </div>
             </div>
 
+            <div className="flex items-center gap-2.5">
+              {currentSession?.status === 'BREAK' ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleResumeSession(); }}
+                  disabled={resuming}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  style={{ background: 'var(--amber-w)', color: '#ffffff', border: 'none' }}
+                >
+                  <span>{resuming ? 'Resuming…' : 'Resume Now'}</span>
+                  <ArrowRight size={15} />
+                </button>
+              ) : isRunning ? (
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  {breakCount > 0 && (
+                    <span className="text-xs font-black px-2.5 py-1 rounded-xl animate-blink-red shadow-xs">
+                      {breakCount} / {maxAllowedBreaks} BREAKS TAKEN
+                    </span>
+                  )}
+                  <span className="font-mono text-sm font-bold tabular-nums px-3 py-1.5 rounded-xl shadow-xs" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
+                    Live: {fmtHMS(activeSec)}
+                  </span>
+                </div>
+              ) : (
+                <span className="font-mono text-xs font-bold px-3 py-1.5 rounded-xl" style={{ background: 'var(--surface-2)', color: 'var(--ink-2)' }}>
+                  00:00:00
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* ROW 2: 2 Compact Square Boxes */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-
-            {/* CARD 3: ALARMS RAISED */}
-            <div
-              className={`p-4 sm:p-4.5 rounded-2xl transition-all duration-200 border flex flex-col justify-between shadow-xs w-[240px] sm:w-[250px] h-[240px] sm:h-[250px] aspect-square shrink-0 ${
-                currentSession?.alarmActive ? 'animate-pulse-gentle' : ''
-              }`}
-              style={{
-                background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : 'var(--surface)',
-                borderColor: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.4)' : 'var(--border)',
-              }}
-            >
-              {/* Top row: Icon & Status */}
-              <div className="flex items-center justify-between">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    background: currentSession?.alarmActive ? 'var(--error)' : 'var(--surface-2)',
-                    color: currentSession?.alarmActive ? '#ffffff' : 'var(--ink-2)',
-                  }}
-                >
-                  {currentSession?.alarmActive ? <Volume2 size={18} /> : <AlertTriangle size={16} />}
-                </div>
-                {alarmCount > 0 && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                    {alarmCount} Alarms
-                  </span>
-                )}
+          {/* BOTTOM-LEFT: 3. ALARMS RAISED */}
+          <div
+            className={`p-5 rounded-2xl transition-all duration-200 border flex items-center justify-between gap-4 ${
+              currentSession?.alarmActive ? 'animate-pulse-gentle' : ''
+            }`}
+            style={{
+              background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : 'var(--surface)',
+              borderColor: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.4)' : 'var(--border)',
+            }}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  background: currentSession?.alarmActive ? 'var(--error)' : 'var(--surface-2)',
+                  color: currentSession?.alarmActive ? '#ffffff' : 'var(--ink-2)',
+                }}
+              >
+                {currentSession?.alarmActive ? <Volume2 size={20} /> : <AlertTriangle size={18} />}
               </div>
-
-              {/* Middle: Title & description */}
-              <div className="my-1">
+              <div>
                 <p
-                  className="font-bold text-xs sm:text-sm leading-snug tracking-tight"
+                  className="font-bold text-base md:text-lg tracking-tight"
                   style={{ color: currentSession?.alarmActive ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                 >
                   CURRENT SESSION ALARMS
                 </p>
-                <p className="text-[11px] font-semibold mt-0.5 leading-relaxed truncate" style={{ color: 'var(--ink-2)' }}>
+                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>
                   {currentSession?.alarmActive
-                    ? (currentSession.alarmMessage || 'Away Alert Active!')
-                    : 'Away detection & thresholds'}
+                    ? (currentSession.alarmMessage || 'Away Alert: Person away from workstation!')
+                    : 'Away detection & break threshold alarms'}
                 </p>
-              </div>
-
-              {/* Bottom: No. of times & Total time */}
-              <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
-                <div
-                  className="flex-1 px-2 py-1 rounded-xl text-center border"
-                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-                >
-                  <p className="text-[9px] uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>Count</p>
-                  <p className="font-extrabold text-xs leading-tight mt-0.5" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
-                    {alarmCount}
-                  </p>
-                </div>
-
-                <div
-                  className="flex-1 px-2 py-1 rounded-xl text-center border"
-                  style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
-                >
-                  <p className="text-[9px] uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>Total</p>
-                  <p className="font-extrabold text-xs leading-tight mt-0.5" style={{ color: 'var(--ink)' }}>
-                    {alarmDurationMinutes}m
-                  </p>
-                </div>
-
-                {currentSession?.alarmActive && (
-                  <button
-                    onClick={handleStopSound}
-                    disabled={stoppingSound}
-                    className="btn btn-danger text-xs py-1 px-2 flex items-center gap-1 cursor-pointer"
-                  >
-                    <VolumeX size={12} />
-                    <span>Stop</span>
-                  </button>
-                )}
               </div>
             </div>
 
-            {/* CARD 4: MODERATOR INTERVENTION */}
-            <div
-              className="p-4 sm:p-4.5 rounded-2xl border transition-all duration-200 flex flex-col justify-between shadow-xs w-[240px] sm:w-[250px] h-[240px] sm:h-[250px] aspect-square shrink-0"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              {/* Top row: Icon & Status */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className="px-3 py-1.5 rounded-xl text-center border"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+              >
+                <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>No. of times</p>
+                <p className="font-extrabold text-base leading-tight mt-0.5" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)' }}>
+                  {alarmCount}
+                </p>
+              </div>
+
+              <div
+                className="px-3 py-1.5 rounded-xl text-center border"
+                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
+              >
+                <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--ink-2)' }}>Total time</p>
+                <p className="font-extrabold text-base leading-tight mt-0.5" style={{ color: 'var(--ink)' }}>
+                  {alarmDurationMinutes}m
+                </p>
+              </div>
+
+              {currentSession?.alarmActive && (
+                <button
+                  onClick={handleStopSound}
+                  disabled={stoppingSound}
+                  className="btn btn-danger text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer ml-1"
+                >
+                  <VolumeX size={14} />
+                  <span>{stoppingSound ? '…' : 'Stop'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* BOTTOM-RIGHT: 4. MODERATOR INTERVENTION */}
+          <div
+            className="p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div className="flex items-center gap-2.5">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                     style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}
@@ -691,71 +657,59 @@ export default function DeepWorkPage() {
                   </div>
                   <div>
                     <p
-                      className="font-bold text-xs tracking-tight leading-none"
+                      className="font-bold text-sm tracking-tight"
                       style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
                     >
-                      MODERATOR
+                      MODERATOR INTERVENTION
                     </p>
-                    <span className="text-[10px] font-semibold text-[var(--forest)] flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
-                      Active
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                      <p className="text-xs font-semibold" style={{ color: 'var(--forest)' }}>
+                        AI Voice Speaker Active
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Quick triggers */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {[
                     { label: 'Focus', msg: 'Deep work in progress. Stay focused on your core task.' },
                     { label: 'Away',  msg: 'Warning: You are away from your desk. Please return immediately.' },
+                    { label: 'Task',  msg: 'Reminder: Check off your primary objective for this session.' }
                   ].map(v => (
                     <button
                       key={v.label}
                       onClick={() => handleSendVoice(v.msg)}
                       disabled={sendingVoice}
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-md transition-colors border cursor-pointer hover:border-[var(--forest)]"
+                      className="text-xs font-bold px-2.5 py-1 rounded-lg transition-colors border cursor-pointer hover:border-[var(--forest)]"
                       style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink)' }}
-                      title={v.msg}
                     >
                       {v.label}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Middle: Title */}
-              <div className="my-1">
-                <p
-                  className="font-bold text-xs sm:text-sm leading-snug tracking-tight"
-                  style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}
-                >
-                  MODERATOR INTERVENTION
-                </p>
-                <p className="text-[11px] font-semibold mt-0.5 leading-relaxed truncate" style={{ color: 'var(--ink-2)' }}>
-                  Speak custom prompt or trigger cues
-                </p>
-              </div>
-
-              {/* Bottom: Voice input */}
-              <div className="pt-2 border-t border-[var(--border)] flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={customVoice}
-                  onChange={e => setCustomVoice(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
-                  placeholder="Speak via ESP32…"
-                  className="input-base text-xs flex-1 py-1.5 px-2.5 rounded-xl min-w-0"
-                />
-                <button
-                  onClick={() => handleSendVoice(customVoice)}
-                  disabled={sendingVoice || !customVoice.trim()}
-                  className="btn btn-primary text-xs py-1.5 px-2.5 shrink-0"
-                >
-                  {voiceSuccess ? '✓' : sendingVoice ? '…' : 'Speak'}
-                </button>
-              </div>
             </div>
 
+            {/* Voice input */}
+            <div className="pt-2.5 border-t border-[var(--border)] flex items-center gap-2">
+              <input
+                type="text"
+                value={customVoice}
+                onChange={e => setCustomVoice(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
+                placeholder="Speak through ESP32 speaker…"
+                className="input-base text-xs flex-1 py-1.5 px-3 rounded-xl"
+              />
+              <button
+                onClick={() => handleSendVoice(customVoice)}
+                disabled={sendingVoice || !customVoice.trim()}
+                className="btn btn-primary text-xs py-1.5 px-3 shrink-0"
+              >
+                {voiceSuccess ? '✓ Spoken' : sendingVoice ? '…' : 'Speak'}
+              </button>
+            </div>
           </div>
 
         </div>
