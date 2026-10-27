@@ -28,25 +28,15 @@ export default function DashboardLayout() {
 
   const [unreadCount, setUnreadCount]   = useState(0);
   const [lockedDevice, setLockedDevice] = useState<any>(null);
-  const [sidebarOpen, setSidebarOpen]   = useState<boolean>(() => {
-    const saved = localStorage.getItem('sidebarOpen');
-    if (saved !== null) return saved === 'true';
-    return window.innerWidth >= 1024;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Close mobile sidebar on route change
+  // Close side menu on route change
   useEffect(() => {
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
+    setSidebarOpen(false);
   }, [location.pathname]);
 
   const toggleSidebar = () => {
-    setSidebarOpen(prev => {
-      const next = !prev;
-      localStorage.setItem('sidebarOpen', String(next));
-      return next;
-    });
+    setSidebarOpen(prev => !prev);
   };
 
   const checkLockout = async () => {
@@ -108,8 +98,9 @@ export default function DashboardLayout() {
     { label: 'Deep Work Session', path: '/deepwork', icon: Activity },
     { label: 'Tasks', path: '/tasks', icon: CheckSquare },
     { label: 'Rewards & Milestones', path: '/rewards', icon: Award },
-    { label: 'Activity Logs', path: '/activity', icon: Activity },
+    { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? String(unreadCount) : undefined },
     { label: 'Devices', path: '/devices', icon: Cpu },
+    { label: 'Activity Logs', path: '/activity', icon: Activity },
     { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Profile', path: '/profile', icon: User },
   ];
@@ -119,33 +110,17 @@ export default function DashboardLayout() {
       style={{ minHeight: '100dvh', background: 'var(--canvas)' }}
       className="flex flex-col w-full max-w-full overflow-x-hidden"
     >
-      {/* ── Minimalist Clean Header with Global Hamburger Toggle ── */}
+      {/* ── Clean Header: Back Button (Left), Logo (Center), Hamburger Toggle (Right) ── */}
       <header
-        className="sticky top-0 z-40 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between shrink-0 w-full max-w-full relative"
+        className="sticky top-0 z-40 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between shrink-0 w-full relative"
         style={{
           background: 'rgba(255, 254, 250, 0.95)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--border)',
         }}
       >
-        {/* Left: Hamburger Menu Button & Back Button */}
-        <div className="flex items-center gap-2 sm:gap-3 z-10">
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer border hover:border-[var(--forest)] hover:shadow-xs"
-            style={{
-              color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
-              borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
-              background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
-            }}
-            title={sidebarOpen ? 'Close side menu' : 'Open side menu'}
-            aria-label="Toggle side menu"
-            aria-expanded={sidebarOpen}
-          >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-
+        {/* Left: Back Button Only */}
+        <div className="flex items-center z-10">
           <button
             type="button"
             onClick={() => {
@@ -155,7 +130,7 @@ export default function DashboardLayout() {
                 navigate('/dashboard');
               }
             }}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border hover:shadow-xs hover:border-[var(--forest)]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border hover:shadow-xs hover:border-[var(--forest)]"
             style={{
               color: 'var(--ink)',
               border: '1px solid var(--border)',
@@ -186,215 +161,152 @@ export default function DashboardLayout() {
           </Link>
         </div>
 
-        {/* Right: Rewards, Settings, Notifications & User Avatar */}
-        <div className="flex items-center gap-2 sm:gap-3 z-10">
-          <Link
-            to="/rewards"
-            className="p-2 rounded-lg transition-colors hover:text-amber-600 hover:bg-amber-50/50 cursor-pointer"
-            style={{ color: 'var(--ink-3)' }}
-            title="Rewards & Milestones"
-            aria-label="Rewards & Milestones"
-          >
-            <Award size={18} />
-          </Link>
-
-          <Link
-            to="/settings"
-            className="p-2 rounded-lg transition-colors hover:text-[var(--forest)] hover:bg-slate-100/50 cursor-pointer"
-            style={{ color: 'var(--ink-3)' }}
-            title="Settings"
-            aria-label="Settings"
-          >
-            <Settings size={18} />
-          </Link>
-
-          <Link
-            to="/notifications"
-            className="relative p-2 rounded-lg transition-colors hover:text-[var(--forest)] hover:bg-slate-100/50 cursor-pointer"
-            style={{ color: 'var(--ink-3)' }}
-            title="Notifications"
-            aria-label="Notifications"
-          >
-            <Bell size={17} />
-            {unreadCount > 0 && (
-              <span
-                className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-                style={{ background: 'var(--error)' }}
-              />
-            )}
-          </Link>
-
-          <Link
-            to="/profile"
-            className="flex items-center justify-center shrink-0 text-xs font-bold transition-transform hover:scale-105"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: 'rgba(66, 84, 67, 0.12)',
-              color: 'var(--forest)',
-              fontFamily: 'DM Sans, sans-serif',
-            }}
-            title={user?.name || user?.email || 'Profile'}
-            aria-label="Profile"
-          >
-            {initials}
-          </Link>
-
+        {/* Right: Hamburger Menu Button (Opens/Closes Side Menu) */}
+        <div className="flex items-center z-10">
           <button
             type="button"
-            onClick={handleLogout}
-            className="hidden md:flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-            style={{ color: 'var(--ink-4)', border: '1px solid var(--border)', background: 'var(--surface)' }}
-            title="Sign out"
-            onMouseEnter={e => {
-              e.currentTarget.style.color = 'var(--error)';
-              e.currentTarget.style.borderColor = 'var(--error)';
+            onClick={toggleSidebar}
+            className="flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer border hover:border-[var(--forest)] hover:shadow-xs relative"
+            style={{
+              color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
+              borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
+              background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.color = 'var(--ink-4)';
-              e.currentTarget.style.borderColor = 'var(--border)';
-            }}
+            title={sidebarOpen ? 'Close side menu' : 'Open side menu'}
+            aria-label="Toggle side menu"
+            aria-expanded={sidebarOpen}
           >
-            <LogOut size={13} />
-            <span>Sign out</span>
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            {unreadCount > 0 && !sidebarOpen && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            )}
           </button>
         </div>
       </header>
 
-      {/* ── Main Layout Body: Collapsible Sidebar + Page Content ── */}
-      <div className="flex flex-1 relative w-full overflow-x-hidden min-h-[calc(100dvh-57px)]">
-        {/* Mobile Backdrop Overlay when Sidebar is open */}
-        {sidebarOpen && (
-          <div
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 top-[57px] bg-black/30 backdrop-blur-xs z-40 md:hidden transition-opacity"
-            aria-hidden="true"
-          />
-        )}
+      {/* ── Slide-in Side Menu Bar on the Right ── */}
+      {/* Backdrop Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 top-[57px] bg-black/35 backdrop-blur-xs z-40 transition-opacity animate-fade-in"
+          aria-hidden="true"
+        />
+      )}
 
-        {/* ── Global Side Menu Bar (Collapsible with Hamburger) ── */}
-        <aside
-          className={`
-            fixed md:sticky top-[57px] left-0 h-[calc(100dvh-57px)] z-50 md:z-30
-            flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out
-            ${
-              sidebarOpen
-                ? 'w-64 translate-x-0 shadow-2xl md:shadow-none'
-                : '-translate-x-full md:translate-x-0 md:w-0 md:opacity-0 md:pointer-events-none'
-            }
-          `}
-          style={{
-            background: 'rgba(255, 254, 250, 0.98)',
-            backdropFilter: 'blur(16px)',
-            borderRight: sidebarOpen ? '1px solid var(--border)' : 'none',
-          }}
-        >
-          {/* Inner fixed-width container to prevent text wrapping/distortion during width transitions */}
-          <div className="w-64 h-full flex flex-col justify-between p-4 overflow-y-auto select-none">
-            {/* Top Navigation Links */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink-3)]">
-                  Menu
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1 rounded-lg text-[var(--ink-3)] hover:text-[var(--error)] transition-colors cursor-pointer"
-                  title="Close sidebar"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              <nav className="space-y-1">
-                {navLinks.map(item => {
-                  const Icon = item.icon;
-                  const active = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => {
-                        if (window.innerWidth < 768) setSidebarOpen(false);
-                      }}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        active
-                          ? 'bg-[var(--forest)] text-white shadow-xs'
-                          : 'text-[var(--ink)] hover:bg-[var(--surface-2)] hover:text-[var(--forest)]'
-                      }`}
-                    >
-                      <Icon size={16} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* Bottom Actions: Mode Switch & User Card */}
-            <div className="pt-4 border-t border-[var(--border)] space-y-3">
+      {/* Right-Side Drawer Panel */}
+      <aside
+        className={`
+          fixed top-[57px] right-0 bottom-0 w-80 sm:w-88 z-50
+          flex flex-col justify-between shrink-0 transition-transform duration-300 ease-out shadow-2xl
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'}
+        `}
+        style={{
+          background: 'rgba(255, 254, 250, 0.98)',
+          backdropFilter: 'blur(20px)',
+          borderLeft: '1px solid var(--border)',
+        }}
+      >
+        <div className="flex flex-col h-full justify-between p-5 overflow-y-auto select-none">
+          {/* Top section: User Card + Close Button */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
               <Link
-                to="/select-mode"
-                onClick={() => {
-                  if (window.innerWidth < 768) setSidebarOpen(false);
-                }}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
-                title="Switch Workspace Mode"
+                to="/profile"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 overflow-hidden flex-1 group"
               >
-                <span className="flex items-center gap-2">
-                  <Layers size={15} />
-                  <span>Switch Mode</span>
-                </span>
-                <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-transform group-hover:scale-105 shadow-xs"
+                  style={{ background: 'rgba(66, 84, 67, 0.12)', color: 'var(--forest)' }}
+                >
+                  {initials}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold truncate max-w-[170px] text-[var(--ink)] group-hover:text-[var(--forest)]">
+                    {user?.name || 'Workspace User'}
+                  </p>
+                  <p className="text-xs truncate max-w-[170px] text-[var(--ink-4)]">
+                    {user?.email}
+                  </p>
+                </div>
               </Link>
 
-              <div className="flex items-center justify-between pt-1">
-                <Link
-                  to="/profile"
-                  onClick={() => {
-                    if (window.innerWidth < 768) setSidebarOpen(false);
-                  }}
-                  className="flex items-center gap-2 overflow-hidden flex-1 group"
-                >
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform group-hover:scale-105"
-                    style={{ background: 'rgba(66, 84, 67, 0.12)', color: 'var(--forest)' }}
-                  >
-                    {initials}
-                  </div>
-                  <div className="overflow-hidden">
-                    <p className="text-xs font-bold truncate max-w-[120px] text-[var(--ink)] group-hover:text-[var(--forest)]">
-                      {user?.name || 'Workspace User'}
-                    </p>
-                    <p className="text-[10px] truncate max-w-[120px] text-[var(--ink-4)]">
-                      {user?.email}
-                    </p>
-                  </div>
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Sign out"
-                >
-                  <LogOut size={15} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer shrink-0"
+                title="Close menu"
+              >
+                <X size={18} />
+              </button>
             </div>
-          </div>
-        </aside>
 
-        {/* ── Main Content Area ── */}
-        <main className="flex-1 px-4 py-5 md:px-8 md:py-6 w-full max-w-full overflow-x-hidden min-w-0 transition-all">
-          <div className="w-full max-w-full">
-            <Outlet />
+            {/* Navigation links */}
+            <nav className="space-y-1 pt-1">
+              {navLinks.map(item => {
+                const Icon = item.icon;
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                      active
+                        ? 'bg-[var(--forest)] text-white shadow-xs'
+                        : 'text-[var(--ink)] hover:bg-[var(--surface-2)] hover:text-[var(--forest)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500 text-white">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-        </main>
-      </div>
+
+          {/* Bottom Actions: Mode Switch & Logout */}
+          <div className="pt-4 border-t border-[var(--border)] space-y-3">
+            <Link
+              to="/select-mode"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group"
+              style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
+              title="Switch Workspace Mode"
+            >
+              <span className="flex items-center gap-2.5">
+                <Layers size={16} />
+                <span>Switch Mode</span>
+              </span>
+              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-700 bg-rose-50 border border-rose-200 transition-colors hover:bg-rose-100 cursor-pointer"
+            >
+              <LogOut size={15} />
+              <span>Sign out</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Main Content Container (Full Width) ── */}
+      <main className="flex-1 px-4 py-5 md:px-8 md:py-6 w-full max-w-full overflow-x-hidden min-w-0">
+        <div className="w-full max-w-full">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }
