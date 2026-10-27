@@ -13,7 +13,8 @@ import {
   CheckSquare, 
   Cpu, 
   User, 
-  Layers
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 import { notificationService, deviceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
@@ -27,12 +28,26 @@ export default function DashboardLayout() {
 
   const [unreadCount, setUnreadCount]   = useState(0);
   const [lockedDevice, setLockedDevice] = useState<any>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen]   = useState<boolean>(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    if (saved !== null) return saved === 'true';
+    return window.innerWidth >= 1024;
+  });
 
-  // Close mobile menu on route change
+  // Close mobile sidebar on route change
   useEffect(() => {
-    setMobileMenuOpen(false);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
   }, [location.pathname]);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarOpen', String(next));
+      return next;
+    });
+  };
 
   const checkLockout = async () => {
     try {
@@ -67,6 +82,7 @@ export default function DashboardLayout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('workspaceMode');
+    localStorage.removeItem('activeDeepworkSession');
     navigate('/login');
   };
 
@@ -90,11 +106,11 @@ export default function DashboardLayout() {
   const navLinks = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Deep Work Session', path: '/deepwork', icon: Activity },
-    { label: 'Rewards & Milestones', path: '/rewards', icon: Award },
-    { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Tasks', path: '/tasks', icon: CheckSquare },
+    { label: 'Rewards & Milestones', path: '/rewards', icon: Award },
     { label: 'Activity Logs', path: '/activity', icon: Activity },
     { label: 'Devices', path: '/devices', icon: Cpu },
+    { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Profile', path: '/profile', icon: User },
   ];
 
@@ -103,7 +119,7 @@ export default function DashboardLayout() {
       style={{ minHeight: '100dvh', background: 'var(--canvas)' }}
       className="flex flex-col w-full max-w-full overflow-x-hidden"
     >
-      {/* ── Minimalist Clean Header ── */}
+      {/* ── Minimalist Clean Header with Global Hamburger Toggle ── */}
       <header
         className="sticky top-0 z-40 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between shrink-0 w-full max-w-full relative"
         style={{
@@ -112,8 +128,24 @@ export default function DashboardLayout() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        {/* Left: Back Button */}
-        <div className="flex items-center gap-2 sm:gap-3.5 z-10">
+        {/* Left: Hamburger Menu Button & Back Button */}
+        <div className="flex items-center gap-2 sm:gap-3 z-10">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="flex items-center justify-center p-2 rounded-xl transition-all cursor-pointer border hover:border-[var(--forest)] hover:shadow-xs"
+            style={{
+              color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
+              borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
+              background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
+            }}
+            title={sidebarOpen ? 'Close side menu' : 'Open side menu'}
+            aria-label="Toggle side menu"
+            aria-expanded={sidebarOpen}
+          >
+            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -154,7 +186,7 @@ export default function DashboardLayout() {
           </Link>
         </div>
 
-        {/* Right: Rewards, Settings, Notifications, User & Mobile Menu Toggle */}
+        {/* Right: Rewards, Settings, Notifications & User Avatar */}
         <div className="flex items-center gap-2 sm:gap-3 z-10">
           <Link
             to="/rewards"
@@ -227,92 +259,142 @@ export default function DashboardLayout() {
             <LogOut size={13} />
             <span>Sign out</span>
           </button>
-
-          {/* Mobile Menu Hamburger Toggle */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(prev => !prev)}
-            className="p-2 rounded-lg transition-colors border md:hidden cursor-pointer"
-            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--ink)' }}
-            title={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-            aria-label="Toggle navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
         </div>
       </header>
 
-      {/* ── Mobile Navigation Drawer / Menu ── */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-x-0 top-[57px] z-50 md:hidden p-4 border-b shadow-lg animate-fade-in space-y-3"
-          style={{ 
-            background: 'rgba(255, 254, 250, 0.98)', 
-            backdropFilter: 'blur(16px)', 
-            borderColor: 'var(--border)' 
+      {/* ── Main Layout Body: Collapsible Sidebar + Page Content ── */}
+      <div className="flex flex-1 relative w-full overflow-x-hidden min-h-[calc(100dvh-57px)]">
+        {/* Mobile Backdrop Overlay when Sidebar is open */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 top-[57px] bg-black/30 backdrop-blur-xs z-40 md:hidden transition-opacity"
+            aria-hidden="true"
+          />
+        )}
+
+        {/* ── Global Side Menu Bar (Collapsible with Hamburger) ── */}
+        <aside
+          className={`
+            fixed md:sticky top-[57px] left-0 h-[calc(100dvh-57px)] z-50 md:z-30
+            flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out
+            ${
+              sidebarOpen
+                ? 'w-64 translate-x-0 shadow-2xl md:shadow-none'
+                : '-translate-x-full md:translate-x-0 md:w-0 md:opacity-0 md:pointer-events-none'
+            }
+          `}
+          style={{
+            background: 'rgba(255, 254, 250, 0.98)',
+            backdropFilter: 'blur(16px)',
+            borderRight: sidebarOpen ? '1px solid var(--border)' : 'none',
           }}
         >
-          <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-            <div>
-              <p className="text-xs font-bold text-[var(--ink)]">{user?.name || 'Workspace User'}</p>
-              <p className="text-xs text-[var(--ink-3)]">{user?.email}</p>
-            </div>
-            <Link
-              to="/select-mode"
-              className="text-xs font-bold px-2.5 py-1 rounded-md border flex items-center gap-1"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--forest)' }}
-            >
-              <Layers size={13} />
-              <span>Switch Mode</span>
-            </Link>
-          </div>
-
-          <nav className="grid grid-cols-2 gap-2 py-2">
-            {navLinks.map(item => {
-              const Icon = item.icon;
-              const active = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-bold transition-all ${
-                    active
-                      ? 'bg-[var(--forest)] text-white shadow-2xs'
-                      : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)] hover:bg-slate-100'
-                  }`}
+          {/* Inner fixed-width container to prevent text wrapping/distortion during width transitions */}
+          <div className="w-64 h-full flex flex-col justify-between p-4 overflow-y-auto select-none">
+            {/* Top Navigation Links */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                  Menu
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1 rounded-lg text-[var(--ink-3)] hover:text-[var(--error)] transition-colors cursor-pointer"
+                  title="Close sidebar"
                 >
-                  <Icon size={15} />
-                  <span>{item.label}</span>
+                  <X size={15} />
+                </button>
+              </div>
+
+              <nav className="space-y-1">
+                {navLinks.map(item => {
+                  const Icon = item.icon;
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => {
+                        if (window.innerWidth < 768) setSidebarOpen(false);
+                      }}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        active
+                          ? 'bg-[var(--forest)] text-white shadow-xs'
+                          : 'text-[var(--ink)] hover:bg-[var(--surface-2)] hover:text-[var(--forest)]'
+                      }`}
+                    >
+                      <Icon size={16} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Bottom Actions: Mode Switch & User Card */}
+            <div className="pt-4 border-t border-[var(--border)] space-y-3">
+              <Link
+                to="/select-mode"
+                onClick={() => {
+                  if (window.innerWidth < 768) setSidebarOpen(false);
+                }}
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
+                title="Switch Workspace Mode"
+              >
+                <span className="flex items-center gap-2">
+                  <Layers size={15} />
+                  <span>Switch Mode</span>
+                </span>
+                <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+
+              <div className="flex items-center justify-between pt-1">
+                <Link
+                  to="/profile"
+                  onClick={() => {
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
+                  className="flex items-center gap-2 overflow-hidden flex-1 group"
+                >
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-transform group-hover:scale-105"
+                    style={{ background: 'rgba(66, 84, 67, 0.12)', color: 'var(--forest)' }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-xs font-bold truncate max-w-[120px] text-[var(--ink)] group-hover:text-[var(--forest)]">
+                      {user?.name || 'Workspace User'}
+                    </p>
+                    <p className="text-[10px] truncate max-w-[120px] text-[var(--ink-4)]">
+                      {user?.email}
+                    </p>
+                  </div>
                 </Link>
-              );
-            })}
-          </nav>
 
-          <div className="pt-2 border-t border-[var(--border)] flex justify-between items-center">
-            <span className="text-xs text-[var(--ink-4)]">
-              &copy; {new Date().getFullYear()} smmart
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-rose-700 bg-rose-50 border border-rose-200 cursor-pointer"
-            >
-              <LogOut size={13} />
-              <span>Sign out</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
+                  title="Sign out"
+                >
+                  <LogOut size={15} />
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        </aside>
 
-      {/* ── Main Content Container ── */}
-      <main
-        className="flex-1 px-4 py-5 md:px-8 md:py-6 w-full max-w-full overflow-x-hidden"
-      >
-        <div className="w-full max-w-full">
-          <Outlet />
-        </div>
-      </main>
+        {/* ── Main Content Area ── */}
+        <main className="flex-1 px-4 py-5 md:px-8 md:py-6 w-full max-w-full overflow-x-hidden min-w-0 transition-all">
+          <div className="w-full max-w-full">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

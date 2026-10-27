@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { taskService, employeeService } from '../services/api';
-import { Plus, X, Trash2, ChevronRight, ChevronLeft, Flag, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { 
+  Plus, 
+  X, 
+  Trash2, 
+  ChevronRight, 
+  ChevronLeft, 
+  Flag, 
+  Calendar, 
+  Loader2, 
+  AlertCircle, 
+  CheckCircle2, 
+  Circle, 
+  Check 
+} from 'lucide-react';
+import { soundFX } from '../utils/sound';
 
 type TaskStatus   = 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
 type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -28,32 +42,78 @@ const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'COMPLETED'];
 
 /* ── TaskCard ─────────────────────────────────────────────────────────── */
 function TaskCard({
-  task, onDelete, onMoveLeft, onMoveRight, isFirst, isLast,
+  task, onDelete, onMoveLeft, onMoveRight, onToggleComplete, isFirst, isLast, isJustCompleted,
 }: {
   task: Task; onDelete: (id: string) => void;
   onMoveLeft: (t: Task) => void; onMoveRight: (t: Task) => void;
+  onToggleComplete: (t: Task) => void;
   isFirst: boolean; isLast: boolean;
+  isJustCompleted?: boolean;
 }) {
+  const isCompleted = task.status === 'COMPLETED';
   const due = task.dueDate ? new Date(task.dueDate) : null;
-  const isOverdue = due && due < new Date() && task.status !== 'COMPLETED';
+  const isOverdue = due && due < new Date() && !isCompleted;
   const p = PRIORITY_CFG[task.priority];
 
   return (
     <div
-      className="group rounded-xl border p-4 flex flex-col gap-3 transition-all duration-150 card-hover"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className={`group relative rounded-xl border p-4 flex flex-col gap-3 transition-all duration-300 card-hover overflow-hidden ${
+        isCompleted ? 'ring-1 ring-emerald-500/30' : ''
+      }`}
+      style={{
+        background: isCompleted
+          ? 'linear-gradient(135deg, rgba(236, 253, 245, 0.6) 0%, rgba(255, 255, 255, 0.98) 100%)'
+          : 'var(--surface)',
+        borderColor: isCompleted ? 'rgba(52, 211, 153, 0.45)' : 'var(--border)',
+      }}
     >
-      {/* Title row */}
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold leading-snug flex-1" style={{ color: 'var(--ink)' }}>
-          {task.title}
-        </p>
+      {/* ── Completion Animation Layer Right Inside The Box ── */}
+      {isJustCompleted && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-1.5 animate-fade-in pointer-events-none rounded-xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(167, 243, 208, 0.94) 0%, rgba(110, 231, 183, 0.96) 100%)',
+            backdropFilter: 'blur(3px)',
+          }}
+        >
+          <div className="w-12 h-12 rounded-full bg-emerald-700 text-white flex items-center justify-center shadow-lg animate-bounce">
+            <CheckCircle2 size={28} />
+          </div>
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-950 bg-white/95 px-3 py-1 rounded-full shadow-xs border border-emerald-400 animate-pulse">
+            Task Completed! 🎉
+          </span>
+        </div>
+      )}
+
+      {/* Title row with Complete Checkbox */}
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => onToggleComplete(task)}
+            className="mt-0.5 p-0.5 rounded-full transition-transform active:scale-75 cursor-pointer shrink-0"
+            title={isCompleted ? 'Mark as incomplete' : 'Mark task completed'}
+            aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+          >
+            {isCompleted ? (
+              <CheckCircle2 size={18} className="text-emerald-600 fill-emerald-100 transition-colors" />
+            ) : (
+              <Circle size={18} className="text-stone-300 hover:text-emerald-500 transition-colors" />
+            )}
+          </button>
+          <p
+            className={`text-sm font-semibold leading-snug break-words transition-all ${
+              isCompleted ? 'line-through text-stone-500' : 'text-[var(--ink)]'
+            }`}
+          >
+            {task.title}
+          </p>
+        </div>
+
         <button
           onClick={() => onDelete(task._id)}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all shrink-0"
-          style={{ color: 'var(--ink-4)' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-4)')}
+          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all shrink-0 cursor-pointer text-[var(--ink-4)] hover:text-[var(--error)]"
+          title="Delete task"
         >
           <Trash2 size={13} />
         </button>
@@ -61,15 +121,25 @@ function TaskCard({
 
       {/* Description */}
       {task.description && (
-        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--ink-4)' }}>
+        <p
+          className={`text-xs leading-relaxed line-clamp-2 pl-6.5 ${
+            isCompleted ? 'text-stone-400 line-through' : 'text-[var(--ink-4)]'
+          }`}
+        >
           {task.description}
         </p>
       )}
 
       {/* Meta */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pl-6.5">
+        {isCompleted && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <Check size={11} strokeWidth={3} />
+            Completed
+          </span>
+        )}
         <span
-          className="pill"
+          className="pill text-[10px]"
           style={{ color: p.color, background: p.bg, borderColor: p.border }}
         >
           <Flag size={9} />
@@ -89,7 +159,7 @@ function TaskCard({
 
       {/* Assignee */}
       {task.assignedTo && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-6.5">
           <div
             className="flex items-center justify-center shrink-0 text-xs font-bold"
             style={{
@@ -110,16 +180,13 @@ function TaskCard({
       {/* Move buttons */}
       {(!isFirst || !isLast) && (
         <div
-          className="flex items-center justify-between pt-2.5"
+          className="flex items-center justify-between pt-2.5 mt-0.5"
           style={{ borderTop: '1px solid var(--border)' }}
         >
           {!isFirst ? (
             <button
               onClick={() => onMoveLeft(task)}
-              className="flex items-center gap-1 text-xs transition-colors"
-              style={{ color: 'var(--ink-4)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--ink-2)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-4)')}
+              className="flex items-center gap-1 text-xs transition-colors cursor-pointer text-[var(--ink-4)] hover:text-[var(--ink-2)]"
             >
               <ChevronLeft size={13} /> Move back
             </button>
@@ -127,10 +194,7 @@ function TaskCard({
           {!isLast && (
             <button
               onClick={() => onMoveRight(task)}
-              className="flex items-center gap-1 text-xs transition-colors"
-              style={{ color: 'var(--sage-dark)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--forest)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--sage-dark)')}
+              className="flex items-center gap-1 text-xs transition-colors cursor-pointer text-[var(--sage-dark)] hover:text-[var(--forest)] font-semibold"
             >
               Move forward <ChevronRight size={13} />
             </button>
@@ -149,6 +213,7 @@ const Tasks = () => {
   const [error, setError]       = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: '', description: '', priority: 'MEDIUM' as TaskPriority, assignedTo: '', dueDate: '',
   });
@@ -191,13 +256,51 @@ const Tasks = () => {
     catch { setError('Failed to delete task'); }
   };
 
+  const handleToggleComplete = async (task: Task) => {
+    const isCompleted = task.status === 'COMPLETED';
+    const nextStatus: TaskStatus = isCompleted ? 'IN_PROGRESS' : 'COMPLETED';
+
+    if (!isCompleted) {
+      soundFX.playEntrepreneurClick();
+      setJustCompletedId(task._id);
+      setTimeout(() => {
+        setJustCompletedId(prev => (prev === task._id ? null : prev));
+      }, 1600);
+    } else {
+      soundFX.playIndividualClick();
+    }
+
+    setTasks(p => p.map(t => t._id === task._id ? { ...t, status: nextStatus } : t));
+    try {
+      await taskService.updateTaskStatus(task._id, nextStatus);
+    } catch {
+      setError('Failed to update task status');
+      fetchData();
+    }
+  };
+
   const handleMove = async (task: Task, dir: 'left' | 'right') => {
     const idx = STATUS_ORDER.indexOf(task.status);
     const next = dir === 'right' ? STATUS_ORDER[idx + 1] : STATUS_ORDER[idx - 1];
     if (!next) return;
+
+    if (next === 'COMPLETED') {
+      soundFX.playEntrepreneurClick();
+      setJustCompletedId(task._id);
+      setTimeout(() => {
+        setJustCompletedId(prev => (prev === task._id ? null : prev));
+      }, 1600);
+    } else {
+      soundFX.playIndividualClick();
+    }
+
     setTasks(p => p.map(t => t._id === task._id ? { ...t, status: next } : t));
-    try { await taskService.updateTaskStatus(task._id, next); }
-    catch { setError('Failed to move task'); fetchData(); }
+    try {
+      await taskService.updateTaskStatus(task._id, next);
+    } catch {
+      setError('Failed to move task');
+      fetchData();
+    }
   };
 
   const byStatus = (s: TaskStatus) => tasks.filter(t => t.status === s);
@@ -289,8 +392,10 @@ const Tasks = () => {
                         onDelete={handleDelete}
                         onMoveLeft={t => handleMove(t, 'left')}
                         onMoveRight={t => handleMove(t, 'right')}
+                        onToggleComplete={handleToggleComplete}
                         isFirst={col.key === STATUS_ORDER[0]}
                         isLast={col.key === STATUS_ORDER[STATUS_ORDER.length - 1]}
+                        isJustCompleted={justCompletedId === task._id}
                       />
                     ))
                   )}
