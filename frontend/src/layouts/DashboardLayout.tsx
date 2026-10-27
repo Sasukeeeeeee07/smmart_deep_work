@@ -96,13 +96,12 @@ export default function DashboardLayout() {
   const workspaceMode = localStorage.getItem('workspaceMode') || 'individual';
   const isIndividual = workspaceMode === 'individual';
   const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
 
   const navLinks = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Deep Work', path: '/deepwork', icon: Timer },
     { label: 'Tasks', path: '/tasks', icon: CheckSquare },
-    { label: 'Rewards & Milestones', path: '/rewards', icon: Award },
-    { label: 'Settings', path: '/settings', icon: Settings },
     { label: 'Profile', path: '/profile', icon: User },
     ...(!isIndividual ? [
       { label: 'Activity Monitor', path: '/activity', icon: Activity },
@@ -242,22 +241,24 @@ export default function DashboardLayout() {
             <span>Sign out</span>
           </button>
 
-          {/* Toggle Button for Right-Side Vertical Navigation Bar */}
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(prev => !prev)}
-            className="p-2 rounded-xl transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-2xs ml-0.5"
-            style={{
-              borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
-              background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
-              color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
-            }}
-            title={sidebarOpen ? "Close side menu" : "Open side menu"}
-            aria-label="Toggle side navigation menu"
-            aria-expanded={sidebarOpen}
-          >
-            {sidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-          </button>
+          {/* Toggle Button for Right-Side Vertical Navigation Bar (Hidden on Dashboard) */}
+          {!isDashboard && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(prev => !prev)}
+              className="p-2 rounded-xl transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-2xs ml-0.5"
+              style={{
+                borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
+                background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
+                color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
+              }}
+              title={sidebarOpen ? "Close side menu" : "Open side menu"}
+              aria-label="Toggle side navigation menu"
+              aria-expanded={sidebarOpen}
+            >
+              {sidebarOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+            </button>
+          )}
         </div>
       </header>
 
@@ -269,7 +270,7 @@ export default function DashboardLayout() {
         </main>
 
         {/* Backdrop on mobile (< lg screens) */}
-        {sidebarOpen && (
+        {!isDashboard && sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
             className="fixed inset-0 top-[57px] bg-black/25 backdrop-blur-[2px] z-30 lg:hidden transition-opacity"
@@ -278,114 +279,116 @@ export default function DashboardLayout() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            SLIM RIGHT-SIDE VERTICAL NAVIGATION BAR (Consistently Present Globally)
+            SLIM RIGHT-SIDE VERTICAL NAVIGATION BAR (Consistently Present Globally, Hidden on Dashboard)
            ══════════════════════════════════════════════════════════════════ */}
-        <aside
-          className={`
-            fixed lg:sticky top-[57px] right-0 h-[calc(100vh-57px)] z-40 lg:z-20
-            flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out select-none
-            ${
-              sidebarOpen
-                ? 'w-60 translate-x-0 opacity-100 border-l shadow-2xl lg:shadow-none'
-                : 'w-0 translate-x-full lg:translate-x-0 lg:w-0 opacity-0 pointer-events-none border-l-0 overflow-hidden'
-            }
-          `}
-          style={{
-            background: 'rgba(255, 254, 250, 0.98)',
-            backdropFilter: 'blur(16px)',
-            borderColor: 'var(--border)',
-          }}
-          aria-label="Navigation Menu"
-        >
-          {/* Inner fixed-width wrapper to prevent layout wrap during width collapse */}
-          <div className="w-60 h-full flex flex-col justify-between p-3.5 overflow-y-auto">
-            {/* Top section: Header & Navigation Links */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border)]">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink-3)]">
-                  Menu
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1 rounded-lg text-[var(--ink-3)] hover:text-[var(--forest)] hover:bg-stone-100 transition-colors cursor-pointer"
-                  title="Close side menu"
-                >
-                  <X size={15} />
-                </button>
+        {!isDashboard && (
+          <aside
+            className={`
+              fixed lg:sticky top-[57px] right-0 h-[calc(100vh-57px)] z-40 lg:z-20
+              flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out select-none
+              ${
+                sidebarOpen
+                  ? 'w-60 translate-x-0 opacity-100 border-l shadow-2xl lg:shadow-none'
+                  : 'w-0 translate-x-full lg:translate-x-0 lg:w-0 opacity-0 pointer-events-none border-l-0 overflow-hidden'
+              }
+            `}
+            style={{
+              background: 'rgba(255, 254, 250, 0.98)',
+              backdropFilter: 'blur(16px)',
+              borderColor: 'var(--border)',
+            }}
+            aria-label="Navigation Menu"
+          >
+            {/* Inner fixed-width wrapper to prevent layout wrap during width collapse */}
+            <div className="w-60 h-full flex flex-col justify-between p-3.5 overflow-y-auto">
+              {/* Top section: Header & Navigation Links */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                    Menu
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-1 rounded-lg text-[var(--ink-3)] hover:text-[var(--forest)] hover:bg-stone-100 transition-colors cursor-pointer"
+                    title="Close side menu"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                <nav className="space-y-1">
+                  {navLinks.map(item => {
+                    const Icon = item.icon;
+                    const active = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => {
+                          if (window.innerWidth < 1024) setSidebarOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                          active
+                            ? 'shadow-xs'
+                            : 'hover:bg-[var(--surface-2)]'
+                        }`}
+                        style={{
+                          background: active ? 'rgba(66, 84, 67, 0.12)' : 'transparent',
+                          color: active ? 'var(--forest)' : 'var(--ink-3)',
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon size={18} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && item.badge > 0 && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold"
+                            style={{ background: 'var(--error)' }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
               </div>
 
-              <nav className="space-y-1">
-                {navLinks.map(item => {
-                  const Icon = item.icon;
-                  const active = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => {
-                        if (window.innerWidth < 1024) setSidebarOpen(false);
-                      }}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                        active
-                          ? 'shadow-xs'
-                          : 'hover:bg-[var(--surface-2)]'
-                      }`}
-                      style={{
-                        background: active ? 'rgba(66, 84, 67, 0.12)' : 'transparent',
-                        color: active ? 'var(--forest)' : 'var(--ink-3)',
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon size={18} />
-                        <span>{item.label}</span>
-                      </div>
-                      {item.badge && item.badge > 0 && (
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold"
-                          style={{ background: 'var(--error)' }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
+              {/* Bottom Actions: Mode Switch & Sign Out */}
+              <div className="flex flex-col items-stretch gap-2 pt-3 border-t border-[var(--border)] w-full">
+                <Link
+                  to="/select-mode"
+                  onClick={() => {
+                    if (window.innerWidth < 1024) setSidebarOpen(false);
+                  }}
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group cursor-pointer"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
+                  title="Switch Workspace Mode"
+                >
+                  <span className="flex items-center gap-2">
+                    <Layers size={16} />
+                    <span>Switch Mode</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[rgba(66,84,67,0.1)]">
+                    {workspaceMode === 'entrepreneur' ? 'Entr.' : 'Indiv.'}
+                  </span>
+                </Link>
 
-            {/* Bottom Actions: Mode Switch & Sign Out */}
-            <div className="flex flex-col items-stretch gap-2 pt-3 border-t border-[var(--border)] w-full">
-              <Link
-                to="/select-mode"
-                onClick={() => {
-                  if (window.innerWidth < 1024) setSidebarOpen(false);
-                }}
-                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group cursor-pointer"
-                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
-                title="Switch Workspace Mode"
-              >
-                <span className="flex items-center gap-2">
-                  <Layers size={16} />
-                  <span>Switch Mode</span>
-                </span>
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[rgba(66,84,67,0.1)]">
-                  {workspaceMode === 'entrepreneur' ? 'Entr.' : 'Indiv.'}
-                </span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
-                style={{ color: 'var(--ink-2)' }}
-              >
-                <LogOut size={18} />
-                <span>Sign Out</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
+                  style={{ color: 'var(--ink-2)' }}
+                >
+                  <LogOut size={18} />
+                  <span>Sign Out</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
