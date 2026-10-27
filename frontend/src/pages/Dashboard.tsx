@@ -265,7 +265,6 @@ const Dashboard = () => {
   const [avgScore, setAvgScore]       = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
-  const [hoveredDay, setHoveredDay]     = useState<DayData | null>(null);
   const [activeSession, setActiveSession] = useState<any>(null);
 
   const handleSelectWeek = (week: WeekData) => {
@@ -276,82 +275,93 @@ const Dashboard = () => {
     }
   };
 
-  // Poll for active deepwork session to highlight the Enter Deepwork button
-  useEffect(() => {
-    let mounted = true;
-    const checkActiveSession = async () => {
-      try {
-        const live = await sessionService.getCurrentSession('ESP32-S3-01').catch(() => null);
-        if (!mounted) return;
-        if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
-          setActiveSession(live);
-          return;
-        }
-        const res = await sessionService.getAllSessions(undefined).catch(() => null);
-        const list = res?.sessions || (Array.isArray(res) ? res : []);
-        const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
-        if (mounted) setActiveSession(active || null);
-      } catch {
-        if (mounted) setActiveSession(null);
-      }
-    };
-    checkActiveSession();
-    const liveIv = setInterval(checkActiveSession, 3000);
-    return () => {
-      mounted = false;
-      clearInterval(liveIv);
-    };
-  }, []);
-
   useEffect(() => {
     document.title = 'Dashboard — smmart Desk';
+    let mounted = true;
+
     const fetchAll = async () => {
       try {
-        let analytics: any = null;
-        try {
-          const raw = await sessionService.getAllSessions(undefined);
-          const list = raw?.sessions || (Array.isArray(raw) ? raw : []);
+        const [rawSessions, backendAnalytics] = await Promise.all([
+          sessionService.getAllSessions(undefined).catch(() => null),
+          sessionService.getAnalytics().catch(() => null),
+        ]);
 
-          let sessionsToAnalyze = list;
-          if (mode === 'individual') {
-            const filtered = list.filter((s: any) => {
-              const emp = s.employeeId;
-              if (!emp) return false;
-              if (typeof emp === 'object') {
-                if (emp.email && user?.email && emp.email.toLowerCase() === user.email.toLowerCase()) return true;
-                if (emp._id && user?._id && emp._id === user._id) return true;
-              }
-              return false;
-            });
-            // If logged in as admin previewing individual mode and has no personal employee linked, use list or filtered
-            sessionsToAnalyze = (filtered.length > 0 || !isLeadership) ? filtered : list;
-          }
+        if (!mounted) return;
 
-          analytics = computeClientAnalytics(sessionsToAnalyze);
-        } catch {
-          try {
-            analytics = await sessionService.getAnalytics();
-          } catch {}
+        const list = rawSessions?.sessions || (Array.isArray(rawSessions) ? rawSessions : []);
+
+        // Detect active deepwork session from sessions list (avoids aggressive 3s polling loop)
+        const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
+        setActiveSession(active || null);
+
+        let sessionsToAnalyze = list;
+        if (mode === 'individual') {
+          const filtered = list.filter((s: any) => {
+            const emp = s.employeeId;
+            if (!emp) return false;
+            if (typeof emp === 'object') {
+              if (emp.email && user?.email && emp.email.toLowerCase() === user.email.toLowerCase()) return true;
+              if (emp._id && user?._id && emp._id === user._id) return true;
+              const userFullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim().toLowerCase();
+              const empFullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim().toLowerCase();
+              if (userFullName && empFullName && userFullName === empFullName) return true;
+              if (user?.name && empFullName && (user.name.toLowerCase() === empFullName || empFullName.includes(user.name.toLowerCase()))) return true;
+            }
+            return false;
+          });
+          // If individual filtering matches sessions, use them; otherwise fallback to list so graphs never go blank
+          sessionsToAnalyze = filtered.length > 0 ? filtered : list;
         }
-        if (analytics) {
-          setWeeklyData(analytics.weeklyData || []);
-          const months = analytics.monthlyData || [];
-          setMonthlyData(months);
-          setAvgScore(analytics.averageMonthlyScore || 0);
 
-          // Keep selected week in sync if already selected
-          setSelectedWeek(prev => (prev ? months.find((w: WeekData) => w.name === prev.name) || null : null));
+        const clientAnalytics = computeClientAnalytics(sessionsToAnalyze);
+
+        let finalWeeklyData = clientAnalytics.weeklyData;
+        let finalMonthlyData = clientAnalytics.monthlyData;
+        let finalAvgScore = clientAnalytics.averageMonthlyScore;
+
+        // If client monthlyData has 0 focus across all weeks but backend has data, merge with backend data
+        const clientMonthlyTotal = finalMonthlyData.reduce((sum, w) => sum + (w.focus || 0), 0);
+        if (clientMonthlyTotal === 0 && backendAnalytics?.monthlyData?.length) {
+          finalMonthlyData = backendAnalytics.monthlyData.map((bw: any, idx: number) => {
+            const matchClient = clientAnalytics.monthlyData[idx];
+            return {
+              ...bw,
+              label: matchClient?.label || bw.label || `Week ${bw.name}`,
+              days: matchClient?.days || [],
+            };
+          });
+          finalAvgScore = backendAnalytics.averageMonthlyScore || finalAvgScore;
         }
+
+        const clientWeeklyTotal = finalWeeklyData.reduce((sum, d) => sum + (d.focus || 0), 0);
+        if (clientWeeklyTotal === 0 && backendAnalytics?.weeklyData?.length) {
+          finalWeeklyData = backendAnalytics.weeklyData;
+        }
+
+        setWeeklyData(finalWeeklyData);
+        setMonthlyData(finalMonthlyData);
+        setAvgScore(finalAvgScore);
+
+        // Keep selected week in sync if already selected
+        setSelectedWeek(prev => (prev ? finalMonthlyData.find((w: WeekData) => w.name === prev.name) || null : null));
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
       } finally {
         if (isFirst.current) isFirst.current = false;
       }
     };
+
     fetchAll();
-    const iv = setInterval(fetchAll, 30000);
-    return () => clearInterval(iv);
+    const iv = setInterval(fetchAll, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+    };
   }, [mode]);
 
-  const activeWeeklyData = selectedWeek ? selectedWeek.days : weeklyData;
+  const activeWeeklyData = (selectedWeek && selectedWeek.days && selectedWeek.days.length > 0)
+    ? selectedWeek.days
+    : (weeklyData && weeklyData.length > 0 ? weeklyData : []);
 
   return (
     <div className="space-y-6 select-none py-2">
@@ -393,12 +403,6 @@ const Dashboard = () => {
                       <span className="tracking-wide">WEEKLY FOCUS ASSESSMENT</span>
                     </div>
 
-                    {hoveredDay && (
-                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-950 border border-emerald-500/30 animate-fade-in shadow-xs">
-                        {hoveredDay.name} ({hoveredDay.date}): <strong className="text-emerald-900 font-extrabold">{fmtHoursDecimal(hoveredDay.focus)} Focus</strong>
-                      </span>
-                    )}
-
                     {selectedWeek && (
                       <button
                         onClick={() => setSelectedWeek(null)}
@@ -435,13 +439,7 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={activeWeeklyData}
-                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
-                  onMouseMove={(e: any) => {
-                    if (e && e.activePayload && e.activePayload.length > 0) {
-                      setHoveredDay(e.activePayload[0].payload as DayData);
-                    }
-                  }}
-                  onMouseLeave={() => setHoveredDay(null)}
+                  margin={{ top: 10, right: 15, bottom: 0, left: 5 }}
                 >
                   <defs>
                     <linearGradient id="gFocus" x1="0" y1="0" x2="0" y2="1">
@@ -565,13 +563,7 @@ const Dashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={monthlyData}
-                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
-                  onMouseMove={(e: any) => {
-                    if (e && e.activePayload && e.activePayload.length > 0) {
-                      setHoveredWeek(e.activePayload[0].payload as WeekData);
-                    }
-                  }}
-                  onMouseLeave={() => setHoveredWeek(null)}
+                  margin={{ top: 10, right: 15, bottom: 0, left: 5 }}
                   onClick={(e: any) => {
                     if (e && e.activePayload && e.activePayload.length > 0) {
                       const clicked = e.activePayload[0].payload as WeekData;
@@ -603,6 +595,10 @@ const Dashboard = () => {
                     radius={[6, 6, 0, 0]}
                     maxBarSize={48}
                     cursor="pointer"
+                    onMouseEnter={(entry: any) => {
+                      if (entry && entry.name) setHoveredWeek(entry);
+                    }}
+                    onMouseLeave={() => setHoveredWeek(null)}
                     onClick={(entry: any) => {
                       if (entry && entry.name) {
                         handleSelectWeek(entry);
