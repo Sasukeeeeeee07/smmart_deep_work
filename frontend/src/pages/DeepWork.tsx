@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { deviceService, sessionService, notificationService } from '../services/api';
+import { deviceService, sessionService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 import {
   Timer, ArrowRight, Play, Pause, AlertTriangle,
-  Volume2, VolumeX, Star, LayoutDashboard,
-  Cpu, CheckSquare, Users, Bell, RotateCcw, LogOut,
+  Volume2, VolumeX, Star,
   Clock, Mic, Activity, WifiOff,
-  History, X, Zap, User
+  History, X, Zap
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -29,13 +27,10 @@ interface Session {
 }
 
 export default function DeepWorkPage() {
-  const navigate = useNavigate();
-
   const [devices, setDevices]         = useState<any[]>([]);
   const [selectedUid, setSelectedUid] = useState<string>('ESP32-S3-01');
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [allSessions, setAllSessions]       = useState<Session[]>([]);
-  const [loading, setLoading]         = useState(true);
   const [now, setNow]                 = useState(Date.now());
 
   // Action states
@@ -55,24 +50,14 @@ export default function DeepWorkPage() {
   const user = userStr ? JSON.parse(userStr) : null;
   const workspaceMode = localStorage.getItem('workspaceMode') || 'individual';
   const isIndividual = workspaceMode === 'individual';
-  const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const personName = currentSession?.employeeId
     ? `${currentSession.employeeId.firstName} ${currentSession.employeeId.lastName}`
     : (user?.name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'Individual User'));
-  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Tick timer every second & fetch notifications
+  // Tick timer every second
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
-    const fetchUnread = async () => {
-      try { setUnreadCount(await notificationService.getUnreadCount()); } catch {}
-    };
-    fetchUnread();
-    const notifIv = setInterval(fetchUnread, 20000);
-    return () => {
-      clearInterval(t);
-      clearInterval(notifIv);
-    };
+    return () => clearInterval(t);
   }, []);
 
   const [serverAnchor, setServerAnchor] = useState<{ activeSec: number; fetchedAt: number } | null>(null);
@@ -133,8 +118,6 @@ export default function DeepWorkPage() {
       }
     } catch (err) {
       console.error('Failed to load deepwork data', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,14 +127,6 @@ export default function DeepWorkPage() {
     const iv = setInterval(loadData, 4000);
     return () => clearInterval(iv);
   }, [selectedUid]);
-
-  // Handle Logout
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('workspaceMode');
-    navigate('/login');
-  };
 
   // ── Session Timers (HMS & Reverse Timer) ──────────────────
   const isRunning = currentSession && ['ACTIVE', 'BREAK', 'DYING'].includes(currentSession.status);
@@ -362,13 +337,11 @@ export default function DeepWorkPage() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 w-full min-h-[calc(100vh-100px)] select-none">
+    <div className="w-full min-h-[calc(100vh-100px)] select-none">
       {/* ══════════════════════════════════════════════════════════════════
-          MAIN WORKSPACE (Layout Matching Hand-Drawn Notebook Sketch)
+          MAIN WORKSPACE
          ══════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 space-y-6">
-
-        {/* ── Top Header Bar ─────────────────────────────────────────── */}
+      <div className="w-full space-y-6">
         <div className="relative flex flex-col sm:flex-row items-center justify-center gap-2 pb-2">
           <h1
             className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
@@ -1218,136 +1191,6 @@ export default function DeepWorkPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          SLIM RIGHT-SIDE MENU BAR (Requested on Right Side)
-         ══════════════════════════════════════════════════════════════════ */}
-      <aside
-        className="w-full lg:w-60 shrink-0 lg:sticky lg:top-2 lg:h-[calc(100vh-100px)] flex lg:flex-col justify-between p-3.5 rounded-2xl border transition-all"
-        style={{
-          background: 'rgba(255, 254, 250, 0.95)',
-          backdropFilter: 'blur(16px)',
-          borderColor: 'var(--border)',
-          boxShadow: '0 4px 20px -2px rgba(66, 84, 67, 0.08)',
-        }}
-        aria-label="Navigation Menu"
-      >
-        {/* Top/Upper Nav Links */}
-        <div className="flex lg:flex-col items-stretch gap-1.5 w-full">
-          {/* Dashboard */}
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <LayoutDashboard size={18} />
-            <span>Dashboard</span>
-          </Link>
-
-          {/* Deep Work (Active) */}
-          <div
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-xs cursor-default"
-            style={{ background: 'rgba(66, 84, 67, 0.12)', color: 'var(--forest)' }}
-          >
-            <Timer size={18} />
-            <span>Deep Work</span>
-          </div>
-
-          {/* Tasks */}
-          <Link
-            to="/tasks"
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <CheckSquare size={18} />
-            <span>Tasks</span>
-          </Link>
-
-          {/* Profile */}
-          <Link
-            to="/profile"
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <User size={18} />
-            <span>Profile</span>
-          </Link>
-
-          {/* Activity / Devices / Staff Members: Hidden in individual mode */}
-          {!isIndividual && (
-            <>
-              <Link
-                to="/activity"
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                <Activity size={18} />
-                <span>Activity Monitor</span>
-              </Link>
-
-              <Link
-                to="/devices"
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                <Cpu size={18} />
-                <span>Devices</span>
-              </Link>
-
-              {isLeadership && (
-                <Link
-                  to="/employees"
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-                  style={{ color: 'var(--ink-3)' }}
-                >
-                  <Users size={18} />
-                  <span>Staff Members</span>
-                </Link>
-              )}
-            </>
-          )}
-
-          {/* Notifications */}
-          <Link
-            to="/notifications"
-            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <div className="flex items-center gap-3">
-              <Bell size={18} />
-              <span>Notifications</span>
-            </div>
-            {unreadCount > 0 && (
-              <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold"
-                style={{ background: 'var(--error)' }}
-              >
-                {unreadCount}
-              </span>
-            )}
-          </Link>
-        </div>
-
-        {/* Bottom Actions: Refresh & Sign Out */}
-        <div className="flex lg:flex-col items-stretch gap-1.5 pt-3 lg:border-t lg:border-[var(--border)] w-full">
-          <button
-            onClick={() => { setLoading(true); loadData(); }}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[var(--surface-2)] text-left w-full"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <RotateCcw size={18} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh Live Data</span>
-          </button>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
-            style={{ color: 'var(--ink-2)' }}
-          >
-            <LogOut size={18} />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </aside>
     </div>
   );
 }
