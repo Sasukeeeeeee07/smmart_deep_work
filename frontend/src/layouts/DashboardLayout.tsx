@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Navigate, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Link, useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
   Bell, 
   ArrowLeft, 
   Settings, 
-  Award, 
-  Menu, 
-  X, 
-  LayoutDashboard, 
-  Activity, 
-  CheckSquare, 
-  Cpu, 
-  User, 
-  Layers
+  Award
 } from 'lucide-react';
 import { notificationService, deviceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
@@ -23,16 +15,9 @@ export default function DashboardLayout() {
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [unreadCount, setUnreadCount]   = useState(0);
   const [lockedDevice, setLockedDevice] = useState<any>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // Close menu on route change
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
 
   const checkLockout = async () => {
     try {
@@ -88,16 +73,6 @@ export default function DashboardLayout() {
     ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U';
 
-  const navLinks = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Deep Work Session', path: '/deepwork', icon: Activity },
-    { label: 'Rewards & Milestones', path: '/rewards', icon: Award },
-    { label: 'Settings', path: '/settings', icon: Settings },
-    { label: 'Tasks', path: '/tasks', icon: CheckSquare },
-    { label: 'Activity Logs', path: '/activity', icon: Activity },
-    { label: 'Devices', path: '/devices', icon: Cpu },
-    { label: 'Profile', path: '/profile', icon: User },
-  ];
 
   return (
     <div
@@ -229,97 +204,8 @@ export default function DashboardLayout() {
             <span>Sign out</span>
           </button>
 
-          {/* Hamburger Menu Toggle (opens and closes menu when clicked on all screens) */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(prev => !prev)}
-            className="p-2 rounded-lg transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-2xs"
-            style={{
-              borderColor: menuOpen ? 'var(--forest)' : 'var(--border)',
-              background: menuOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
-              color: menuOpen ? 'var(--forest)' : 'var(--ink)',
-            }}
-            title={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-label="Toggle navigation menu"
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
         </div>
       </header>
-
-      {/* Backdrop to close menu when clicking outside */}
-      {menuOpen && (
-        <div
-          onClick={() => setMenuOpen(false)}
-          className="fixed inset-0 top-[57px] bg-black/25 backdrop-blur-[2px] z-40 transition-opacity"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ── Navigation Menu (Opens and Closes when Hamburger is Clicked) ── */}
-      {menuOpen && (
-        <div 
-          className="fixed inset-x-0 top-[57px] z-50 p-4 sm:p-6 border-b shadow-xl animate-fade-in space-y-4"
-          style={{ 
-            background: 'rgba(255, 254, 250, 0.98)', 
-            backdropFilter: 'blur(16px)', 
-            borderColor: 'var(--border)' 
-          }}
-        >
-          <div className="max-w-7xl mx-auto flex items-center justify-between pb-3 border-b border-[var(--border)]">
-            <div>
-              <p className="text-xs font-bold text-[var(--ink)]">{user?.name || 'Workspace User'}</p>
-              <p className="text-xs text-[var(--ink-3)]">{user?.email}</p>
-            </div>
-            <Link
-              to="/select-mode"
-              onClick={() => setMenuOpen(false)}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors hover:border-[var(--forest)] shadow-2xs"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--forest)' }}
-            >
-              <Layers size={14} />
-              <span>Switch Mode</span>
-            </Link>
-          </div>
-
-          <nav className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-1">
-            {navLinks.map(item => {
-              const Icon = item.icon;
-              const active = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMenuOpen(false)}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                    active
-                      ? 'bg-[var(--forest)] text-white shadow-2xs'
-                      : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)] hover:bg-slate-100'
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="max-w-7xl mx-auto pt-2 border-t border-[var(--border)] flex justify-between items-center">
-            <span className="text-xs text-[var(--ink-4)]">
-              &copy; {new Date().getFullYear()} smmart Desk
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 border border-rose-200 transition-colors hover:bg-rose-100 cursor-pointer"
-            >
-              <LogOut size={13} />
-              <span>Sign out</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Main Content Container ── */}
       <main
