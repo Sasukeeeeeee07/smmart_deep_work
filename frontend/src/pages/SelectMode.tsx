@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Sparkles } from 'lucide-react';
+import { LogOut, Sparkles, Timer, ArrowRight } from 'lucide-react';
 import { soundFX } from '../utils/sound';
+import { sessionService } from '../services/api';
 
 export default function SelectMode() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState<'entrepreneur' | 'individual' | null>(null);
   const [motivationalNotice, setMotivationalNotice] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<any>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const token = localStorage.getItem('token');
@@ -20,6 +22,33 @@ export default function SelectMode() {
       navigate('/login');
     }
   }, [token, navigate]);
+
+  // Poll for active deepwork session
+  useEffect(() => {
+    let mounted = true;
+    const checkActiveSession = async () => {
+      try {
+        const live = await sessionService.getCurrentSession('ESP32-S3-01').catch(() => null);
+        if (!mounted) return;
+        if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
+          setActiveSession(live);
+          return;
+        }
+        const res = await sessionService.getAllSessions(undefined).catch(() => null);
+        const list = res?.sessions || (Array.isArray(res) ? res : []);
+        const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
+        if (mounted) setActiveSession(active || null);
+      } catch {
+        if (mounted) setActiveSession(null);
+      }
+    };
+    checkActiveSession();
+    const liveIv = setInterval(checkActiveSession, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(liveIv);
+    };
+  }, []);
 
   const handleSelect = (mode: 'entrepreneur' | 'individual') => {
     if (mode === 'entrepreneur') {
@@ -73,6 +102,29 @@ export default function SelectMode() {
             </span>
           </div>
         </div>
+
+        {/* On-going Deepwork Session (blinking & highlighted) */}
+        {activeSession && (
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate('/deepwork')}
+              className="animate-pulse px-4 py-1.5 rounded-full flex items-center gap-2 font-bold text-xs text-white shadow-md cursor-pointer transition-transform hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #1e3a24 0%, #15803d 100%)',
+                border: '1.5px solid rgba(52, 211, 153, 0.8)',
+                boxShadow: '0 0 16px rgba(16, 185, 129, 0.45)',
+              }}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+              <Timer size={14} className="animate-spin-slow text-emerald-300 shrink-0" />
+              <span className="uppercase tracking-wider">On-going Deepwork Session</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30">
+                {activeSession.status === 'BREAK' ? 'Break' : 'Active'}
+              </span>
+              <ArrowRight size={13} className="text-emerald-300 ml-0.5 shrink-0" />
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2.5">
           <button

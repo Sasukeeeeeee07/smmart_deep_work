@@ -21,11 +21,15 @@ interface WeekData  {
 }
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
-const fmtMin = (mins: number) => {
-  if (mins <= 0) return '0m';
+
+const fmtHoursDecimal = (mins: number) => {
+  if (mins <= 0) return '0 hrs (0m)';
+  const decimal = (mins / 60).toFixed(1);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  if (h === 0) return `${decimal} hrs (${m}m)`;
+  if (m === 0) return `${decimal} hrs (${h}h)`;
+  return `${decimal} hrs (${h}h ${m}m)`;
 };
 
 const computeClientAnalytics = (sessions: any[]) => {
@@ -114,21 +118,60 @@ const AreaTip = ({ active, payload, label }: any) => {
   const total = (d.focus || 0) + (d.breaks || 0);
   const pct = total > 0 ? Math.round(((d.focus || 0) / total) * 100) : 0;
   return (
-    <div className="card" style={{ padding: '12px 16px', minWidth: 170, fontSize: 12 }}>
-      <p className="font-semibold mb-2" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{label}</p>
-      <div className="space-y-1">
-        <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Focus</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--forest)' }}>{fmtMin(d.focus)}</span>
+    <div
+      className="card shadow-xl rounded-2xl border"
+      style={{
+        padding: '14px 18px',
+        minWidth: 210,
+        fontSize: 12,
+        background: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+      }}
+    >
+      <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-[var(--border)]">
+        <p className="font-bold text-sm tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+          {label} ({d.date})
+        </p>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">
+          {d.sessions} {d.sessions === 1 ? 'session' : 'sessions'}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-semibold text-xs flex items-center gap-1.5" style={{ color: 'var(--forest)' }}>
+            <span className="w-2 h-2 rounded-full bg-[var(--forest)] shrink-0" />
+            Focus Time:
+          </span>
+          <span className="font-bold text-xs tabular-nums text-right" style={{ color: 'var(--forest)' }}>
+            {fmtHoursDecimal(d.focus)}
+          </span>
         </div>
-        <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Breaks</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--ink-3)' }}>{fmtMin(d.breaks)}</span>
+
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-semibold text-xs flex items-center gap-1.5" style={{ color: 'var(--amber-w)' }}>
+            <span className="w-2 h-2 rounded-full bg-[var(--amber-w)] shrink-0" />
+            Break Time:
+          </span>
+          <span className="font-semibold text-xs tabular-nums text-right" style={{ color: 'var(--ink-2)' }}>
+            {fmtHoursDecimal(d.breaks)}
+          </span>
         </div>
+
+        <div className="flex justify-between items-baseline gap-4 pt-1.5 border-t border-[var(--border)]">
+          <span className="font-medium text-xs" style={{ color: 'var(--ink-3)' }}>Total Time:</span>
+          <span className="font-bold text-xs tabular-nums" style={{ color: 'var(--ink)' }}>
+            {fmtHoursDecimal(total)}
+          </span>
+        </div>
+
         {total > 0 && (
-          <div className="flex justify-between gap-4 pt-1" style={{ borderTop: '1px solid var(--border)', marginTop: 4 }}>
-            <span style={{ color: 'var(--ink-4)' }}>Efficiency</span>
-            <span className="font-semibold tabular-nums" style={{ color: 'var(--sage-dark)' }}>{pct}%</span>
+          <div className="flex justify-between items-baseline gap-4 pt-1 border-t border-dashed border-[var(--border)]">
+            <span className="font-semibold text-xs" style={{ color: 'var(--sage-dark)' }}>Efficiency:</span>
+            <span className="font-extrabold text-xs tabular-nums" style={{ color: pct >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
+              {pct}%
+            </span>
           </div>
         )}
       </div>
@@ -141,38 +184,47 @@ const BarTip = ({ active, payload, onSelectWeek }: any) => {
   const d = payload[0].payload as WeekData;
   return (
     <div
-      className="card shadow-lg"
+      className="card shadow-xl rounded-2xl border"
       style={{
-        padding: '12px 16px',
-        minWidth: 180,
+        padding: '14px 18px',
+        minWidth: 210,
         fontSize: 12,
         pointerEvents: 'auto',
         background: 'var(--surface)',
         borderColor: 'var(--border-strong)',
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
       }}
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="font-semibold text-sm" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-[var(--border)]">
+        <p className="font-bold text-sm tracking-tight" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
           {d.name}
         </p>
-        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: 'var(--ink-3)' }}>
           {d.label}
         </span>
       </div>
-      <div className="space-y-1.5">
-        <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Productivity</span>
-          <span className="font-bold text-sm" style={{ color: d.productivity >= 80 ? 'var(--sage-dark)' : 'var(--amber-w)' }}>
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-semibold text-xs" style={{ color: 'var(--ink-3)' }}>Productivity Score:</span>
+          <span className="font-extrabold text-sm" style={{ color: d.productivity >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
             {d.productivity}%
           </span>
         </div>
-        <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Focus</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--forest)' }}>{fmtMin(d.focus)}</span>
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-semibold text-xs" style={{ color: 'var(--forest)' }}>Total Focus Time:</span>
+          <span className="font-bold text-xs tabular-nums" style={{ color: 'var(--forest)' }}>
+            {fmtHoursDecimal(d.focus)}
+          </span>
         </div>
-        <div className="flex justify-between gap-4">
-          <span style={{ color: 'var(--ink-3)' }}>Sessions</span>
-          <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>{d.sessions}</span>
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-medium text-xs" style={{ color: 'var(--ink-3)' }}>Total Breaks:</span>
+          <span className="font-semibold text-xs tabular-nums" style={{ color: 'var(--ink-2)' }}>
+            {fmtHoursDecimal(d.breaks)}
+          </span>
+        </div>
+        <div className="flex justify-between items-baseline gap-4 pt-1.5 border-t border-[var(--border)]">
+          <span className="font-medium text-xs" style={{ color: 'var(--ink-3)' }}>Total Sessions:</span>
+          <span className="font-bold text-xs" style={{ color: 'var(--ink)' }}>{d.sessions} sessions</span>
         </div>
       </div>
 
@@ -213,6 +265,8 @@ const Dashboard = () => {
   const [avgScore, setAvgScore]       = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
+  const [hoveredDay, setHoveredDay]     = useState<DayData | null>(null);
+  const [activeSession, setActiveSession] = useState<any>(null);
 
   const handleSelectWeek = (week: WeekData) => {
     setSelectedWeek(prev => (prev?.name === week.name ? null : week));
@@ -221,6 +275,33 @@ const Dashboard = () => {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
+
+  // Poll for active deepwork session to highlight the Enter Deepwork button
+  useEffect(() => {
+    let mounted = true;
+    const checkActiveSession = async () => {
+      try {
+        const live = await sessionService.getCurrentSession('ESP32-S3-01').catch(() => null);
+        if (!mounted) return;
+        if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
+          setActiveSession(live);
+          return;
+        }
+        const res = await sessionService.getAllSessions(undefined).catch(() => null);
+        const list = res?.sessions || (Array.isArray(res) ? res : []);
+        const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
+        if (mounted) setActiveSession(active || null);
+      } catch {
+        if (mounted) setActiveSession(null);
+      }
+    };
+    checkActiveSession();
+    const liveIv = setInterval(checkActiveSession, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(liveIv);
+    };
+  }, []);
 
   useEffect(() => {
     document.title = 'Dashboard — smmart Desk';
@@ -299,27 +380,36 @@ const Dashboard = () => {
             <div className="flex items-start justify-between mb-6 flex-wrap gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  {/* EYE-CATCHING HIGHLIGHTED HEADER BADGE */}
-                  <div
-                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-emerald-950 border border-emerald-400"
-                    style={{
-                      background: 'linear-gradient(135deg, #A7F3D0 0%, #6EE7B7 50%, #34D399 100%)',
-                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.28)'
-                    }}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-800 animate-ping" />
-                    <span className="tracking-wide">WEEKLY FOCUS ASSESSMENT</span>
-                  </div>
-                  {selectedWeek && (
-                    <button
-                      onClick={() => setSelectedWeek(null)}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer hover:opacity-80 flex items-center gap-1 shadow-xs"
-                      style={{ background: 'rgba(182, 83, 75, 0.1)', color: 'var(--error)', border: '1px solid rgba(182, 83, 75, 0.25)' }}
-                      title="Reset to current 7 days"
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* EYE-CATCHING HIGHLIGHTED HEADER BADGE */}
+                    <div
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-emerald-950 border border-emerald-400"
+                      style={{
+                        background: 'linear-gradient(135deg, #A7F3D0 0%, #6EE7B7 50%, #34D399 100%)',
+                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.28)'
+                      }}
                     >
-                      <span>✕ Reset to Live</span>
-                    </button>
-                  )}
+                      <span className="w-2 h-2 rounded-full bg-emerald-800 animate-ping" />
+                      <span className="tracking-wide">WEEKLY FOCUS ASSESSMENT</span>
+                    </div>
+
+                    {hoveredDay && (
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-950 border border-emerald-500/30 animate-fade-in shadow-xs">
+                        {hoveredDay.name} ({hoveredDay.date}): <strong className="text-emerald-900 font-extrabold">{fmtHoursDecimal(hoveredDay.focus)} Focus</strong>
+                      </span>
+                    )}
+
+                    {selectedWeek && (
+                      <button
+                        onClick={() => setSelectedWeek(null)}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer hover:opacity-80 flex items-center gap-1 shadow-xs"
+                        style={{ background: 'rgba(182, 83, 75, 0.1)', color: 'var(--error)', border: '1px solid rgba(182, 83, 75, 0.25)' }}
+                        title="Reset to current 7 days"
+                      >
+                        <span>✕ Reset to Live</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <h3
                   className="text-2xl font-black mt-3 tracking-tight"
@@ -343,7 +433,16 @@ const Dashboard = () => {
 
             <div style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activeWeeklyData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <AreaChart
+                  data={activeWeeklyData}
+                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
+                  onMouseMove={(e: any) => {
+                    if (e && e.activePayload && e.activePayload.length > 0) {
+                      setHoveredDay(e.activePayload[0].payload as DayData);
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredDay(null)}
+                >
                   <defs>
                     <linearGradient id="gFocus" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#425443" stopOpacity={0.25}/>
@@ -354,13 +453,22 @@ const Dashboard = () => {
                       <stop offset="95%" stopColor="#B87939" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false}
-                    tickFormatter={v => v >= 60 ? `${Math.round(v/60)}h` : `${v}m`} />
-                  <Tooltip content={<AreaTip />} cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }} />
-                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#425443" strokeWidth={2.4} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 4, fill: '#425443', strokeWidth: 0 }} />
-                  <Area type="monotone" dataKey="breaks" name="Breaks" stroke="#B87939" strokeWidth={1.8} fillOpacity={1} fill="url(#gBreaks)" dot={false} activeDot={{ r: 3, fill: '#B87939', strokeWidth: 0 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }}
+                    tickLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                  />
+                  <YAxis
+                    tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }}
+                    tickLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    tickFormatter={v => v >= 60 ? `${(v/60).toFixed(v % 60 === 0 ? 0 : 1)}h` : `${v}m`}
+                  />
+                  <Tooltip content={<AreaTip />} cursor={{ stroke: 'var(--forest)', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
+                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#425443" strokeWidth={2.4} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 5, fill: '#425443', stroke: '#ffffff', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="breaks" name="Breaks" stroke="#B87939" strokeWidth={1.8} fillOpacity={1} fill="url(#gBreaks)" dot={false} activeDot={{ r: 4, fill: '#B87939', stroke: '#ffffff', strokeWidth: 1.5 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -471,13 +579,24 @@ const Dashboard = () => {
                     }
                   }}
                 >
-                  <CartesianGrid strokeDasharray="2 4" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: 'var(--ink-4)', fontSize: 11 }} tickLine={false} axisLine={false} domain={[0,100]} tickFormatter={v => `${v}%`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }}
+                    tickLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                  />
+                  <YAxis
+                    tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }}
+                    tickLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }}
+                    domain={[0, 100]}
+                    tickFormatter={v => `${v}%`}
+                  />
                   <Tooltip
                     content={(props: any) => <BarTip {...props} onSelectWeek={handleSelectWeek} />}
                     wrapperStyle={{ pointerEvents: 'auto' }}
-                    cursor={{ fill: 'var(--surface-2)', cursor: 'pointer' }}
+                    cursor={{ fill: 'rgba(66, 84, 67, 0.06)', cursor: 'pointer' }}
                   />
                   <Bar
                     dataKey="productivity"
@@ -527,28 +646,58 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── 1 Long Button: Deepwork (Centered Single Title) ───────────── */}
+      {/* ── 1 Long Button: Deepwork (With On-going Blinking & Highlighting Effect) ── */}
       <div className="pt-2">
         <button
           onClick={() => navigate('/deepwork')}
-          className="w-full py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 font-bold text-sm md:text-base transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+          className={`w-full py-4 px-6 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm md:text-base transition-all duration-300 cursor-pointer shadow-md ${
+            activeSession
+              ? 'animate-pulse ring-4 ring-emerald-500/40 shadow-emerald-500/30'
+              : 'hover:shadow-lg hover:-translate-y-0.5'
+          }`}
           style={{
-            background: 'var(--forest)',
+            background: activeSession
+              ? 'linear-gradient(135deg, #1e3a24 0%, #2d5a37 50%, #15803d 100%)'
+              : 'var(--forest)',
             color: '#ffffff',
-            border: 'none',
+            border: activeSession ? '1.5px solid rgba(52, 211, 153, 0.8)' : 'none',
+            boxShadow: activeSession ? '0 0 25px rgba(16, 185, 129, 0.45)' : undefined,
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.background = '#374738';
+            if (!activeSession) {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.background = '#374738';
+            }
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.background = 'var(--forest)';
+            if (!activeSession) {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.background = 'var(--forest)';
+            }
           }}
         >
-          <Timer size={18} />
-          <span className="tracking-tight">Enter Deepwork</span>
-          <ArrowRight size={16} />
+          {activeSession ? (
+            <>
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400" />
+              </span>
+              <Timer size={20} className="animate-spin-slow text-emerald-300" />
+              <span className="tracking-tight text-white font-extrabold uppercase">
+                On-going Deepwork Session ({activeSession.status === 'BREAK' ? 'On Break' : 'Active'})
+              </span>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 ml-1">
+                Return to Session
+              </span>
+              <ArrowRight size={18} className="text-emerald-300 ml-1" />
+            </>
+          ) : (
+            <>
+              <Timer size={18} />
+              <span className="tracking-tight">Enter Deepwork</span>
+              <ArrowRight size={16} />
+            </>
+          )}
         </button>
       </div>
     </div>
