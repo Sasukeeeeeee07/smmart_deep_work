@@ -8,7 +8,19 @@ export default function SelectMode() {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState<'entrepreneur' | 'individual' | null>(null);
   const [motivationalNotice, setMotivationalNotice] = useState<string | null>(null);
-  const [activeSession, setActiveSession] = useState<any>(null);
+  const [activeSession, setActiveSession] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('activeDeepworkSession');
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      if (parsed && ['ACTIVE', 'BREAK', 'DYING'].includes(parsed.status)) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const token = localStorage.getItem('token');
@@ -32,12 +44,20 @@ export default function SelectMode() {
         if (!mounted) return;
         if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
           setActiveSession(live);
+          localStorage.setItem('activeDeepworkSession', JSON.stringify(live));
           return;
         }
         const res = await sessionService.getAllSessions(undefined).catch(() => null);
         const list = res?.sessions || (Array.isArray(res) ? res : []);
         const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
-        if (mounted) setActiveSession(active || null);
+        if (mounted) {
+          setActiveSession(active || null);
+          if (active) {
+            localStorage.setItem('activeDeepworkSession', JSON.stringify(active));
+          } else {
+            localStorage.removeItem('activeDeepworkSession');
+          }
+        }
       } catch {
         if (mounted) setActiveSession(null);
       }

@@ -88,12 +88,14 @@ export default function DeepWorkPage() {
         if (!mounted) return;
         if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
           setCurrentSession(prev => ({ ...(prev || {}), ...live }));
+          localStorage.setItem('activeDeepworkSession', JSON.stringify(live));
           if (typeof live.activeSeconds === 'number') {
             setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
           }
         } else if (!live && currentSession && ['ACTIVE', 'BREAK', 'DYING'].includes(currentSession.status)) {
           // Session ended on device or server
           setCurrentSession(null);
+          localStorage.removeItem('activeDeepworkSession');
           setServerAnchor(null);
           loadData();
         }
@@ -124,6 +126,11 @@ export default function DeepWorkPage() {
       // Find currently active or break session for this device
       const active = list.find(s => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status) && (!selectedUid || s.deviceUid === selectedUid));
       setCurrentSession(active || null);
+      if (active) {
+        localStorage.setItem('activeDeepworkSession', JSON.stringify(active));
+      } else {
+        localStorage.removeItem('activeDeepworkSession');
+      }
     } catch (err) {
       console.error('Failed to load deepwork data', err);
     } finally {
@@ -255,6 +262,7 @@ export default function DeepWorkPage() {
       const live = await sessionService.getCurrentSession(selectedUid);
       if (live) {
         setCurrentSession(live);
+        localStorage.setItem('activeDeepworkSession', JSON.stringify(live));
         if (typeof live.activeSeconds === 'number') {
           setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
         }

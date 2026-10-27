@@ -265,7 +265,19 @@ const Dashboard = () => {
   const [avgScore, setAvgScore]       = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
-  const [activeSession, setActiveSession] = useState<any>(null);
+  const [activeSession, setActiveSession] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('activeDeepworkSession');
+      if (!cached) return null;
+      const parsed = JSON.parse(cached);
+      if (parsed && ['ACTIVE', 'BREAK', 'DYING'].includes(parsed.status)) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
 
   const handleSelectWeek = (week: WeekData) => {
     setSelectedWeek(prev => (prev?.name === week.name ? null : week));
@@ -274,6 +286,35 @@ const Dashboard = () => {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
+
+  // Immediate fast-check for active deepwork session to keep button instant
+  useEffect(() => {
+    let mounted = true;
+    sessionService.getCurrentSession('ESP32-S3-01')
+      .then(live => {
+        if (!mounted) return;
+        if (live && ['ACTIVE', 'BREAK', 'DYING'].includes(live.status)) {
+          setActiveSession(live);
+          localStorage.setItem('activeDeepworkSession', JSON.stringify(live));
+        } else if (!live) {
+          // If no active session on current device, check if any session is active
+          sessionService.getAllSessions(undefined).then(res => {
+            if (!mounted) return;
+            const list = res?.sessions || (Array.isArray(res) ? res : []);
+            const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
+            if (active) {
+              setActiveSession(active);
+              localStorage.setItem('activeDeepworkSession', JSON.stringify(active));
+            } else {
+              setActiveSession(null);
+              localStorage.removeItem('activeDeepworkSession');
+            }
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     document.title = 'Dashboard — smmart Desk';
@@ -290,9 +331,14 @@ const Dashboard = () => {
 
         const list = rawSessions?.sessions || (Array.isArray(rawSessions) ? rawSessions : []);
 
-        // Detect active deepwork session from sessions list (avoids aggressive 3s polling loop)
+        // Detect active deepwork session from sessions list & keep localStorage synced
         const active = list.find((s: any) => ['ACTIVE', 'BREAK', 'DYING'].includes(s.status));
         setActiveSession(active || null);
+        if (active) {
+          localStorage.setItem('activeDeepworkSession', JSON.stringify(active));
+        } else {
+          localStorage.removeItem('activeDeepworkSession');
+        }
 
         let sessionsToAnalyze = list;
         if (mode === 'individual') {
