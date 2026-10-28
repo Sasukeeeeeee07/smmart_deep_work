@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { deviceService, sessionService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
-import RunnerCanvas from '../components/RunnerCanvas';
+import SpikeRunner from '../components/SpikeRunner';
 import { Ring, useCountUp } from '../components/DeepWorkBits';
 import {
   Timer, Play, AlertTriangle,
@@ -696,18 +696,12 @@ export default function DeepWorkPage() {
                       vectorEffect="non-scaling-stroke"
                       style={{ animation: 'dw-draw 1.6s var(--ease-out) forwards' }} />
                   )}
+                  <g style={{ opacity: spiked ? 1 : 0, transition: spiked ? 'opacity 400ms 3.4s' : 'opacity 200ms' }}>
+                    <path d="M 221 33 L 221 10" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                    <path className="dw-flag" d="M 221 10 L 234 14 L 221 18 Z" style={{ fill: 'var(--terra)' }} />
+                  </g>
                 </svg>
-                <div
-                  className="absolute motion-reduce:transition-none"
-                  style={{
-                    left: spiked ? '73.2%' : '13%',
-                    top: spiked ? '18.5%' : '86.5%',
-                    transform: 'translate(-50%, -100%)',
-                    transition: 'left 1400ms var(--ease-out), top 1400ms var(--ease-out)',
-                  }}
-                >
-                  <RunnerCanvas width={90} height={72} />
-                </div>
+                <SpikeRunner spiked={spiked} />
               </div>
             </div>
           </div>

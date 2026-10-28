@@ -2,13 +2,16 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 /**
- * Side-profile 3D runner with a procedural skeleton (forward kinematics),
- * crouched in a one-knee-down start stance, ready to go. Small enough to sit
- * on top of the productivity graph line.
- * Only a slow breathing motion plays. Colours come from the dashboard's CSS
- * variables so it follows the active theme. Pauses when off-screen / hidden,
- * and renders a single static frame under prefers-reduced-motion.
+ * Side-profile 3D runner with a procedural skeleton (forward kinematics).
+ * Modes: `ready` (one-knee-down start stance, breathing), `run` (uphill
+ * climbing gait), `down` (shorter, upright downhill gait) and `summit`
+ * (arms-up victory hops). Joint angles ease between poses, and the feet are
+ * ground-locked every frame. Colours come from the dashboard's CSS variables.
+ * Pauses when off-screen / hidden, and snaps to a static pose under
+ * prefers-reduced-motion.
  */
+
+export type RunnerMode = 'ready' | 'run' | 'down' | 'summit';
 
 const L = { thigh: 0.46, shank: 0.46, foot: 0.2, torso: 0.58, upperArm: 0.3, foreArm: 0.28, head: 0.12 };
 const R = { thigh: 0.075, shank: 0.06, upperArm: 0.052, foreArm: 0.045, torso: 0.11 };
@@ -147,16 +150,74 @@ function setStance(r: Runner) {
   }
 }
 
-/** Slow breathing: chest rises a touch, shoulders shift with it. */
-function breathe(r: Runner, t: number) {
-  const b = Math.sin(t * 1.6);
-  r.torso.rotation.z = LEAN + 0.025 * b;
-  r.neck.rotation.z = 0.7 - 0.025 * b;
-  r.torso.scale.set(1, 1 + 0.012 * b, 1);
+/** Every animated joint angle (radians). N = near side, F = far side. */
+interface Pose {
+  torso: number; neck: number;
+  shN: number; elN: number; shF: number; elF: number;
+  hipN: number; kneeN: number; ankN: number;
+  hipF: number; kneeF: number; ankF: number;
+  hop: number; // lift above the ground (airborne)
 }
 
-export default function RunnerCanvas({ className = '', width = 80, height = 64 }: { className?: string; width?: number; height?: number }) {
+function readStance(r: Runner): Pose {
+  setStance(r);
+  const [n, f] = r.legs, [an, af] = r.arms;
+  return {
+    torso: r.torso.rotation.z, neck: r.neck.rotation.z,
+    shN: an.shoulder.rotation.z, elN: an.elbow.rotation.z, shF: af.shoulder.rotation.z, elF: af.elbow.rotation.z,
+    hipN: n.hip.rotation.z, kneeN: n.knee.rotation.z, ankN: n.ankle.rotation.z,
+    hipF: f.hip.rotation.z, kneeF: f.knee.rotation.z, ankF: f.ankle.rotation.z,
+    hop: 0,
+  };
+}
+
+interface Gait { lean: number; stride: number; lift: number; arm: number; elbow: number; bias: number; hop: number; omega: number }
+const GAITS: Record<'run' | 'down', Gait> = {
+  // leaning into the hill, high knees, driving arms
+  run:  { lean: 0.5,  stride: 0.72, lift: 1.3, arm: 0.95, elbow: 1.25, bias: 0.12, hop: 0.03,  omega: 12 },
+  // upright, short quick steps, arms out for balance
+  down: { lean: 0.06, stride: 0.55, lift: 0.9, arm: 0.7,  elbow: 0.75, bias: 0,    hop: 0.035, omega: 11 },
+};
+
+function gaitPose(p: number, g: Gait): Pose {
+  const leg = (q: number) => {
+    const hip = g.stride * Math.sin(q) + g.bias;
+    const k = 0.5 + 0.5 * Math.cos(q - 0.3); // knee folds while the leg swings through
+    const knee = -(0.15 + g.lift * k * k);
+    return { hip, knee, ank: -(hip + knee) * (0.7 - 0.3 * Math.cos(q)) }; // foot flat in stance
+  };
+  const a = leg(p), b = leg(p + Math.PI);
+  const sN = Math.sin(p + Math.PI), sF = Math.sin(p); // each arm swings against its same-side leg
+  return {
+    torso: -g.lean + 0.03 * Math.sin(2 * p), neck: g.lean * 0.7,
+    shN: g.arm * sN + g.lean, elN: g.elbow + 0.35 * sN,
+    shF: g.arm * sF + g.lean, elF: g.elbow + 0.35 * sF,
+    hipN: a.hip, kneeN: a.knee, ankN: a.ank,
+    hipF: b.hip, kneeF: b.knee, ankF: b.ank,
+    hop: g.hop * Math.abs(Math.sin(p)),
+  };
+}
+
+/** Standing tall on the peak, both arms up, hopping. */
+function summitPose(t: number): Pose {
+  const j = Math.abs(Math.sin(t * 4.5));        // 0 = crouched, 1 = airborne
+  const bend = 0.1 + 0.5 * (1 - j);
+  const wave = 0.14 * Math.sin(t * 9);
+  const lean = 0.06;
+  return {
+    torso: -lean, neck: 0.15,
+    shN: Math.PI - 0.65 + wave + lean, elN: 0.15, shF: Math.PI + 0.4 - wave + lean, elF: -0.15,
+    hipN: bend * 0.5, kneeN: -bend, ankN: bend * 0.5,
+    hipF: bend * 0.5 - 0.2, kneeF: -bend, ankF: bend * 0.5 + 0.2,
+    hop: 0.09 * j,
+  };
+}
+
+export default function RunnerCanvas({ className = '', width = 80, height = 64, mode = 'ready' }: { className?: string; width?: number; height?: number; mode?: RunnerMode }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const snapRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -170,7 +231,6 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
     }
     const small = window.matchMedia('(max-width: 640px)').matches;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const frameMs = 1000 / 30; // breathing needs no more than 30fps
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2));
     renderer.setClearColor(0x000000, 0);
     renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
@@ -196,19 +256,24 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
     const runner = buildRunner(outfit);
     runner.root.position.x = 0.1;
     scene.add(runner.root);
-    setStance(runner);
+
+    const stance = readStance(runner);
+    const cur: Pose = { ...stance };
+    const keys = Object.keys(stance) as (keyof Pose)[];
 
     let viewW = 4;
     const resize = () => {
       const w = Math.max(host.clientWidth, 1), h = Math.max(host.clientHeight, 1);
       renderer.setSize(w, h, false);
+      // Fixed scale (72px canvas = 1.7 units) so taller canvases just add headroom.
       // Feet sit on the bottom edge so the canvas can stand directly on the graph line.
-      const viewH = 1.7;
-      viewW = viewH * (w / h);
+      const ppu = 72 / 1.7;
+      const viewH = h / ppu;
+      viewW = w / ppu;
       camera.left = -viewW / 2; camera.right = viewW / 2;
       camera.top = viewH / 2; camera.bottom = -viewH / 2;
-      camera.position.set(0, 0.8, 6);
-      camera.lookAt(0, 0.8, 0);
+      camera.position.set(0, viewH / 2 - 0.05, 6);
+      camera.lookAt(0, viewH / 2 - 0.05, 0);
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
     };
@@ -216,13 +281,65 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
     ro.observe(host);
     resize();
 
-    let time = 0, last = 0, raf = 0, acc = 0;
+    let time = 0, phase = 0, last = 0, raf = 0, acc = 0;
     let visible = true, tabVisible = !document.hidden;
+    const tmp = new THREE.Vector3();
 
-    const draw = () => {
-      breathe(runner, time);
+    const target = (m: RunnerMode): Pose => {
+      const b = Math.sin(time * 1.6);
+      if (m === 'run' || m === 'down') return gaitPose(phase, GAITS[m]);
+      if (m === 'summit') return summitPose(time);
+      return { ...stance, torso: LEAN + 0.025 * b, neck: 0.7 - 0.025 * b };
+    };
+
+    /** Put the lowest point of the body (shoe tips / knees) exactly on the ground. */
+    const groundLock = (hop: number) => {
+      runner.root.position.y = 0;
+      runner.root.updateMatrixWorld(true);
+      let low = Infinity;
+      for (const leg of runner.legs) {
+        for (const d of [-0.05, 0.05]) {
+          tmp.set(0, d, 0);
+          leg.foot.localToWorld(tmp);
+          low = Math.min(low, tmp.y - 0.045);
+        }
+        tmp.set(0, 0, 0);
+        leg.knee.localToWorld(tmp);
+        low = Math.min(low, tmp.y - R.shank);
+      }
+      runner.root.position.y = -low + hop;
+    };
+
+    const apply = (c: Pose, breath: number) => {
+      const [n, f] = runner.legs, [an, af] = runner.arms;
+      runner.torso.rotation.z = c.torso;
+      runner.neck.rotation.z = c.neck;
+      an.shoulder.rotation.z = c.shN; an.elbow.rotation.z = c.elN;
+      af.shoulder.rotation.z = c.shF; af.elbow.rotation.z = c.elF;
+      n.hip.rotation.z = c.hipN; n.knee.rotation.z = c.kneeN; n.ankle.rotation.z = c.ankN;
+      f.hip.rotation.z = c.hipF; f.knee.rotation.z = c.kneeF; f.ankle.rotation.z = c.ankF;
+      runner.torso.scale.set(1, 1 + 0.012 * breath, 1);
+      groundLock(c.hop);
+    };
+
+    const draw = (dt: number) => {
+      const m = modeRef.current;
+      time += dt;
+      if (m === 'run' || m === 'down') phase += GAITS[m].omega * dt;
+      const tgt = target(m);
+      const k = 1 - Math.exp(-dt * 26);
+      for (const key of keys) cur[key] += (tgt[key] - cur[key]) * k;
+      apply(cur, m === 'ready' || m === 'summit' ? Math.sin(time * 1.6) : 0);
       renderer.render(scene, camera);
     };
+
+    // Reduced motion: jump straight to the pose for the current mode.
+    snapRef.current = reduced ? () => {
+      const tgt = target(modeRef.current);
+      keys.forEach(key => { cur[key] = tgt[key]; });
+      apply(cur, 0);
+      renderer.render(scene, camera);
+    } : null;
 
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
@@ -230,15 +347,18 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
       acc += now - last;
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
+      const m = modeRef.current;
+      const frameMs = m === 'run' || m === 'down' || m === 'summit' ? 1000 / 50 : 1000 / 30;
       if (acc < frameMs - 1) return;
       acc = 0;
-      time += dt;
-      draw();
+      draw(dt);
     };
     const start = () => { if (!raf && visible && tabVisible && !reduced) { last = 0; raf = requestAnimationFrame(loop); } };
     const stop = () => { cancelAnimationFrame(raf); raf = 0; };
 
-    draw();
+    apply(cur, 0);
+    renderer.render(scene, camera);
+    snapRef.current?.();
 
     const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? start() : stop(); });
     io.observe(host);
@@ -248,6 +368,7 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
 
     return () => {
       stop(); io.disconnect(); ro.disconnect();
+      snapRef.current = null;
       document.removeEventListener('visibilitychange', onVis);
       scene.traverse(o => {
         const m = o as THREE.Mesh;
@@ -259,13 +380,16 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
     };
   }, []);
 
+  useEffect(() => { snapRef.current?.(); }, [mode]);
+
+  const label = { ready: 'Runner crouched and ready to run', run: 'Runner climbing', down: 'Runner heading down', summit: 'Runner celebrating on the peak' }[mode];
   return (
     <div
       ref={hostRef}
       className={className}
       style={{ height, width }}
       role="img"
-      aria-label="Runner crouched and ready to run"
+      aria-label={label}
     />
   );
 }
