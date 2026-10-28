@@ -7,7 +7,7 @@ import {
   Timer, Play, AlertTriangle,
   VolumeX, Star,
   Clock, Activity,
-  History, X, Zap, Bell, BellRing, Coffee, Send, Check, PowerOff, AudioLines
+  History, X, Zap, Coffee, Send, Check, PowerOff, AudioLines
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -72,13 +72,16 @@ function IconTile({ tone, size, className = '', children }: { tone: keyof typeof
 }
 
 /** Card heading pinned to the top corner (right by default), optionally with a status dot. */
-function CardHeading({ children, dot, pulse, left }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean; left?: boolean }) {
+function CardHeading({ children, dot, pulse, left, big }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean; left?: boolean; big?: boolean }) {
   return (
     <div className={`absolute top-4 flex items-center gap-2 max-w-[75%] ${left ? 'left-5' : 'right-5'}`}>
       {dot && (
         <span className={`w-2 h-2 rounded-full shrink-0 ${dot === 'on' ? 'bg-emerald-500' : 'bg-rose-500'} ${pulse ? 'animate-pulse-gentle' : ''}`} aria-hidden="true" />
       )}
-      <span className="text-[11px] font-bold uppercase tracking-wider text-right leading-tight truncate" style={{ color: 'var(--ink-3)' }}>
+      <span
+        className={`uppercase tracking-wider leading-tight truncate ${left ? 'text-left' : 'text-right'} ${big ? 'text-base font-extrabold' : 'text-[11px] font-bold'}`}
+        style={{ color: big ? 'var(--ink)' : 'var(--ink-3)' }}
+      >
         {children}
       </span>
     </div>
@@ -518,18 +521,42 @@ export default function DeepWorkPage() {
               borderColor: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.4)' : undefined,
             }}
           >
-            <CardHeading>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
-            <IconTile tone={currentSession?.alarmActive ? 'rose' : 'soft'} size={88} className={currentSession?.alarmActive ? 'dw-shake' : 'dw-float'}>
-              {currentSession?.alarmActive ? <BellRing size={36} /> : <Bell size={34} />}
-            </IconTile>
-            <div className="flex items-end gap-5">
-              <span className="font-extrabold text-4xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+            <CardHeading left big>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
+
+            {/* Ripple animation behind the alarm count */}
+            <div className="relative w-28 h-28 flex items-center justify-center">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className="dw-ripple absolute inset-0 rounded-full border-2"
+                  aria-hidden="true"
+                  style={{
+                    borderColor: currentSession?.alarmActive ? 'var(--error)' : 'var(--sage)',
+                    animationDelay: `${i * (currentSession?.alarmActive ? 0.45 : 1.1)}s`,
+                    animationDuration: currentSession?.alarmActive ? '1.4s' : '3.3s',
+                  }}
+                />
+              ))}
+              <span className="relative font-extrabold text-5xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                 {alarmCountUp}
               </span>
-              <span className="flex items-center gap-1 text-sm font-bold tabular-nums pb-0.5" style={{ color: 'var(--ink-3)' }} title="Total alarm time">
-                <Clock size={14} />{alarmDurationMinutes}m
-              </span>
             </div>
+
+            <div className="w-full flex flex-col gap-1.5 text-sm font-bold" style={{ color: 'var(--ink-2)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <span>Alarm time</span>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{alarmDurationMinutes}m</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>No of break:</span>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{currentSession?.breakCount ?? currentSession?.breaks?.length ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Total break time:</span>
+                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{currentSession?.totalBreakMinutes || 0}m</span>
+              </div>
+            </div>
+
             {currentSession?.alarmActive && (
               <button
                 type="button"
@@ -537,7 +564,7 @@ export default function DeepWorkPage() {
                 disabled={stoppingSound}
                 aria-label="Stop sound"
                 title="Stop sound"
-                className="absolute top-3 left-4 w-9 h-9 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                className="absolute top-3 right-4 w-9 h-9 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-110 active:scale-95"
                 style={{ background: 'var(--error)' }}
               >
                 <VolumeX size={16} />

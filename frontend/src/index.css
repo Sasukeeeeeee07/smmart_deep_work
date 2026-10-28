@@ -498,3 +498,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 .dw-blink { animation: dw-blink 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .dw-blink { animation: none; } }
+
+@keyframes dw-ripple {
+  0%   { transform: scale(0.45); opacity: 0.55; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+.dw-ripple { animation: dw-ripple 3.3s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .dw-ripple { animation: none; opacity: 0.25; } }
