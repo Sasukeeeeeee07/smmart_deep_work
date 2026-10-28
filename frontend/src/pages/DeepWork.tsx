@@ -513,7 +513,7 @@ export default function DeepWorkPage() {
 
           {/* ALARMS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5"
+            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5 sm:col-span-2"
             style={{
               ['--i' as any]: 3,
               background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : undefined,
@@ -537,17 +537,25 @@ export default function DeepWorkPage() {
               ))}
             </div>
 
-            <div className="w-full flex flex-col gap-3">
+            <div className="w-full max-w-md flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Alarm Raised</span>
-                <span className="font-extrabold text-3xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                   {alarmCountUp}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Total break time</span>
-                <span className="font-extrabold text-3xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Breaks taken</span>
+                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                  {currentSession?.breakCount ?? currentSession?.breaks?.length ?? 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Break time</span>
+                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                   {currentSession?.totalBreakMinutes || 0}<span className="text-base font-bold" style={{ color: 'var(--ink-3)' }}>m</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--ink-3)' }}> in </span>
+                  <span className="text-base font-mono">{isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
                 </span>
               </div>
             </div>
@@ -565,50 +573,6 @@ export default function DeepWorkPage() {
                 <VolumeX size={16} />
               </button>
             )}
-          </div>
-
-          {/* MODERATOR */}
-          <div className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
-            <CardHeading dot="on">Moderator</CardHeading>
-            <div className="relative">
-              <IconTile tone="forest" size={88}><AudioLines size={36} /></IconTile>
-              <span className="absolute inset-0 rounded-[30px] dw-halo pointer-events-none" aria-hidden="true" />
-            </div>
-            <div className="flex items-end gap-1 h-7" aria-hidden="true">
-              {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                <span
-                  key={i}
-                  className="dw-bar w-1.5 h-7 rounded-full"
-                  style={{
-                    background: 'var(--sage)',
-                    animationDelay: `${i * 0.12}s`,
-                    animationDuration: sendingVoice ? '0.45s' : '1.4s',
-                  }}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-1.5 w-full">
-              <input
-                type="text"
-                value={customVoice}
-                onChange={e => setCustomVoice(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
-                placeholder="Say something to the desk…"
-                aria-label="Message for the desk speaker"
-                className="input-base text-xs flex-1 py-2 px-4 rounded-2xl min-w-0"
-              />
-              <button
-                type="button"
-                onClick={() => handleSendVoice(customVoice)}
-                disabled={sendingVoice || !customVoice.trim()}
-                aria-label="Speak"
-                title="Speak"
-                className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
-                style={{ background: voiceSuccess ? 'var(--success)' : 'var(--forest)' }}
-              >
-                {voiceSuccess ? <Check size={16} /> : sendingVoice ? <Timer size={16} className="animate-spin-slow" /> : <Send size={16} />}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -634,7 +598,7 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
 
           {/* SCORE */}
           <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
@@ -710,7 +674,7 @@ export default function DeepWorkPage() {
           </div>
 
           {/* RATING */}
-          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5 sm:col-span-2" style={{ ['--i' as any]: 7 }} title="Rate session">
+          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
             <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map(star => {
@@ -738,6 +702,52 @@ export default function DeepWorkPage() {
 
         </div>
 
+
+        {/* ── Moderator intervention ── */}
+        <div className="dw-card p-6 pt-12 flex flex-col md:flex-row items-center gap-6" style={{ ['--i' as any]: 8 }}>
+          <CardHeading dot="on">Moderator</CardHeading>
+          <div className="flex items-center gap-5 shrink-0">
+            <div className="relative">
+              <IconTile tone="forest" size={72}><AudioLines size={30} /></IconTile>
+              <span className="absolute inset-0 rounded-[24px] dw-halo pointer-events-none" aria-hidden="true" />
+            </div>
+            <div className="flex items-end gap-1 h-7" aria-hidden="true">
+              {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                <span
+                  key={i}
+                  className="dw-bar w-1.5 h-7 rounded-full"
+                  style={{
+                    background: 'var(--sage)',
+                    animationDelay: `${i * 0.12}s`,
+                    animationDuration: sendingVoice ? '0.45s' : '1.4s',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full flex-1">
+            <input
+              type="text"
+              value={customVoice}
+              onChange={e => setCustomVoice(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
+              placeholder="Say something to the desk…"
+              aria-label="Message for the desk speaker"
+              className="input-base text-sm flex-1 py-2.5 px-4 rounded-2xl min-w-0"
+            />
+            <button
+              type="button"
+              onClick={() => handleSendVoice(customVoice)}
+              disabled={sendingVoice || !customVoice.trim()}
+              aria-label="Speak"
+              title="Speak"
+              className="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+              style={{ background: voiceSuccess ? 'var(--success)' : 'var(--forest)' }}
+            >
+              {voiceSuccess ? <Check size={18} /> : sendingVoice ? <Timer size={18} className="animate-spin-slow" /> : <Send size={18} />}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
