@@ -647,23 +647,19 @@ export default function DeepWorkPage() {
           <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
             <ChipIcon icon={<Activity size={16} />} tone="emerald" label="Productivity score" />
             <Ring size={150} stroke={12} progress={isSessionActiveWithData ? productivityScore / 100 : 0} color="#10B981">
-              {isSessionActiveWithData ? (
-                <span className="font-extrabold text-3xl tabular-nums" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                  {scoreCountUp}<span className="text-base font-bold" style={{ color: 'var(--ink-3)' }}>%</span>
-                </span>
-              ) : (
-                <Activity size={30} className="dw-float" style={{ color: 'var(--ink-4)' }} />
-              )}
+              <span className="font-extrabold text-4xl tabular-nums" style={{ color: isSessionActiveWithData ? 'var(--ink)' : 'var(--ink-4)', fontFamily: 'DM Sans, sans-serif' }}>
+                {scoreCountUp}<span className="text-lg font-bold" style={{ color: 'var(--ink-3)' }}>%</span>
+              </span>
             </Ring>
-            <div className="grid grid-cols-3 gap-2 w-full">
+            <div className="w-full flex flex-col gap-2.5">
               {[
-                { icon: <Play size={14} />, label: 'Start', value: isRunning && currentSession?.startTime ? formatTime(currentSession.startTime).replace(/:\d{2}\s/, ' ') : '—' },
-                { icon: <Timer size={14} />, label: 'Desk time', value: isRunning && currentSession ? fmtHMS(totalDeskTimeSec) : '00:00:00' },
-                { icon: <Coffee size={14} />, label: 'Breaks', value: `${isRunning ? (currentSession?.totalBreakMinutes || 0) : 0}m` },
-              ].map(s => (
-                <div key={s.label} title={s.label} className="rounded-2xl py-2 px-1 flex flex-col items-center gap-1 transition-transform duration-200 hover:-translate-y-0.5" style={{ background: 'var(--surface-2)' }}>
-                  <span style={{ color: 'var(--forest)' }}>{s.icon}</span>
-                  <span className="font-mono font-bold text-[11px] tabular-nums" style={{ color: 'var(--ink)' }}>{s.value}</span>
+                { label: 'Total duration', value: isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00' },
+                { label: 'Focus time', value: isRunning ? fmtHMS(activeSec) : '00:00:00' },
+                { label: 'Break time', value: isRunning ? fmtHMS((currentSession?.totalBreakMinutes || 0) * 60) : '00:00:00' },
+              ].map(r => (
+                <div key={r.label} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>{r.label}</span>
+                  <span className="font-mono font-bold text-sm tabular-nums" style={{ color: 'var(--ink)' }}>{r.value}</span>
                 </div>
               ))}
             </div>
