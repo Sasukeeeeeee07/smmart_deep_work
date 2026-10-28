@@ -499,19 +499,10 @@ h1, h2, h3, h4, h5, h6 {
 .dw-blink { animation: dw-blink 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .dw-blink { animation: none; } }
 
-/* Alarm monitor line (scrolling pulse trace) */
-@keyframes dw-trace { from { background-position-x: 0; } to { background-position-x: -96px; } }
-.dw-monitor, .dw-monitor-alert {
-  background-repeat: repeat-x; background-size: 96px 100%; background-position-y: center;
-  animation: dw-trace 3s linear infinite;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
-          mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+/* Alarm scanning dots */
+@keyframes dw-scan {
+  0%, 100% { transform: scale(0.55); opacity: 0.25; }
+  40%      { transform: scale(1.35); opacity: 1; }
 }
-.dw-monitor {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 40' preserveAspectRatio='none'%3E%3Cpath d='M0 20H34L39 15L45 25L50 20H96' fill='none' stroke='%2387977A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-}
-.dw-monitor-alert {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 40' preserveAspectRatio='none'%3E%3Cpath d='M0 20H20L26 4L34 36L42 8L48 30L54 20H96' fill='none' stroke='%23B6534B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-  animation-duration: 0.9s;
-}
-@media (prefers-reduced-motion: reduce) { .dw-monitor, .dw-monitor-alert { animation: none; } }
+.dw-scan { animation: dw-scan 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .dw-scan { animation: none; opacity: 0.5; } }

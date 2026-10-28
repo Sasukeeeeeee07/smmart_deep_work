@@ -522,11 +522,20 @@ export default function DeepWorkPage() {
           >
             <CardHeading left big>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
 
-            {/* Alarm monitor line: calm when quiet, sharp and red when an alarm is raised */}
-            <div
-              className={`w-full h-12 ${currentSession?.alarmActive ? 'dw-monitor-alert' : 'dw-monitor'}`}
-              aria-hidden="true"
-            />
+            {/* Scanning dots: calm sweep when quiet, fast red sweep when an alarm is raised */}
+            <div className="flex items-center justify-center gap-2 h-6" aria-hidden="true">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="dw-scan w-2.5 h-2.5 rounded-full"
+                  style={{
+                    background: currentSession?.alarmActive ? 'var(--error)' : 'var(--sage)',
+                    animationDelay: `${i * (currentSession?.alarmActive ? 0.07 : 0.14)}s`,
+                    animationDuration: currentSession?.alarmActive ? '0.8s' : '1.8s',
+                  }}
+                />
+              ))}
+            </div>
 
             <div className="w-full flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">
