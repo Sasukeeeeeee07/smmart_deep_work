@@ -478,7 +478,7 @@ export default function DeepWorkPage() {
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
             }}
           >
-            <CardHeading>
+            <CardHeading left>
               {currentSession?.status === 'BREAK' ? 'On break' : isRunning ? 'Focus time' : 'No session'}
             </CardHeading>
 
