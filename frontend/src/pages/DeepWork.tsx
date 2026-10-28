@@ -449,7 +449,7 @@ export default function DeepWorkPage() {
             style={{ ['--i' as any]: 1 }}
           >
             <CardHeading left dot={isRunning || isDeviceOnline ? 'on' : 'off'} pulse={!!isRunning}>
-              {isRunning ? 'Live session' : isDeviceOnline ? 'Ready' : 'Offline'}
+              {isRunning ? 'Online' : isDeviceOnline ? 'Ready' : 'Offline'}
             </CardHeading>
             <div className="flex flex-col items-center gap-4">
               <Ring
@@ -458,11 +458,17 @@ export default function DeepWorkPage() {
                 color={remainingSec <= 15 * 60 && isRunning ? 'var(--amber-w)' : 'var(--forest)'}
               >
                 {isRunning ? (
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-mono font-bold text-xl tabular-nums" style={{ color: 'var(--ink)' }}>
-                      {fmtHMS(remainingSec)}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white"
+                      style={{ background: 'var(--forest)', boxShadow: '0 4px 10px -3px rgba(66, 84, 67, 0.5)' }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse-gentle" />
+                      Live session
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>left</span>
+                    <span className="font-mono font-extrabold text-xl tabular-nums" style={{ color: 'var(--forest)' }}>
+                      {fmtHMS(activeSec)}
+                    </span>
                   </div>
                 ) : !isDeviceOnline ? (
                   <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
@@ -477,8 +483,8 @@ export default function DeepWorkPage() {
               {isRunning ? (
                 <div className="flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: 'var(--ink-2)' }}>
                   <Timer size={13} style={{ color: 'var(--forest)' }} />
-                  <span className="font-mono">{fmtHMS(activeSec)}</span>
-                  <span style={{ color: 'var(--ink-4)' }}>/ {targetMin}m</span>
+                  <span className="font-mono">{fmtHMS(remainingSec)}</span>
+                  <span style={{ color: 'var(--ink-4)' }}>left · {targetMin}m</span>
                 </div>
               ) : !isDeviceOnline ? (
                 <span className="text-base font-extrabold tracking-tight" style={{ color: '#BE123C', fontFamily: 'DM Sans, sans-serif' }}>
