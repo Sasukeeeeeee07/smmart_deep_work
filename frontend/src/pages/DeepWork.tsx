@@ -186,6 +186,7 @@ export default function DeepWorkPage() {
 
   // Productivity Score: Calculated strictly from valid active session data (>= 60s)
   const isSessionActiveWithData = isRunning && activeSec >= 60;
+  const spiked = !!currentSession?.productivitySpike;
   const activeFocusMinutes = currentSession?.activeMinutes || Math.floor(activeSec / 60);
   const totalSessionDeskMinutes = activeFocusMinutes + (currentSession?.totalBreakMinutes || 0);
   const productivityScore = isSessionActiveWithData && totalSessionDeskMinutes > 0
@@ -821,21 +822,34 @@ export default function DeepWorkPage() {
               </div>
             </div>
 
-            {/* 3D runner until the spike occurs, then the spike graph */}
-            <div className="flex-1 flex items-center justify-center py-6 relative overflow-hidden">
-              {!currentSession?.productivitySpike && <RunnerCanvas height={128} />}
-              {currentSession?.productivitySpike && (
-                <svg className="w-full h-24" viewBox="0 0 280 60" preserveAspectRatio="none">
-                  <path
-                    d="M 10 50 L 110 50 L 150 15 L 270 15"
+            {/* Productivity graph: a mountain line, with the runner waiting at its foot until the spike reaches the peak */}
+            <div className="flex-1 flex items-center justify-center py-4">
+              <div className="relative w-full" style={{ aspectRatio: '280 / 130' }}>
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58 L 272 112 Z"
+                    style={{ fill: 'var(--forest)', opacity: spiked ? 0.12 : 0.05, transition: 'opacity 600ms' }} />
+                  <path d="M 8 112 L 272 112" fill="none" stroke="var(--border)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                  <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58"
                     fill="none"
-                    stroke="#10B981"
-                    strokeWidth="3.5"
+                    stroke={spiked ? '#10B981' : 'var(--ink-4)'}
+                    strokeWidth="3"
+                    strokeDasharray={spiked ? undefined : '5 5'}
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                  />
+                    vectorEffect="non-scaling-stroke" />
                 </svg>
-              )}
+                <div
+                  className="absolute motion-reduce:transition-none"
+                  style={{
+                    left: spiked ? '73.2%' : '13%',
+                    top: spiked ? '18.5%' : '86.5%',
+                    transform: 'translate(-50%, -100%)',
+                    transition: 'left 1400ms var(--ease-out), top 1400ms var(--ease-out)',
+                  }}
+                >
+                  <RunnerCanvas width={72} height={58} />
+                </div>
+              </div>
             </div>
           </div>
 
