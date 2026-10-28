@@ -449,17 +449,14 @@ export default function DeepWorkPage() {
             style={{ ['--i' as any]: 1 }}
           >
             {isRunning ? (
-              <p
-                className="px-4 py-3 rounded-2xl text-center font-extrabold text-base sm:text-lg tracking-tight tabular-nums whitespace-nowrap"
-                style={{
-                  color: 'var(--forest)',
-                  background: 'linear-gradient(135deg, rgba(135, 151, 122, 0.28), rgba(66, 84, 67, 0.16))',
-                  boxShadow: 'inset 0 0 0 1px rgba(66, 84, 67, 0.25)',
-                  fontFamily: 'DM Sans, sans-serif',
-                }}
-              >
-                Live Session : <span className="font-mono">{fmtHMS(remainingSec)}</span>
-              </p>
+              <div className="w-full" style={{ containerType: 'inline-size' }}>
+                <p
+                  className="dw-blink text-center font-extrabold tracking-tight tabular-nums whitespace-nowrap"
+                  style={{ color: 'var(--forest)', fontSize: 'clamp(1rem, 7cqw, 2.4rem)', fontFamily: 'DM Sans, sans-serif' }}
+                >
+                  Live Session : <span className="font-mono">{fmtHMS(remainingSec)}</span>
+                </p>
+              </div>
             ) : (
               <>
                 <CardHeading left dot={isDeviceOnline ? 'on' : 'off'}>
