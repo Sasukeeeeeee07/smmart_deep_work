@@ -7,7 +7,7 @@ import {
   Timer, Play, AlertTriangle,
   VolumeX, Star,
   Clock, Activity,
-  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Focus, PowerOff, AudioLines
+  History, X, Zap, Bell, BellRing, Coffee, Send, Check, PowerOff, AudioLines
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -482,19 +482,12 @@ export default function DeepWorkPage() {
               {currentSession?.status === 'BREAK' ? 'On break' : isRunning ? 'Focus time' : 'No session'}
             </CardHeading>
 
-            {currentSession?.status === 'BREAK' ? (
-              <IconTile tone="amber" size={88} className="dw-float">
-                <Coffee size={36} />
-              </IconTile>
-            ) : (
-              <IconTile tone={isRunning ? 'forest' : 'soft'} size={88} className="dw-float">
-                <Focus size={36} />
-              </IconTile>
-            )}
-
-            {isRunning && (
-              <span className="font-mono font-bold text-2xl tabular-nums" style={{ color: 'var(--ink)' }}>{fmtHMS(activeSec)}</span>
-            )}
+            <span
+              className="font-mono font-bold tabular-nums"
+              style={{ color: isRunning ? 'var(--ink)' : 'var(--ink-4)', fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}
+            >
+              {fmtHMS(isRunning ? activeSec : 0)}
+            </span>
 
             {isRunning && (
               <div className="flex items-center justify-center gap-2 flex-wrap min-h-7">
