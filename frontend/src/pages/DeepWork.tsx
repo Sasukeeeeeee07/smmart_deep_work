@@ -713,8 +713,10 @@ export default function DeepWorkPage() {
           </div>
 
           {/* RATING */}
-          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
-            <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
+          <div className="dw-card p-6 flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
+            <div className="absolute top-6 left-6">
+              <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
+            </div>
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map(star => {
                 const on = star <= (currentSession?.selfRating || 0);
