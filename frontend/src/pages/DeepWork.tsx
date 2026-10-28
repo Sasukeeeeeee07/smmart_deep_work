@@ -424,7 +424,7 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── Action cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-10 sm:grid-rows-2 sm:min-h-[calc(100vh-250px)]">
 
           {/* START / COUNTDOWN */}
           <div
