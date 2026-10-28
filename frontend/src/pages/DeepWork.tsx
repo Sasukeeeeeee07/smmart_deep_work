@@ -448,54 +448,47 @@ export default function DeepWorkPage() {
             className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
             style={{ ['--i' as any]: 1 }}
           >
-            <CardHeading left dot={isRunning || isDeviceOnline ? 'on' : 'off'} pulse={!!isRunning}>
-              {isRunning ? 'Online' : isDeviceOnline ? 'Ready' : 'Offline'}
-            </CardHeading>
-            <div className="flex flex-col items-center gap-4">
-              <Ring
-                size={150}
-                progress={isRunning ? activeSec / Math.max(targetSec, 1) : 0}
-                color={remainingSec <= 15 * 60 && isRunning ? 'var(--amber-w)' : 'var(--forest)'}
+            {isRunning ? (
+              <p
+                className="px-4 py-3 rounded-2xl text-center font-extrabold text-base sm:text-lg tracking-tight tabular-nums whitespace-nowrap"
+                style={{
+                  color: 'var(--forest)',
+                  background: 'linear-gradient(135deg, rgba(135, 151, 122, 0.28), rgba(66, 84, 67, 0.16))',
+                  boxShadow: 'inset 0 0 0 1px rgba(66, 84, 67, 0.25)',
+                  fontFamily: 'DM Sans, sans-serif',
+                }}
               >
-                {isRunning ? (
-                  <div className="flex flex-col items-center gap-1.5">
-                    <span
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white"
-                      style={{ background: 'var(--forest)', boxShadow: '0 4px 10px -3px rgba(66, 84, 67, 0.5)' }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse-gentle" />
-                      Live session
+                Live Session : <span className="font-mono">{fmtHMS(remainingSec)}</span>
+              </p>
+            ) : (
+              <>
+                <CardHeading left dot={isDeviceOnline ? 'on' : 'off'}>
+                  {isDeviceOnline ? 'Ready' : 'Offline'}
+                </CardHeading>
+                <div className="flex flex-col items-center gap-4">
+                  <Ring size={150} progress={0}>
+                    {!isDeviceOnline ? (
+                      <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
+                    ) : (
+                      <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
+                        <IconTile tone="forest" size={68}>
+                          {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
+                        </IconTile>
+                      </button>
+                    )}
+                  </Ring>
+                  {!isDeviceOnline ? (
+                    <span className="text-base font-extrabold tracking-tight" style={{ color: '#BE123C', fontFamily: 'DM Sans, sans-serif' }}>
+                      Device offline
                     </span>
-                    <span className="font-mono font-extrabold text-xl tabular-nums" style={{ color: 'var(--forest)' }}>
-                      {fmtHMS(activeSec)}
+                  ) : (
+                    <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--forest)', fontFamily: 'DM Sans, sans-serif' }}>
+                      {starting ? 'Starting…' : 'Start session'}
                     </span>
-                  </div>
-                ) : !isDeviceOnline ? (
-                  <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
-                ) : (
-                  <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
-                    <IconTile tone="forest" size={68}>
-                      {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
-                    </IconTile>
-                  </button>
-                )}
-              </Ring>
-              {isRunning ? (
-                <div className="flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: 'var(--ink-2)' }}>
-                  <Timer size={13} style={{ color: 'var(--forest)' }} />
-                  <span className="font-mono">{fmtHMS(remainingSec)}</span>
-                  <span style={{ color: 'var(--ink-4)' }}>left · {targetMin}m</span>
+                  )}
                 </div>
-              ) : !isDeviceOnline ? (
-                <span className="text-base font-extrabold tracking-tight" style={{ color: '#BE123C', fontFamily: 'DM Sans, sans-serif' }}>
-                  Device offline
-                </span>
-              ) : (
-                <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--forest)', fontFamily: 'DM Sans, sans-serif' }}>
-                  {starting ? 'Starting…' : 'Start session'}
-                </span>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
           {/* LIVE / BREAK */}
