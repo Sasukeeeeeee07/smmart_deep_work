@@ -7,7 +7,7 @@ import {
   Timer, Play, AlertTriangle,
   VolumeX, Star,
   Clock, Activity,
-  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Flame, PowerOff, Hourglass, AudioLines
+  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Focus, PowerOff, AudioLines
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -231,6 +231,13 @@ export default function DeepWorkPage() {
     }
   };
 
+  // Short clock time for break chips, e.g. "11:42 AM"
+  const formatBreakTime = (isoString?: string) => {
+    if (!isoString) return '—';
+    const d = new Date(isoString);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
   const formatFullDate = (isoString?: string) => {
     if (!isoString) return '—';
     try {
@@ -261,7 +268,6 @@ export default function DeepWorkPage() {
   // Break Rule: 3 breaks in <= 3 hrs, 4 breaks if session crosses > 3 hrs (180 mins)
   const isOver3Hours = Math.floor(totalDeskTimeSec / 60) > 180;
   const maxAllowedBreaks = isOver3Hours ? 4 : 3;
-  const breakCount = currentSession?.breakCount || currentSession?.breaks?.length || 0;
 
 
   const alarmCountUp = useCountUp(alarmCount);
@@ -488,41 +494,52 @@ export default function DeepWorkPage() {
             )}
           </div>
 
-          {/* LIVE / BREAK */}
+          {/* FOCUS TIME / BREAKS */}
           <div
             onClick={currentSession?.status === 'BREAK' && !resuming ? handleResumeSession : undefined}
-            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5 ${currentSession?.status === 'BREAK' ? 'cursor-pointer' : ''}`}
+            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4 ${currentSession?.status === 'BREAK' ? 'cursor-pointer' : ''}`}
             style={{
               ['--i' as any]: 2,
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
             }}
           >
             <CardHeading>
-              {currentSession?.status === 'BREAK' ? 'On break · resume' : isRunning ? 'Focus time' : 'No session'}
+              {currentSession?.status === 'BREAK' ? 'On break · tap to resume' : isRunning ? 'Focus time' : 'No session'}
             </CardHeading>
+
             {currentSession?.status === 'BREAK' ? (
               <button type="button" disabled={resuming} aria-label="Resume session" className="cursor-pointer rounded-[30px] dw-halo-warn transition-transform duration-200 hover:scale-110 active:scale-95">
                 <IconTile tone="amber" size={88}>
                   {resuming ? <Timer size={34} className="animate-spin-slow" /> : <Play size={34} fill="currentColor" className="ml-1" />}
                 </IconTile>
               </button>
-            ) : isRunning ? (
-              <>
-                <IconTile tone="forest" size={88} className="dw-float"><Flame size={36} /></IconTile>
-                <span className="font-mono font-bold text-xl tabular-nums" style={{ color: 'var(--ink)' }}>{fmtHMS(activeSec)}</span>
-                <div className="flex items-center gap-1.5" title={`${breakCount}/${maxAllowedBreaks} breaks used`}>
-                  <Coffee size={14} style={{ color: 'var(--ink-3)' }} />
-                  {Array.from({ length: maxAllowedBreaks }).map((_, i) => (
-                    <span
-                      key={i}
-                      className="w-2.5 h-2.5 rounded-full transition-all duration-500"
-                      style={{ background: i < breakCount ? 'var(--amber-w)' : 'var(--surface-3)', transform: i < breakCount ? 'scale(1.2)' : 'scale(1)' }}
-                    />
-                  ))}
-                </div>
-              </>
             ) : (
-              <IconTile tone="soft" size={88} className="dw-float"><Hourglass size={34} /></IconTile>
+              <IconTile tone={isRunning ? 'forest' : 'soft'} size={88} className="dw-float">
+                <Focus size={36} />
+              </IconTile>
+            )}
+
+            {isRunning && (
+              <span className="font-mono font-bold text-2xl tabular-nums" style={{ color: 'var(--ink)' }}>{fmtHMS(activeSec)}</span>
+            )}
+
+            {isRunning && (
+              <div className="flex items-center justify-center gap-2 flex-wrap min-h-7">
+                {(currentSession?.breaks || []).map((b, i) => (
+                  <span
+                    key={i}
+                    title={`Break ${i + 1}`}
+                    className="dw-stagger inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold tabular-nums"
+                    style={{ ['--i' as any]: 0, background: 'rgba(184, 121, 57, 0.14)', color: 'var(--amber-w)' }}
+                  >
+                    <Coffee size={12} />
+                    {formatBreakTime(b.startTime)}
+                  </span>
+                ))}
+                {Array.from({ length: Math.max(0, maxAllowedBreaks - (currentSession?.breaks?.length || 0)) }).map((_, i) => (
+                  <span key={`free-${i}`} className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--surface-3)' }} aria-hidden="true" />
+                ))}
+              </div>
             )}
           </div>
 
