@@ -265,7 +265,6 @@ export default function DeepWorkPage() {
   // Alarms count & total time
   const alarmLogs = currentSession?.moderationLog?.filter(m => m.type === 'ALARM') || [];
   const alarmCount = (currentSession?.alarmActive ? 1 : 0) + alarmLogs.length;
-  const alarmDurationMinutes = alarmCount * 2; // ~2 mins per alert average
 
   // Break Rule: 3 breaks in <= 3 hrs, 4 breaks if session crosses > 3 hrs (180 mins)
   const isOver3Hours = Math.floor(totalDeskTimeSec / 60) > 180;
@@ -523,37 +522,24 @@ export default function DeepWorkPage() {
           >
             <CardHeading left big>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
 
-            {/* Ripple animation behind the alarm count */}
-            <div className="relative w-28 h-28 flex items-center justify-center">
-              {[0, 1, 2].map(i => (
-                <span
-                  key={i}
-                  className="dw-ripple absolute inset-0 rounded-full border-2"
-                  aria-hidden="true"
-                  style={{
-                    borderColor: currentSession?.alarmActive ? 'var(--error)' : 'var(--sage)',
-                    animationDelay: `${i * (currentSession?.alarmActive ? 0.45 : 1.1)}s`,
-                    animationDuration: currentSession?.alarmActive ? '1.4s' : '3.3s',
-                  }}
-                />
-              ))}
-              <span className="relative font-extrabold text-5xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                {alarmCountUp}
-              </span>
-            </div>
+            {/* Alarm monitor line: calm when quiet, sharp and red when an alarm is raised */}
+            <div
+              className={`w-full h-12 ${currentSession?.alarmActive ? 'dw-monitor-alert' : 'dw-monitor'}`}
+              aria-hidden="true"
+            />
 
-            <div className="w-full flex flex-col gap-1.5 text-sm font-bold" style={{ color: 'var(--ink-2)' }}>
+            <div className="w-full flex flex-col gap-3">
               <div className="flex items-center justify-between gap-3">
-                <span>Alarm time</span>
-                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{alarmDurationMinutes}m</span>
+                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Alarm Raised</span>
+                <span className="font-extrabold text-3xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                  {alarmCountUp}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>No of break:</span>
-                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{currentSession?.breakCount ?? currentSession?.breaks?.length ?? 0}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span>Total break time:</span>
-                <span className="font-mono tabular-nums" style={{ color: 'var(--ink)' }}>{currentSession?.totalBreakMinutes || 0}m</span>
+                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Total break time</span>
+                <span className="font-extrabold text-3xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                  {currentSession?.totalBreakMinutes || 0}<span className="text-base font-bold" style={{ color: 'var(--ink-3)' }}>m</span>
+                </span>
               </div>
             </div>
 
