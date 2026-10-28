@@ -194,7 +194,7 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
       shoe: mat('#F7F5EF', 0.5), hair: mat('#2B2420', 0.8),
     };
     const runner = buildRunner(outfit);
-    runner.root.position.x = 0.2;
+    runner.root.position.x = 0.1;
     scene.add(runner.root);
     setStance(runner);
 
@@ -203,12 +203,12 @@ export default function RunnerCanvas({ className = '', width = 80, height = 64 }
       const w = Math.max(host.clientWidth, 1), h = Math.max(host.clientHeight, 1);
       renderer.setSize(w, h, false);
       // Feet sit on the bottom edge so the canvas can stand directly on the graph line.
-      const viewH = 1.4;
+      const viewH = 1.7;
       viewW = viewH * (w / h);
       camera.left = -viewW / 2; camera.right = viewW / 2;
       camera.top = viewH / 2; camera.bottom = -viewH / 2;
-      camera.position.set(0, 0.65, 6);
-      camera.lookAt(0, 0.65, 0);
+      camera.position.set(0, 0.8, 6);
+      camera.lookAt(0, 0.8, 0);
       camera.updateProjectionMatrix();
       renderer.render(scene, camera);
     };

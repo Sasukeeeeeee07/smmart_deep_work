@@ -34,13 +34,25 @@ const CHIP_TONES = {
   indigo:  { bg: 'rgba(99, 102, 241, 0.14)', fg: '#4338CA' },
 } as const;
 
-/** Small icon-only badge that replaces the old text pill headers. */
-function ChipIcon({ icon, tone }: { icon: React.ReactNode; tone: keyof typeof CHIP_TONES }) {
+/** Small icon badge with a short label, used as the header of the metric cards. */
+function ChipIcon({ icon, tone, label }: { icon: React.ReactNode; tone: keyof typeof CHIP_TONES; label: string }) {
   const t = CHIP_TONES[tone];
   return (
-    <div className="w-9 h-9 rounded-2xl flex items-center justify-center self-start" style={{ background: t.bg, color: t.fg }}>
-      {icon}
+    <div className="flex items-center gap-2.5 self-start">
+      <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: t.bg, color: t.fg }}>
+        {icon}
+      </div>
+      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>{label}</span>
     </div>
+  );
+}
+
+/** One-line caption that tells the user what a card is for. */
+function Caption({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-bold uppercase tracking-wider text-center leading-tight" style={{ color: 'var(--ink-3)' }}>
+      {children}
+    </p>
   );
 }
 
@@ -399,7 +411,7 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── Action cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           {/* START / COUNTDOWN */}
           <div
@@ -433,10 +445,13 @@ export default function DeepWorkPage() {
                 </button>
               )}
             </Ring>
-            <span
-              className={`w-2.5 h-2.5 rounded-full ${isRunning || isDeviceOnline ? 'bg-emerald-500' : 'bg-rose-500'} ${isRunning ? 'animate-pulse-gentle' : ''}`}
-              aria-hidden="true"
-            />
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${isRunning || isDeviceOnline ? 'bg-emerald-500' : 'bg-rose-500'} ${isRunning ? 'animate-pulse-gentle' : ''}`}
+                aria-hidden="true"
+              />
+              <Caption>{isRunning ? 'Time left' : !isDeviceOnline ? 'Device offline' : 'Tap to start session'}</Caption>
+            </div>
           </div>
 
           {/* LIVE / BREAK */}
@@ -480,6 +495,7 @@ export default function DeepWorkPage() {
                 <Pause size={30} />
               </div>
             )}
+            <Caption>{currentSession?.status === 'BREAK' ? 'On break · tap to resume' : isRunning ? 'Focus time · breaks used' : 'No active session'}</Caption>
           </div>
 
           {/* ALARMS */}
@@ -509,6 +525,7 @@ export default function DeepWorkPage() {
                 <Clock size={14} />{alarmDurationMinutes}m
               </span>
             </div>
+            <Caption>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms · count & total time'}</Caption>
             {currentSession?.alarmActive && (
               <button
                 type="button"
@@ -543,6 +560,7 @@ export default function DeepWorkPage() {
                 />
               ))}
             </div>
+            <Caption>Moderator · speak to desk</Caption>
             <div className="flex items-center gap-1.5 w-full">
               <input
                 type="text"
@@ -590,11 +608,11 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
 
           {/* SCORE */}
           <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
-            <ChipIcon icon={<Activity size={16} />} tone="emerald" />
+            <ChipIcon icon={<Activity size={16} />} tone="emerald" label="Productivity score" />
             <Ring size={150} stroke={12} progress={isSessionActiveWithData ? productivityScore / 100 : 0} color="#10B981">
               {isSessionActiveWithData ? (
                 <span className="font-extrabold text-3xl tabular-nums" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
@@ -620,7 +638,7 @@ export default function DeepWorkPage() {
 
           {/* SPIKE GRAPH */}
           <div className="dw-card p-6 flex flex-col justify-between gap-3" style={{ ['--i' as any]: 6 }} title="Productivity spike">
-            <ChipIcon icon={<Zap size={16} />} tone="amber" />
+            <ChipIcon icon={<Zap size={16} />} tone="amber" label="Productivity spike" />
             <div className="flex-1 flex items-center justify-center">
               <div className="relative w-full" style={{ aspectRatio: '280 / 130' }}>
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
@@ -659,15 +677,15 @@ export default function DeepWorkPage() {
                     transition: 'left 1400ms var(--ease-out), top 1400ms var(--ease-out)',
                   }}
                 >
-                  <RunnerCanvas width={72} height={58} />
+                  <RunnerCanvas width={90} height={72} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* RATING */}
-          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
-            <ChipIcon icon={<Star size={16} />} tone="indigo" />
+          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5 sm:col-span-2" style={{ ['--i' as any]: 7 }} title="Rate session">
+            <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map(star => {
                 const on = star <= (currentSession?.selfRating || 0);
@@ -690,8 +708,7 @@ export default function DeepWorkPage() {
                 );
               })}
             </div>
-            <span className="h-4" aria-hidden="true" />
-          </div>
+                      </div>
 
         </div>
 
