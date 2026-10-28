@@ -472,7 +472,7 @@ export default function DeepWorkPage() {
 
           {/* FOCUS TIME / BREAKS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-start justify-center gap-4"
+            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4"
             style={{
               ['--i' as any]: 2,
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
@@ -483,14 +483,14 @@ export default function DeepWorkPage() {
             </CardHeading>
 
             <span
-              className="font-mono font-bold tabular-nums pl-2"
+              className="font-mono font-bold tabular-nums"
               style={{ color: isRunning ? 'var(--ink)' : 'var(--ink-4)', fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}
             >
               {fmtHMS(isRunning ? activeSec : 0)}
             </span>
 
             {isRunning && (
-              <div className="flex items-center justify-start gap-2 flex-wrap min-h-7">
+              <div className="absolute bottom-5 inset-x-5 flex items-center justify-center gap-2 flex-wrap">
                 {(currentSession?.breaks || []).map((b, i) => (
                   <span
                     key={i}
