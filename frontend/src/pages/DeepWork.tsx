@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { deviceService, sessionService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
+import RunnerCanvas from '../components/RunnerCanvas';
 import {
   Timer, ArrowRight, Play, Pause, AlertTriangle,
   Volume2, VolumeX, Star,
@@ -820,50 +821,21 @@ export default function DeepWorkPage() {
               </div>
             </div>
 
-            {/* Single line graph with runner animation until spike occurs */}
+            {/* 3D runner until the spike occurs, then the spike graph */}
             <div className="flex-1 flex items-center justify-center py-6 relative overflow-hidden">
-              <svg className="w-full h-24" viewBox="0 0 280 60" preserveAspectRatio="none">
-                {currentSession?.productivitySpike ? (
-                  <>
-                    <path
-                      d="M 10 50 L 110 50 L 150 15 L 270 15"
-                      fill="none"
-                      stroke="#10B981"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </>
-                ) : (
-                  <>
-                    {/* Track line */}
-                    <path
-                      d="M 10 40 L 270 40"
-                      fill="none"
-                      stroke="#e2e8f0"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                    {/* Animated runner dot moving along the track */}
-                    <circle r="5" fill="#94A3B8">
-                      <animateMotion
-                        dur="2.4s"
-                        repeatCount="indefinite"
-                        path="M 10 40 L 270 40"
-                      />
-                    </circle>
-                    {/* Glow trail */}
-                    <circle r="3" fill="#cbd5e1" opacity="0.5">
-                      <animateMotion
-                        dur="2.4s"
-                        repeatCount="indefinite"
-                        begin="0.12s"
-                        path="M 10 40 L 270 40"
-                      />
-                    </circle>
-                  </>
-                )}
-              </svg>
+              {!currentSession?.productivitySpike && <RunnerCanvas height={128} />}
+              {currentSession?.productivitySpike && (
+                <svg className="w-full h-24" viewBox="0 0 280 60" preserveAspectRatio="none">
+                  <path
+                    d="M 10 50 L 110 50 L 150 15 L 270 15"
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </div>
           </div>
 
