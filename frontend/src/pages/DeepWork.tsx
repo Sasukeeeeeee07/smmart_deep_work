@@ -4,10 +4,10 @@ import { LockoutScreen } from '../components/LockoutScreen';
 import RunnerCanvas from '../components/RunnerCanvas';
 import { Ring, useCountUp } from '../components/DeepWorkBits';
 import {
-  Timer, Play, Pause, AlertTriangle,
-  Volume2, VolumeX, Star,
-  Clock, Mic, Activity, WifiOff,
-  History, X, Zap, Bell, Coffee, Send, Check
+  Timer, Play, AlertTriangle,
+  VolumeX, Star,
+  Clock, Activity,
+  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Flame, Unplug, Hourglass, AudioLines
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -47,12 +47,41 @@ function ChipIcon({ icon, tone, label }: { icon: React.ReactNode; tone: keyof ty
   );
 }
 
-/** One-line caption that tells the user what a card is for. */
-function Caption({ children }: { children: React.ReactNode }) {
+const TILE_TONES = {
+  forest:      { bg: 'linear-gradient(145deg, #7C957D 0%, #425443 100%)', fg: '#fff',    glow: 'rgba(66, 84, 67, 0.35)' },
+  amber:       { bg: 'linear-gradient(145deg, #DDA569 0%, #B87939 100%)', fg: '#fff',    glow: 'rgba(184, 121, 57, 0.4)' },
+  rose:        { bg: 'linear-gradient(145deg, #E9918A 0%, #B6534B 100%)', fg: '#fff',    glow: 'rgba(182, 83, 75, 0.4)' },
+  soft:        { bg: 'linear-gradient(145deg, #F4F2EB 0%, #E2DFD5 100%)', fg: '#5E7052', glow: 'rgba(41, 43, 37, 0.10)' },
+  'rose-soft': { bg: 'linear-gradient(145deg, #FCE7EA 0%, #F6C9D0 100%)', fg: '#BE123C', glow: 'rgba(225, 29, 72, 0.18)' },
+} as const;
+
+/** Rounded gradient tile that holds a card's main icon. */
+function IconTile({ tone, size, className = '', children }: { tone: keyof typeof TILE_TONES; size: number; className?: string; children: React.ReactNode }) {
+  const t = TILE_TONES[tone];
   return (
-    <p className="text-[11px] font-bold uppercase tracking-wider text-center leading-tight" style={{ color: 'var(--ink-3)' }}>
+    <div
+      className={`flex items-center justify-center shrink-0 ${className}`}
+      style={{
+        width: size, height: size, borderRadius: size * 0.34, background: t.bg, color: t.fg,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 10px 22px -8px ${t.glow}`,
+      }}
+    >
       {children}
-    </p>
+    </div>
+  );
+}
+
+/** Card heading pinned to the top-right corner, optionally with a status dot. */
+function CardHeading({ children, dot, pulse }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean }) {
+  return (
+    <div className="absolute top-4 right-5 flex items-center gap-2 max-w-[75%]">
+      {dot && (
+        <span className={`w-2 h-2 rounded-full shrink-0 ${dot === 'on' ? 'bg-emerald-500' : 'bg-rose-500'} ${pulse ? 'animate-pulse-gentle' : ''}`} aria-hidden="true" />
+      )}
+      <span className="text-[11px] font-bold uppercase tracking-wider text-right leading-tight truncate" style={{ color: 'var(--ink-3)' }}>
+        {children}
+      </span>
+    </div>
   );
 }
 
@@ -416,10 +445,12 @@ export default function DeepWorkPage() {
           {/* START / COUNTDOWN */}
           <div
             onClick={!isRunning && isDeviceOnline && !starting ? handleStartSession : undefined}
-            className={`dw-card p-6 min-h-[250px] flex flex-col items-center justify-center gap-4 ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
+            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
             style={{ ['--i' as any]: 1 }}
-            title={isRunning ? 'Time left' : !isDeviceOnline ? 'Device offline' : 'Start session'}
           >
+            <CardHeading dot={isRunning || isDeviceOnline ? 'on' : 'off'} pulse={!!isRunning}>
+              {isRunning ? 'Time left' : !isDeviceOnline ? 'Device offline' : 'Start session'}
+            </CardHeading>
             <Ring
               size={150}
               progress={isRunning ? activeSec / Math.max(targetSec, 1) : 0}
@@ -430,57 +461,41 @@ export default function DeepWorkPage() {
                   {fmtHMS(remainingSec)}
                 </span>
               ) : !isDeviceOnline ? (
-                <div className="w-16 h-16 rounded-full flex items-center justify-center dw-float" style={{ background: 'rgba(225, 29, 72, 0.1)', color: '#e11d48' }}>
-                  <WifiOff size={26} />
-                </div>
+                <IconTile tone="rose-soft" size={68} className="dw-float"><Unplug size={28} /></IconTile>
               ) : (
-                <button
-                  type="button"
-                  disabled={starting}
-                  aria-label="Start session"
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-white cursor-pointer dw-halo transition-transform duration-200 hover:scale-110 active:scale-95"
-                  style={{ background: 'var(--forest)' }}
-                >
-                  {starting ? <Timer size={24} className="animate-spin-slow" /> : <Play size={26} fill="currentColor" className="ml-1" />}
+                <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
+                  <IconTile tone="forest" size={68}>
+                    {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
+                  </IconTile>
                 </button>
               )}
             </Ring>
-            <div className="flex items-center gap-2">
-              <span
-                className={`w-2.5 h-2.5 rounded-full ${isRunning || isDeviceOnline ? 'bg-emerald-500' : 'bg-rose-500'} ${isRunning ? 'animate-pulse-gentle' : ''}`}
-                aria-hidden="true"
-              />
-              <Caption>{isRunning ? 'Time left' : !isDeviceOnline ? 'Device offline' : 'Tap to start session'}</Caption>
-            </div>
           </div>
 
           {/* LIVE / BREAK */}
           <div
             onClick={currentSession?.status === 'BREAK' && !resuming ? handleResumeSession : undefined}
-            className={`dw-card p-6 min-h-[250px] flex flex-col items-center justify-center gap-5 ${currentSession?.status === 'BREAK' ? 'cursor-pointer' : ''}`}
+            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5 ${currentSession?.status === 'BREAK' ? 'cursor-pointer' : ''}`}
             style={{
               ['--i' as any]: 2,
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
             }}
-            title={currentSession?.status === 'BREAK' ? 'Resume' : isRunning ? 'Active time' : 'No session'}
           >
+            <CardHeading>
+              {currentSession?.status === 'BREAK' ? 'On break · resume' : isRunning ? 'Focus time' : 'No session'}
+            </CardHeading>
             {currentSession?.status === 'BREAK' ? (
-              <button
-                type="button"
-                disabled={resuming}
-                aria-label="Resume session"
-                className="w-20 h-20 rounded-full flex items-center justify-center text-white cursor-pointer dw-halo-warn transition-transform duration-200 hover:scale-110 active:scale-95"
-                style={{ background: 'var(--amber-w)' }}
-              >
-                {resuming ? <Timer size={28} className="animate-spin-slow" /> : <Play size={30} fill="currentColor" className="ml-1" />}
+              <button type="button" disabled={resuming} aria-label="Resume session" className="cursor-pointer rounded-[30px] dw-halo-warn transition-transform duration-200 hover:scale-110 active:scale-95">
+                <IconTile tone="amber" size={88}>
+                  {resuming ? <Timer size={34} className="animate-spin-slow" /> : <Play size={34} fill="currentColor" className="ml-1" />}
+                </IconTile>
               </button>
             ) : isRunning ? (
               <>
-                <div className="w-20 h-20 rounded-full flex items-center justify-center dw-float" style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}>
-                  <Pause size={30} />
-                </div>
+                <IconTile tone="forest" size={88} className="dw-float"><Flame size={36} /></IconTile>
                 <span className="font-mono font-bold text-xl tabular-nums" style={{ color: 'var(--ink)' }}>{fmtHMS(activeSec)}</span>
-                <div className="flex items-center gap-1.5" title={`${breakCount}/${maxAllowedBreaks} breaks`}>
+                <div className="flex items-center gap-1.5" title={`${breakCount}/${maxAllowedBreaks} breaks used`}>
+                  <Coffee size={14} style={{ color: 'var(--ink-3)' }} />
                   {Array.from({ length: maxAllowedBreaks }).map((_, i) => (
                     <span
                       key={i}
@@ -491,32 +506,23 @@ export default function DeepWorkPage() {
                 </div>
               </>
             ) : (
-              <div className="w-20 h-20 rounded-full flex items-center justify-center dw-float" style={{ background: 'var(--surface-2)', color: 'var(--ink-4)' }}>
-                <Pause size={30} />
-              </div>
+              <IconTile tone="soft" size={88} className="dw-float"><Hourglass size={34} /></IconTile>
             )}
-            <Caption>{currentSession?.status === 'BREAK' ? 'On break · tap to resume' : isRunning ? 'Focus time · breaks used' : 'No active session'}</Caption>
           </div>
 
           {/* ALARMS */}
           <div
-            className="dw-card p-6 min-h-[250px] flex flex-col items-center justify-center gap-5"
+            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5"
             style={{
               ['--i' as any]: 3,
               background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : undefined,
               borderColor: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.4)' : undefined,
             }}
-            title={currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert active') : 'Alarms'}
           >
-            <div
-              className={`w-20 h-20 rounded-full flex items-center justify-center ${currentSession?.alarmActive ? 'dw-shake' : 'dw-float'}`}
-              style={{
-                background: currentSession?.alarmActive ? 'var(--error)' : 'var(--surface-2)',
-                color: currentSession?.alarmActive ? '#fff' : 'var(--ink-3)',
-              }}
-            >
-              {currentSession?.alarmActive ? <Volume2 size={30} /> : <Bell size={28} />}
-            </div>
+            <CardHeading>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
+            <IconTile tone={currentSession?.alarmActive ? 'rose' : 'soft'} size={88} className={currentSession?.alarmActive ? 'dw-shake' : 'dw-float'}>
+              {currentSession?.alarmActive ? <BellRing size={36} /> : <Bell size={34} />}
+            </IconTile>
             <div className="flex items-end gap-5">
               <span className="font-extrabold text-4xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
                 {alarmCountUp}
@@ -525,7 +531,6 @@ export default function DeepWorkPage() {
                 <Clock size={14} />{alarmDurationMinutes}m
               </span>
             </div>
-            <Caption>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms · count & total time'}</Caption>
             {currentSession?.alarmActive && (
               <button
                 type="button"
@@ -533,25 +538,26 @@ export default function DeepWorkPage() {
                 disabled={stoppingSound}
                 aria-label="Stop sound"
                 title="Stop sound"
-                className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                className="absolute top-3 left-4 w-9 h-9 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-110 active:scale-95"
                 style={{ background: 'var(--error)' }}
               >
-                <VolumeX size={18} />
+                <VolumeX size={16} />
               </button>
             )}
           </div>
 
           {/* MODERATOR */}
-          <div className="dw-card p-6 min-h-[250px] flex flex-col items-center justify-center gap-6" style={{ ['--i' as any]: 4 }} title="Moderator">
-            <div className="relative w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}>
-              <Mic size={28} />
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2" style={{ borderColor: 'var(--surface)' }} />
+          <div className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
+            <CardHeading dot="on">Moderator</CardHeading>
+            <div className="relative">
+              <IconTile tone="forest" size={88}><AudioLines size={36} /></IconTile>
+              <span className="absolute inset-0 rounded-[30px] dw-halo pointer-events-none" aria-hidden="true" />
             </div>
-            <div className="flex items-end gap-1 h-8" aria-hidden="true">
+            <div className="flex items-end gap-1 h-7" aria-hidden="true">
               {[0, 1, 2, 3, 4, 5, 6].map(i => (
                 <span
                   key={i}
-                  className="dw-bar w-1.5 h-8 rounded-full"
+                  className="dw-bar w-1.5 h-7 rounded-full"
                   style={{
                     background: 'var(--sage)',
                     animationDelay: `${i * 0.12}s`,
@@ -560,14 +566,13 @@ export default function DeepWorkPage() {
                 />
               ))}
             </div>
-            <Caption>Moderator · speak to desk</Caption>
             <div className="flex items-center gap-1.5 w-full">
               <input
                 type="text"
                 value={customVoice}
                 onChange={e => setCustomVoice(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
-                placeholder="…"
+                placeholder="Say something to the desk…"
                 aria-label="Message for the desk speaker"
                 className="input-base text-xs flex-1 py-2 px-4 rounded-2xl min-w-0"
               />
