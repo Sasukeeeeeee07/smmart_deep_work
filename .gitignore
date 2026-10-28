@@ -6,3 +6,6 @@ node_modules/
 *.blend@
 dist/
 build/
+
+# Reference screen recordings
+animation/models/*.mov
