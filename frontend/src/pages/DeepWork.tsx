@@ -94,7 +94,6 @@ export default function DeepWorkPage() {
 
   // Action states
   const [starting, setStarting]       = useState(false);
-  const [resuming, setResuming]       = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
   const [extending, setExtending]     = useState(false);
@@ -311,29 +310,6 @@ export default function DeepWorkPage() {
     }
   };
 
-  const handleResumeSession = async () => {
-    if (!currentSession) return;
-    setResuming(true);
-    try {
-      if (['BREAK', 'DYING'].includes(currentSession.status)) {
-        await sessionService.resumeSession(selectedUid);
-      }
-      const live = await sessionService.getCurrentSession(selectedUid);
-      if (live) {
-        setCurrentSession(live);
-        if (typeof live.activeSeconds === 'number') {
-          setServerAnchor({ activeSec: live.activeSeconds, fetchedAt: Date.now() });
-        }
-      }
-      await loadData();
-    } catch (err: any) {
-      console.error('Failed to resume session', err);
-      alert(err.response?.data?.message || err.response?.data?.error || 'Failed to resume session');
-    } finally {
-      setResuming(false);
-    }
-  };
-
   const handleStopSound = async () => {
     setStoppingSound(true);
     try {
@@ -496,23 +472,20 @@ export default function DeepWorkPage() {
 
           {/* FOCUS TIME / BREAKS */}
           <div
-            onClick={currentSession?.status === 'BREAK' && !resuming ? handleResumeSession : undefined}
-            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4 ${currentSession?.status === 'BREAK' ? 'cursor-pointer' : ''}`}
+            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4"
             style={{
               ['--i' as any]: 2,
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
             }}
           >
             <CardHeading>
-              {currentSession?.status === 'BREAK' ? 'On break · tap to resume' : isRunning ? 'Focus time' : 'No session'}
+              {currentSession?.status === 'BREAK' ? 'On break' : isRunning ? 'Focus time' : 'No session'}
             </CardHeading>
 
             {currentSession?.status === 'BREAK' ? (
-              <button type="button" disabled={resuming} aria-label="Resume session" className="cursor-pointer rounded-[30px] dw-halo-warn transition-transform duration-200 hover:scale-110 active:scale-95">
-                <IconTile tone="amber" size={88}>
-                  {resuming ? <Timer size={34} className="animate-spin-slow" /> : <Play size={34} fill="currentColor" className="ml-1" />}
-                </IconTile>
-              </button>
+              <IconTile tone="amber" size={88} className="dw-float">
+                <Coffee size={36} />
+              </IconTile>
             ) : (
               <IconTile tone={isRunning ? 'forest' : 'soft'} size={88} className="dw-float">
                 <Focus size={36} />
