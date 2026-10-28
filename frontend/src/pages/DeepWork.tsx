@@ -7,7 +7,7 @@ import {
   Timer, Play, AlertTriangle,
   VolumeX, Star,
   Clock, Activity,
-  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Flame, Unplug, Hourglass, AudioLines
+  History, X, Zap, Bell, BellRing, Coffee, Send, Check, Flame, PowerOff, Hourglass, AudioLines
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -71,10 +71,10 @@ function IconTile({ tone, size, className = '', children }: { tone: keyof typeof
   );
 }
 
-/** Card heading pinned to the top-right corner, optionally with a status dot. */
-function CardHeading({ children, dot, pulse }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean }) {
+/** Card heading pinned to the top corner (right by default), optionally with a status dot. */
+function CardHeading({ children, dot, pulse, left }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean; left?: boolean }) {
   return (
-    <div className="absolute top-4 right-5 flex items-center gap-2 max-w-[75%]">
+    <div className={`absolute top-4 flex items-center gap-2 max-w-[75%] ${left ? 'left-5' : 'right-5'}`}>
       {dot && (
         <span className={`w-2 h-2 rounded-full shrink-0 ${dot === 'on' ? 'bg-emerald-500' : 'bg-rose-500'} ${pulse ? 'animate-pulse-gentle' : ''}`} aria-hidden="true" />
       )}
@@ -448,28 +448,48 @@ export default function DeepWorkPage() {
             className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
             style={{ ['--i' as any]: 1 }}
           >
-            <CardHeading dot={isRunning || isDeviceOnline ? 'on' : 'off'} pulse={!!isRunning}>
-              {isRunning ? 'Time left' : !isDeviceOnline ? 'Device offline' : 'Start session'}
+            <CardHeading left dot={isRunning || isDeviceOnline ? 'on' : 'off'} pulse={!!isRunning}>
+              {isRunning ? 'Live session' : isDeviceOnline ? 'Ready' : 'Offline'}
             </CardHeading>
-            <Ring
-              size={150}
-              progress={isRunning ? activeSec / Math.max(targetSec, 1) : 0}
-              color={remainingSec <= 15 * 60 && isRunning ? 'var(--amber-w)' : 'var(--forest)'}
-            >
+            <div className="flex flex-col items-center gap-4">
+              <Ring
+                size={150}
+                progress={isRunning ? activeSec / Math.max(targetSec, 1) : 0}
+                color={remainingSec <= 15 * 60 && isRunning ? 'var(--amber-w)' : 'var(--forest)'}
+              >
+                {isRunning ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-mono font-bold text-xl tabular-nums" style={{ color: 'var(--ink)' }}>
+                      {fmtHMS(remainingSec)}
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>left</span>
+                  </div>
+                ) : !isDeviceOnline ? (
+                  <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
+                ) : (
+                  <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
+                    <IconTile tone="forest" size={68}>
+                      {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
+                    </IconTile>
+                  </button>
+                )}
+              </Ring>
               {isRunning ? (
-                <span className="font-mono font-bold text-lg tabular-nums" style={{ color: 'var(--ink)' }}>
-                  {fmtHMS(remainingSec)}
-                </span>
+                <div className="flex items-center gap-1.5 text-xs font-bold tabular-nums" style={{ color: 'var(--ink-2)' }}>
+                  <Timer size={13} style={{ color: 'var(--forest)' }} />
+                  <span className="font-mono">{fmtHMS(activeSec)}</span>
+                  <span style={{ color: 'var(--ink-4)' }}>/ {targetMin}m</span>
+                </div>
               ) : !isDeviceOnline ? (
-                <IconTile tone="rose-soft" size={68} className="dw-float"><Unplug size={28} /></IconTile>
+                <span className="text-base font-extrabold tracking-tight" style={{ color: '#BE123C', fontFamily: 'DM Sans, sans-serif' }}>
+                  Device offline
+                </span>
               ) : (
-                <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
-                  <IconTile tone="forest" size={68}>
-                    {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
-                  </IconTile>
-                </button>
+                <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--forest)', fontFamily: 'DM Sans, sans-serif' }}>
+                  {starting ? 'Starting…' : 'Start session'}
+                </span>
               )}
-            </Ring>
+            </div>
           </div>
 
           {/* LIVE / BREAK */}
