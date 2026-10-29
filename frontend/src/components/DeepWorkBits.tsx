@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 /** Animates a number toward `target` (eases from its previous value). */
 export function useCountUp(target: number, ms = 800) {
@@ -26,26 +26,17 @@ export function useCountUp(target: number, ms = 800) {
 
 /** Circular progress ring with children centred inside. */
 export function Ring({
-  size = 140, stroke = 10, progress, color = 'var(--forest)', track = 'var(--surface-3)', gradient, children,
-}: { size?: number; stroke?: number; progress: number; color?: string; track?: string; gradient?: [string, string]; children?: ReactNode }) {
-  const gid = useId();
+  size = 140, stroke = 10, progress, color = 'var(--forest)', track = 'var(--surface-3)', children,
+}: { size?: number; stroke?: number; progress: number; color?: string; track?: string; children?: ReactNode }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const p = Math.min(Math.max(progress, 0), 1);
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden="true">
-        {gradient && (
-          <defs>
-            <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={gradient[0]} />
-              <stop offset="100%" stopColor={gradient[1]} />
-            </linearGradient>
-          </defs>
-        )}
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={gradient ? `url(#${gid})` : color} strokeWidth={stroke}
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - p)}
           style={{ transition: 'stroke-dashoffset 1s var(--ease-out), stroke 400ms' }}
         />
