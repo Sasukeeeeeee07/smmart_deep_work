@@ -265,6 +265,26 @@ const Dashboard = () => {
   const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
   const [avgScore, setAvgScore]       = useState(0);
   const [breakDays, setBreakDays] = useState<{ label: string; date: Date; minutes: number }[]>([]);
+  // "How much time did I waste yesterday?" typed by the user (hours / minutes), kept per calendar day
+  const yesterdayKey = (() => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    return `smmart_wasted_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const [wastedH, setWastedH] = useState('');
+  const [wastedM, setWastedM] = useState('');
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(yesterdayKey);
+      if (raw) { const v = JSON.parse(raw); setWastedH(v.h ?? ''); setWastedM(v.m ?? ''); }
+    } catch { /* ignore */ }
+  }, [yesterdayKey]);
+  const updateWasted = (h: string, m: string) => {
+    setWastedH(h); setWastedM(m);
+    try {
+      if (h === '' && m === '') localStorage.removeItem(yesterdayKey);
+      else localStorage.setItem(yesterdayKey, JSON.stringify({ h, m }));
+    } catch { /* ignore */ }
+  };
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
   const [activeSession, setActiveSession] = useState<any>(() => {
@@ -697,16 +717,28 @@ const Dashboard = () => {
         const income = readAnnualIncome();
         const tv = income > 0 ? timeValue(income) : null;
         const yesterday = breakDays.length ? breakDays[breakDays.length - 1] : null;
-        const yMin = yesterday?.minutes ?? 0;
-        const yLabel = (yesterday?.date ?? new Date()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const autoMin = yesterday?.minutes ?? 0;
+        // What the user typed wins over the tracked break time
+        const typed = wastedH !== '' || wastedM !== '';
+        const typedMin = Math.max(0, Math.round((parseFloat(wastedH) || 0) * 60 + (parseFloat(wastedM) || 0)));
+        const yMin = typed ? typedMin : autoMin;
+        const yDate = yesterday?.date ?? (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d; })();
+        const yLabel = yDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const yHrs = Math.floor(yMin / 60), yRem = yMin % 60;
+        const yText = yHrs > 0 ? `${yHrs} hr ${yRem} min` : `${yMin} min`;
         // Same days as the weekly graph above (live last 7 days, or the week picked on the monthly graph)
-        const chartData = activeWeeklyData.map(d => ({
-          label: d.name,
-          date: new Date(`${d.date}T00:00:00`),
-          minutes: d.breaks || 0,
-          lost: tv ? Math.round((d.breaks || 0) * tv.perMinute) : 0,
-        }));
+        const chartData = activeWeeklyData.map((d, i, arr) => {
+          const isYesterdayBar = !selectedWeek && i === arr.length - 2;
+          const minutes = isYesterdayBar && typed ? typedMin : (d.breaks || 0);
+          return {
+            label: d.name,
+            date: new Date(`${d.date}T00:00:00`),
+            minutes,
+            lost: tv ? Math.round(minutes * tv.perMinute) : 0,
+          };
+        });
         const todayHighlight = !selectedWeek;
+        const inputCls = 'w-16 px-2.5 py-2 rounded-xl border text-center text-base font-extrabold tabular-nums outline-none focus:ring-2 focus:ring-red-300';
         const rows = tv ? [
           { label: 'My per year income', value: formatRupees(income) },
           { label: 'My per day income', value: formatRupees(tv.perDay) },
@@ -744,8 +776,43 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="rounded-2xl p-4 border" style={{ background: 'rgba(182, 83, 75, 0.06)', borderColor: 'rgba(182, 83, 75, 0.25)' }}>
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
+                      How much time did you waste yesterday? ({yLabel})
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap mb-3">
+                      <input
+                        type="number" inputMode="numeric" min={0} max={24} step={1}
+                        value={wastedH}
+                        onChange={e => updateWasted(e.target.value, wastedM)}
+                        placeholder="0"
+                        aria-label="Hours wasted yesterday"
+                        className={inputCls}
+                        style={{ background: 'var(--surface)', borderColor: 'rgba(182, 83, 75, 0.35)', color: 'var(--ink)' }}
+                      />
+                      <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>hr</span>
+                      <input
+                        type="number" inputMode="numeric" min={0} max={59} step={1}
+                        value={wastedM}
+                        onChange={e => updateWasted(wastedH, e.target.value)}
+                        placeholder={typed ? '0' : String(autoMin)}
+                        aria-label="Minutes wasted yesterday"
+                        className={inputCls}
+                        style={{ background: 'var(--surface)', borderColor: 'rgba(182, 83, 75, 0.35)', color: 'var(--ink)' }}
+                      />
+                      <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>min</span>
+                      {typed && (
+                        <button
+                          type="button"
+                          onClick={() => updateWasted('', '')}
+                          className="ml-1 text-xs font-bold underline cursor-pointer"
+                          style={{ color: 'var(--ink-3)' }}
+                        >
+                          Use tracked ({autoMin} min)
+                        </button>
+                      )}
+                    </div>
                     <p className="text-base font-extrabold" style={{ color: 'var(--error)' }}>
-                      I wasted <span className="tabular-nums">{yMin}</span> minutes yesterday ({yLabel})
+                      I wasted <span className="tabular-nums">{yText}</span> yesterday ({yLabel})
                     </p>
                     <p className="text-sm font-extrabold uppercase tracking-wider mt-2" style={{ color: 'var(--error)' }}>Time lost = Money lost</p>
                     <p className="text-base font-extrabold mt-2" style={{ color: 'var(--error)' }}>
