@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import RunnerCanvas, { type RunnerMode } from './RunnerCanvas';
+import RiceRunner, { type RunnerMode } from './RiceRunner';
 
 /**
  * Drives the runner along the productivity-spike mountain line.
@@ -77,7 +77,7 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
         const f = dir < 0;
         if (m !== curMode) { curMode = m; setMode(m); }
         if (f !== curFlip) { curFlip = f; setFlip(f); }
-        s.ang += (p.angle * 0.85 - s.ang) * (1 - Math.exp(-dt * 12));
+        s.ang += (p.angle * 0.8 - s.ang) * (1 - Math.exp(-dt * 12));
         if (remaining - step < 0.01) {
           arrived = true; s.s = goal; s.v = 0;
           curMode = rest; setMode(rest); setFlip(false);
@@ -104,7 +104,7 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
         {moving && [0, 1, 2].map(i => (
           <span key={i} className="dw-dust" style={{ animationDelay: `${i * 0.22}s` }} />
         ))}
-        <RunnerCanvas width={90} height={96} mode={mode} />
+        <RiceRunner mode={mode} width={28} />
       </div>
     </div>
   );
