@@ -42,7 +42,7 @@ function ChipIcon({ icon, tone, label }: { icon: React.ReactNode; tone: keyof ty
       <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: t.bg, color: t.fg }}>
         {icon}
       </div>
-      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>{label}</span>
+      <span className="text-sm font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{label}</span>
     </div>
   );
 }

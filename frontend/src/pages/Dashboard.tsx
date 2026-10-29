@@ -729,11 +729,11 @@ const Dashboard = () => {
                 On-going Deepwork Session ({activeSession.status === 'BREAK' ? 'On Break' : 'Active'})
               </span>
               <span
-                className="text-xs font-extrabold uppercase tracking-wide px-3.5 py-1.5 rounded-full ml-1 inline-flex items-center gap-1.5 shadow-lg"
-                style={{ background: '#FDE047', color: '#14532D', boxShadow: '0 0 0 3px rgba(253, 224, 71, 0.35), 0 6px 16px -4px rgba(253, 224, 71, 0.7)' }}
+                className="animate-pulse text-sm md:text-base font-black uppercase tracking-wide px-5 py-2 rounded-full ml-1 inline-flex items-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #FEF08A 0%, #FACC15 100%)', color: '#052E16', boxShadow: '0 0 0 4px rgba(250, 204, 21, 0.45), 0 0 28px 6px rgba(250, 204, 21, 0.75), 0 8px 18px -4px rgba(0,0,0,0.35)' }}
               >
                 Return to Session
-                <ArrowRight size={14} strokeWidth={3} />
+                <ArrowRight size={18} strokeWidth={3.5} />
               </span>
             </>
           ) : (
