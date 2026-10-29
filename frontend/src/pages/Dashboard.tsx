@@ -728,10 +728,13 @@ const Dashboard = () => {
               <span className="tracking-tight text-white font-extrabold uppercase">
                 On-going Deepwork Session ({activeSession.status === 'BREAK' ? 'On Break' : 'Active'})
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 ml-1">
+              <span
+                className="text-xs font-extrabold uppercase tracking-wide px-3.5 py-1.5 rounded-full ml-1 inline-flex items-center gap-1.5 shadow-lg"
+                style={{ background: '#FDE047', color: '#14532D', boxShadow: '0 0 0 3px rgba(253, 224, 71, 0.35), 0 6px 16px -4px rgba(253, 224, 71, 0.7)' }}
+              >
                 Return to Session
+                <ArrowRight size={14} strokeWidth={3} />
               </span>
-              <ArrowRight size={18} className="text-emerald-300 ml-1" />
             </>
           ) : (
             <>
