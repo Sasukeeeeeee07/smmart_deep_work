@@ -724,11 +724,19 @@ const Dashboard = () => {
         ] : [];
         return (
           <div className="card p-6 md:p-7" id="time-currency">
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(184, 121, 57, 0.16)', color: 'var(--amber-w)' }}>
-                <Coins size={18} />
+            <div className="mb-5">
+              {/* Highlighted header badge, same style as the graph badges */}
+              <div
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-red-950 border border-red-300"
+                style={{
+                  background: 'linear-gradient(135deg, #FECACA 0%, #FCA5A5 50%, #F87171 100%)',
+                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-800 animate-ping" />
+                <Coins size={14} />
+                <span className="tracking-wide">YOUR TIME CURRENCY</span>
               </div>
-              <h2 className="text-base font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>Your Time Currency</h2>
             </div>
             {tv ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
