@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save } from 'lucide-react';
+import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save, Coins } from 'lucide-react';
+import { formatRupees, timeValue, WORKING_DAYS_PER_YEAR, WORKING_HOURS_PER_DAY } from '../utils/timeCurrency';
 
 export default function Profile() {
   const userStr = localStorage.getItem('user');
@@ -15,6 +16,7 @@ export default function Profile() {
     dailyTargetHours: initialUser?.dailyTargetHours || '4',
     preferredBreakInterval: initialUser?.preferredBreakInterval || '45',
     focusMotto: initialUser?.focusMotto || 'Deep work is the superpower of the 21st century.',
+    annualIncome: '',
   });
 
   const [saved, setSaved] = useState(false);
@@ -231,6 +233,34 @@ export default function Profile() {
               <option value="90">90 minutes ultradian block</option>
             </select>
           </div>
+        </div>
+
+        {/* Annual income -> value of your time */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
+            <Coins size={13} />
+            <span>Annual Income (₹)</span>
+          </label>
+          <input
+            type="number"
+            name="annualIncome"
+            min="0"
+            inputMode="numeric"
+            value={formData.annualIncome}
+            onChange={handleChange}
+            className="input-base text-xs py-2 px-3.5 rounded-xl w-full"
+            placeholder="e.g. 1000000"
+          />
+          {Number(formData.annualIncome) > 0 && (() => {
+            const tv = timeValue(Number(formData.annualIncome));
+            return (
+              <p className="text-xs font-semibold flex items-center gap-4 flex-wrap pt-1" style={{ color: 'var(--ink-2)' }}>
+                <span>Per day: <strong style={{ color: 'var(--ink)' }}>{formatRupees(tv.perDay)}</strong></span>
+                <span>Per minute: <strong style={{ color: 'var(--ink)' }}>{formatRupees(tv.perMinute, 2)}</strong></span>
+                <span style={{ color: 'var(--ink-4)' }}>({WORKING_DAYS_PER_YEAR} working days × {WORKING_HOURS_PER_DAY} hrs)</span>
+              </p>
+            );
+          })()}
         </div>
 
         {/* Focus Motto / Vision */}

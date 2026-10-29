@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/api';
-import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
+import { TrendingUp, Timer, ArrowRight, Coins } from 'lucide-react';
+import { formatRupees, readAnnualIncome, timeValue } from '../utils/timeCurrency';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -263,6 +264,7 @@ const Dashboard = () => {
   const [weeklyData, setWeeklyData]   = useState<DayData[]>([]);
   const [monthlyData, setMonthlyData] = useState<WeekData[]>([]);
   const [avgScore, setAvgScore]       = useState(0);
+  const [yesterdayBreakMin, setYesterdayBreakMin] = useState(0);
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
   const [activeSession, setActiveSession] = useState<any>(() => {
@@ -361,6 +363,11 @@ const Dashboard = () => {
 
         const clientAnalytics = computeClientAnalytics(sessionsToAnalyze);
 
+        // Break minutes yesterday (local calendar day) for the Time Currency card
+        const y = new Date(); y.setDate(y.getDate() - 1);
+        const sameLocalDay = (t: any) => { const d = new Date(t); return d.getFullYear() === y.getFullYear() && d.getMonth() === y.getMonth() && d.getDate() === y.getDate(); };
+        setYesterdayBreakMin(sessionsToAnalyze.filter((s: any) => sameLocalDay(s.startTime)).reduce((a: number, s: any) => a + (s.totalBreakMinutes || 0), 0));
+
         let finalWeeklyData = clientAnalytics.weeklyData;
         let finalMonthlyData = clientAnalytics.monthlyData;
         let finalAvgScore = clientAnalytics.averageMonthlyScore;
@@ -419,6 +426,64 @@ const Dashboard = () => {
           </span>
         </div>
       </div>
+
+      {/* ── Your Time Currency ── */}
+      {(() => {
+        const income = readAnnualIncome();
+        const tv = income > 0 ? timeValue(income) : null;
+        const yDate = new Date(); yDate.setDate(yDate.getDate() - 1);
+        const yLabel = yDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        return (
+          <div className="card p-6 md:p-7" id="time-currency">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(184, 121, 57, 0.16)', color: 'var(--amber-w)' }}>
+                <Coins size={18} />
+              </div>
+              <h2 className="text-base font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>Your Time Currency</h2>
+            </div>
+            {tv ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>Per day</p>
+                    <p className="text-2xl md:text-3xl font-extrabold tabular-nums" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{formatRupees(tv.perDay)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>Per minute</p>
+                    <p className="text-2xl md:text-3xl font-extrabold tabular-nums" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{formatRupees(tv.perMinute, 2)}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-4 border" style={{ background: 'rgba(182, 83, 75, 0.06)', borderColor: 'rgba(182, 83, 75, 0.25)' }}>
+                  <p className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>
+                    I wasted <span className="font-extrabold tabular-nums" style={{ color: 'var(--ink)' }}>{yesterdayBreakMin}</span> minutes yesterday
+                  </p>
+                  <p className="text-xs font-semibold mt-1" style={{ color: 'var(--ink-3)' }}>Time lost = money lost</p>
+                  <p className="text-sm font-bold mt-2" style={{ color: 'var(--ink-2)' }}>
+                    Money lost on {yLabel} ={' '}
+                    <span className="text-xl font-extrabold tabular-nums" style={{ color: 'var(--error)', fontFamily: 'DM Sans, sans-serif' }}>
+                      {formatRupees(yesterdayBreakMin * tv.perMinute)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>
+                  Add your annual income to see what a minute of your time is worth.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white cursor-pointer inline-flex items-center gap-1.5"
+                  style={{ background: 'var(--forest)' }}
+                >
+                  Add in Profile <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
