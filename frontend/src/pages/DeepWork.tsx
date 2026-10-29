@@ -386,12 +386,6 @@ export default function DeepWorkPage() {
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pb-1 dw-stagger" style={{ ['--i' as any]: 0 }}>
           <span aria-hidden="true" />
           <div className="flex flex-col items-center gap-2">
-            <img
-              src="/smmart-logo.png"
-              alt="smmart deep work"
-              decoding="async"
-              className="h-16 md:h-20 w-auto object-contain"
-            />
             <h1
               className="dw-grad text-2xl md:text-3xl font-extrabold tracking-tight text-center"
               style={{ fontFamily: 'DM Sans, sans-serif', ['--acc-d' as any]: '#047857', ['--acc2-d' as any]: '#4338CA' }}
