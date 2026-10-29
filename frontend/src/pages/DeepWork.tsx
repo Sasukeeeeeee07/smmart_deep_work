@@ -579,7 +579,7 @@ export default function DeepWorkPage() {
           </div>
           {/* MODERATOR */}
           <div className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
-            <CardHeading dot="on">Moderator</CardHeading>
+            <CardHeading left big dot="on">Moderator Intervention</CardHeading>
             <div className="relative">
               <IconTile tone="forest" size={88}><AudioLines size={36} /></IconTile>
               <span className="absolute inset-0 rounded-[30px] dw-halo pointer-events-none" aria-hidden="true" />
@@ -712,7 +712,7 @@ export default function DeepWorkPage() {
           {/* RATING */}
           <div className="dw-card p-6 flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
             <div className="absolute top-6 left-6">
-              <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
+              <ChipIcon icon={<Star size={16} />} tone="indigo" label="Self Rating" />
             </div>
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map(star => {
