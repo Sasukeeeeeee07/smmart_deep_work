@@ -18,8 +18,9 @@ export function readAnnualIncome(): number {
 
 export function timeValue(annualIncome: number) {
   const perDay = annualIncome / WORKING_DAYS_PER_YEAR;
-  const perMinute = perDay / (WORKING_HOURS_PER_DAY * 60);
-  return { perDay, perMinute };
+  const perHour = perDay / WORKING_HOURS_PER_DAY;
+  const perMinute = perHour / 60;
+  return { perDay, perHour, perMinute };
 }
 
 /** ₹ with Indian digit grouping; whole rupees unless the value is small. */

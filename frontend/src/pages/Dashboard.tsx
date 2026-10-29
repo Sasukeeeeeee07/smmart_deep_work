@@ -719,6 +719,7 @@ const Dashboard = () => {
         const rows = tv ? [
           { label: 'My per year income', value: formatRupees(income) },
           { label: 'My per day income', value: formatRupees(tv.perDay) },
+          { label: 'My per hour income', value: formatRupees(tv.perHour) },
           { label: 'My per minute income', value: formatRupees(tv.perMinute, 2) },
         ] : [];
         return (
@@ -744,13 +745,13 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="rounded-2xl p-4 border" style={{ background: 'rgba(182, 83, 75, 0.06)', borderColor: 'rgba(182, 83, 75, 0.25)' }}>
-                    <p className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>
-                      I wasted <span className="font-extrabold tabular-nums" style={{ color: 'var(--ink)' }}>{yMin}</span> minutes yesterday ({yLabel})
+                    <p className="text-base font-extrabold" style={{ color: 'var(--error)' }}>
+                      I wasted <span className="tabular-nums">{yMin}</span> minutes yesterday ({yLabel})
                     </p>
-                    <p className="text-xs font-extrabold uppercase tracking-wider mt-2" style={{ color: 'var(--ink-3)' }}>Time lost = Money lost</p>
-                    <p className="text-sm font-bold mt-2" style={{ color: 'var(--ink-2)' }}>
+                    <p className="text-sm font-extrabold uppercase tracking-wider mt-2" style={{ color: 'var(--error)' }}>Time lost = Money lost</p>
+                    <p className="text-base font-extrabold mt-2" style={{ color: 'var(--error)' }}>
                       Money lost on {yLabel} ={' '}
-                      <span className="text-2xl font-extrabold tabular-nums" style={{ color: 'var(--error)', fontFamily: 'DM Sans, sans-serif' }}>
+                      <span className="text-3xl font-extrabold tabular-nums" style={{ fontFamily: 'DM Sans, sans-serif' }}>
                         {formatRupees(yMin * tv.perMinute)}
                       </span>
                     </p>
