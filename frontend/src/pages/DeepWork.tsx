@@ -383,12 +383,20 @@ export default function DeepWorkPage() {
         {/* Header: title + history */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pb-1 dw-stagger" style={{ ['--i' as any]: 0 }}>
           <span aria-hidden="true" />
-          <h1
-            className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
-            style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-          >
-            Deepwork Session
-          </h1>
+          <div className="flex flex-col items-center gap-2">
+            <img
+              src="/smmart-logo.png"
+              alt="smmart deep work"
+              decoding="async"
+              className="h-16 md:h-20 w-auto object-contain"
+            />
+            <h1
+              className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
+              style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+            >
+              Deepwork Session
+            </h1>
+          </div>
           <button
             onClick={() => setShowHistoryModal(true)}
             className="justify-self-end relative w-11 h-11 rounded-2xl flex items-center justify-center border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--forest)] active:scale-95"
