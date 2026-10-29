@@ -107,6 +107,7 @@ int targetDurationMinutes = 120; // 2 hrs default
 bool extensionPromptActive = false;
 bool extensionPromptShowOptions = false;
 bool extensionPromptDismissed = false;
+unsigned long lastExtensionTapMs = 0; // debounce for a bouncy touchscreen
 bool sessionCompletedShown = false;
 
 // Sound & Alarm System
@@ -2691,21 +2692,41 @@ void handleTouch() {
       }
 
       if (chosenMins > 0) {
-        targetDurationMinutes += chosenMins;
+        // Ignore bounced / repeated taps for 3 s.
+        if (lastExtensionTapMs != 0 && millis() - lastExtensionTapMs < 3000) return;
+        lastExtensionTapMs = millis();
+
         extensionPromptActive = false;
         extensionPromptShowOptions = false;
         extensionPromptDismissed = false; // reset so we can prompt again at the next 15-min mark
-        Serial.printf("[EXTENSION] Added +%d mins! New target: %d mins\n", chosenMins, targetDurationMinutes);
-        drawHomePage(); // Immediate UI update
+
+        // The backend owns the session target: ask it to extend, then adopt the
+        // total it answers with, so the device and the web always show the same time.
+        bool applied = false;
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/extend");
-          http.setTimeout(1500);
+          http.setTimeout(4000);
           http.addHeader("Content-Type", "application/json");
-          http.POST("{\"extensionMinutes\":" + String(chosenMins) + "}");
+          int code = http.POST("{\"extensionMinutes\":" + String(chosenMins) + ",\"source\":\"device\"}");
+          if (code == 200) {
+            JsonDocument extDoc;
+            if (!deserializeJson(extDoc, http.getString())) {
+              int beTarget = extDoc["data"]["targetDurationMinutes"] | 0;
+              if (beTarget > 0) {
+                targetDurationMinutes = beTarget;
+                applied = true;
+              }
+            }
+          }
           http.end();
-          vTaskDelay(pdMS_TO_TICKS(1));
         }
+        if (applied) {
+          Serial.printf("[EXTENSION] Server target is now %d mins (requested +%d)\n", targetDurationMinutes, chosenMins);
+        } else {
+          Serial.println("[EXTENSION] Not applied: server unreachable. Try again.");
+        }
+        drawHomePage();
         return;
       }
     }

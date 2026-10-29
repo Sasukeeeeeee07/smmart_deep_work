@@ -506,7 +506,7 @@ export const endSession = async (req: Request, res: Response) => {
 // =====================================================
 export const extendSession = async (req: Request, res: Response) => {
   try {
-    const { extensionMinutes = 15 } = req.body as { extensionMinutes: number };
+    const { extensionMinutes = 15, source } = req.body as { extensionMinutes: number; source?: string };
     const mins = Number(extensionMinutes) || 15;
 
     const session = await DeepWorkSession.findOne({
@@ -516,6 +516,26 @@ export const extendSession = async (req: Request, res: Response) => {
 
     if (!session) {
       return res.status(404).json({ success: false, error: 'No active session to extend' });
+    }
+
+    // The server is the single source of truth for the session target. The
+    // device touchscreen can bounce, so a device-origin extension that repeats
+    // within a few seconds of the last one is treated as a duplicate tap and
+    // ignored; the current (authoritative) target is returned either way.
+    if (source === 'device') {
+      const lastExt = [...(session.moderationLog || [])].reverse()
+        .find(m => m.type === 'COMMAND' && String(m.message).startsWith('Session extended'));
+      if (lastExt && Date.now() - new Date(lastExt.timestamp).getTime() < 4000) {
+        console.log(`[SESSION] Ignored duplicate device extend for ${session._id}`);
+        return res.json({
+          success: true,
+          data: {
+            targetDurationMinutes: session.targetDurationMinutes,
+            extensionMinutes: session.extensionMinutes,
+            duplicate: true,
+          }
+        });
+      }
     }
 
     session.targetDurationMinutes = (session.targetDurationMinutes || 120) + mins;
