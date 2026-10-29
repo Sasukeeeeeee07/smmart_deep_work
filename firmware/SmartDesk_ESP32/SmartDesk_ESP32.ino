@@ -106,7 +106,7 @@ bool sessionDyingShown = false;
 int targetDurationMinutes = 120; // 2 hrs default
 bool extensionPromptActive = false;
 bool extensionPromptShowOptions = false;
-bool extensionPromptDismissed = false;
+int extensionPromptsShown = 0; // 0 = none yet, 1 = shown at 15 min, 2 = shown at 5 min (max 2 per end time)
 unsigned long lastExtensionTapMs = 0; // debounce for a bouncy touchscreen
 bool sessionCompletedShown = false;
 
@@ -1710,7 +1710,12 @@ void updateHomePageLiveValues() {
     }
 
     // Check 15-minute extension prompt trigger
-    if (remainingSec <= 900 && remainingSec > 0 && !extensionPromptDismissed && !extensionPromptActive && (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK)) {
+    // Extension pop-up appears at most twice per end time: at 15 min left, and
+    // (only if the user said No / cancelled) again at 5 min left.
+    unsigned long promptAtSec = (extensionPromptsShown == 0) ? 900UL : 300UL;
+    if (extensionPromptsShown < 2 && remainingSec <= promptAtSec && remainingSec > 0 && !extensionPromptActive && (sessionState == SESSION_ACTIVE || sessionState == SESSION_BREAK)) {
+      // If we only get here inside the last 5 min, that counts as both prompts.
+      extensionPromptsShown = (remainingSec <= 300UL) ? 2 : extensionPromptsShown + 1;
       extensionPromptActive = true;
       extensionPromptShowOptions = false;
       drawExtensionPrompt();
@@ -2406,7 +2411,7 @@ void startSessionFromDevice() {
   targetDurationMinutes = 120; // 2 hrs default
   extensionPromptActive = false;
   extensionPromptShowOptions = false;
-  extensionPromptDismissed = false;
+  extensionPromptsShown = 0;
   sessionCompletedShown = false;
   soundAlarmActive = false;
   alarmScreenDrawn = false;
@@ -2667,7 +2672,6 @@ void handleTouch() {
       }
       // NO button: X: 170-290, Y: 90-150
       if (tX >= 170 && tX <= 290 && tY >= 90 && tY <= 150) {
-        extensionPromptDismissed = true;
         extensionPromptActive = false;
         Serial.println("[EXTENSION] User chose NO extension. Continuing 2h countdown.");
         drawHomePage();
@@ -2698,7 +2702,7 @@ void handleTouch() {
 
         extensionPromptActive = false;
         extensionPromptShowOptions = false;
-        extensionPromptDismissed = false; // reset so we can prompt again at the next 15-min mark
+        extensionPromptsShown = 0; // new end time: it gets its own 15-min and 5-min prompts
 
         // The backend owns the session target: ask it to extend, then adopt the
         // total it answers with, so the device and the web always show the same time.
@@ -3900,6 +3904,7 @@ void loop() {
           } else if (!doc["data"].isNull() && !isDeviceLockedOut) {
             int beTarget = doc["data"]["targetDurationMinutes"] | 120;
             if (beTarget > 0 && beTarget != targetDurationMinutes) {
+              if (beTarget > targetDurationMinutes) extensionPromptsShown = 0; // extended from web: fresh 15/5-min prompts
               targetDurationMinutes = beTarget;
               Serial.printf("[SYNC] Target duration synced from web: %d mins\n", targetDurationMinutes);
             }
