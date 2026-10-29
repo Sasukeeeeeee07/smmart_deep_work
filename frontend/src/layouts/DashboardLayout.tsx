@@ -13,7 +13,6 @@ import {
   Activity,
   Cpu,
   Users,
-  Layers,
   X,
   PanelRightClose,
   PanelRightOpen
@@ -356,26 +355,8 @@ export default function DashboardLayout() {
                 </nav>
               </div>
 
-              {/* Bottom Actions: Mode Switch & Sign Out */}
+              {/* Bottom Actions: Sign Out */}
               <div className="flex flex-col items-stretch gap-2 pt-3 border-t border-[var(--border)] w-full">
-                <Link
-                  to="/select-mode"
-                  onClick={() => {
-                    if (window.innerWidth < 1024) setSidebarOpen(false);
-                  }}
-                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all hover:border-[var(--forest)] hover:shadow-xs group cursor-pointer"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
-                  title="Switch Workspace Mode"
-                >
-                  <span className="flex items-center gap-2">
-                    <Layers size={16} />
-                    <span>Switch Mode</span>
-                  </span>
-                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[rgba(66,84,67,0.1)]">
-                    {workspaceMode === 'entrepreneur' ? 'Entr.' : 'Indiv.'}
-                  </span>
-                </Link>
-
                 <button
                   type="button"
                   onClick={handleLogout}

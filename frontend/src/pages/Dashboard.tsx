@@ -424,15 +424,6 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 select-none py-2">
-      {/* ── Top Bar: Mode Indicator ── */}
-      <div className="flex items-center justify-end flex-wrap gap-3 pb-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border shadow-xs" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--ink-3)' }}>
-            {mode === 'entrepreneur' ? 'Entrepreneur Mode' : 'Individual Mode'}
-          </span>
-        </div>
-      </div>
-
       {/* ── 2 Graphs: Weekly and Monthly ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Graph 1: Weekly Area Chart */}
