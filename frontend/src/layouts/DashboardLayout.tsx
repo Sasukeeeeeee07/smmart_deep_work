@@ -113,7 +113,7 @@ export default function DashboardLayout() {
   return (
     <div
       style={{ minHeight: '100dvh', background: 'var(--canvas)' }}
-      className="flex flex-col w-full max-w-full overflow-x-hidden"
+      className="flex flex-col w-full max-w-full overflow-x-clip"
     >
       {/* ── Minimalist Clean Header ── */}
       <header
