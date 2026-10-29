@@ -40,7 +40,7 @@ export const syncOfflineDevicesAndSessions = async () => {
         const endMs = (dev.lastHeartbeat ? new Date(dev.lastHeartbeat).getTime() : now.getTime());
         const totalMs = Math.max(0, endMs - new Date(session.startTime).getTime());
         const totalMins = Math.floor(totalMs / 60000);
-        const maxAllowed = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+        const maxAllowed = (session.targetDurationMinutes || 120);
         session.activeMinutes = Math.min(maxAllowed, Math.max(0, totalMins - (session.totalBreakMinutes || 0)));
         await session.save();
       }
@@ -57,7 +57,7 @@ export const syncOfflineDevicesAndSessions = async () => {
       activeMinutes: { $gt: 180 },
     });
     for (const s of runawaySessions) {
-      const capped = (s.targetDurationMinutes || 120) + (s.extensionMinutes || 0);
+      const capped = (s.targetDurationMinutes || 120);
       console.log(`[CLEANUP] Normalizing runaway session ${s._id}: ${s.activeMinutes}m -> ${capped}m`);
       s.activeMinutes = capped;
       if (s.startTime) {

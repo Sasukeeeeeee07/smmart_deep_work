@@ -205,7 +205,7 @@ export default function DeepWorkPage() {
   };
 
   const activeSec = computeActiveSeconds();
-  const targetMin = (currentSession?.targetDurationMinutes || 120) + (currentSession?.extensionMinutes || 0);
+  const targetMin = (currentSession?.targetDurationMinutes || 120);
   const targetSec = targetMin * 60;
   const remainingSec = Math.max(0, targetSec - activeSec);
 

@@ -285,7 +285,7 @@ export const countBreak = async (req: Request, res: Response) => {
     session.breakCount = (session.breakCount || 0) + 1;
 
     // RULE: in 2 hr session max 3 breaks; if extended and session > 3 hrs (>180m), allow 1 more break (max 4)
-    const sessionDurationMinutes = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+    const sessionDurationMinutes = (session.targetDurationMinutes || 120);
     const sessionElapsedMinutes = session.startTime
       ? Math.floor((Date.now() - new Date(session.startTime).getTime()) / 60000)
       : (session.activeMinutes || 0) + (session.totalBreakMinutes || 0);
@@ -687,7 +687,9 @@ export const getCurrentSession = async (req: Request, res: Response) => {
     const now = Date.now();
     let liveActiveMinutes = session.activeMinutes || 0;
     let liveTotalBreakMinutes = session.totalBreakMinutes || 0;
-    const targetMin = (session.targetDurationMinutes || 120) + (session.extensionMinutes || 0);
+    // targetDurationMinutes already includes every extension (extendSession adds to it);
+    // extensionMinutes is only a running total for display, never added again.
+    const targetMin = (session.targetDurationMinutes || 120);
     let remainingSeconds = Math.max(0, targetMin * 60 - liveActiveMinutes * 60);
     let liveActiveSeconds = liveActiveMinutes * 60;
 

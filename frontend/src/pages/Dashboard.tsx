@@ -37,7 +37,7 @@ const computeClientAnalytics = (sessions: any[]) => {
   const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   const getCappedActive = (s: any) => {
-    const max = (s.targetDurationMinutes || 120) + (s.extensionMinutes || 0);
+    const max = (s.targetDurationMinutes || 120);
     return Math.min(s.activeMinutes || 0, max);
   };
 
