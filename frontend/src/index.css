@@ -600,3 +600,67 @@ h1, h2, h3, h4, h5, h6 {
   .rice *, .rice .rice-eye { animation: none !important; }
   .rice-confetti { display: none; }
 }
+
+/* ── Deep Work: colourful / futuristic skin ───────────────────────────── */
+@property --dw-ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes dw-spin { to { --dw-ang: 360deg; } }
+
+.dw-card.dw-acc-mint   { --acc: #10B981; --acc2: #06B6D4; --acc-d: #047857; --acc2-d: #0E7490; }
+.dw-card.dw-acc-violet { --acc: #6366F1; --acc2: #D946EF; --acc-d: #4338CA; --acc2-d: #A21CAF; }
+.dw-card.dw-acc-ember  { --acc: #F59E0B; --acc2: #F43F5E; --acc-d: #B45309; --acc2-d: #BE123C; }
+.dw-card.dw-acc-sky    { --acc: #0EA5E9; --acc2: #6366F1; --acc-d: #0369A1; --acc2-d: #4338CA; }
+.dw-card.dw-acc-teal   { --acc: #14B8A6; --acc2: #3B82F6; --acc-d: #0F766E; --acc2-d: #1D4ED8; }
+.dw-card.dw-acc-lime   { --acc: #84CC16; --acc2: #10B981; --acc-d: #4D7C0F; --acc2-d: #047857; }
+.dw-card.dw-acc-rose   { --acc: #F43F5E; --acc2: #8B5CF6; --acc-d: #BE123C; --acc2-d: #6D28D9; }
+
+.dw-card {
+  --acc: #10B981; --acc2: #06B6D4; --acc-d: #047857; --acc2-d: #0E7490;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--acc) 16%, transparent), transparent 62%),
+    radial-gradient(100% 90% at 100% 100%, color-mix(in srgb, var(--acc2) 14%, transparent), transparent 62%),
+    var(--surface);
+  border-color: color-mix(in srgb, var(--acc) 30%, var(--border));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 14px 34px -18px color-mix(in srgb, var(--acc) 55%, transparent),
+    0 2px 6px -2px rgba(41, 43, 37, 0.06);
+}
+.dw-card:hover {
+  border-color: color-mix(in srgb, var(--acc) 55%, var(--border));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 22px 44px -16px color-mix(in srgb, var(--acc) 65%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--acc) 25%, transparent);
+}
+/* neon trace that travels around the card edge */
+.dw-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--dw-ang), transparent 0 58%, var(--acc) 78%, var(--acc2) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: dw-spin 7s linear infinite;
+  animation-delay: calc(var(--i, 0) * -1.3s);
+  opacity: 0.9;
+}
+
+.dw-grad {
+  background: linear-gradient(90deg, var(--acc-d, #047857), var(--acc2-d, #0E7490));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+/* page backdrop: aurora blobs + faint dot grid */
+.dw-page { position: relative; isolation: isolate; }
+.dw-page::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none; inset: -48px -24px 0;
+  background:
+    radial-gradient(520px 320px at 8% 4%, rgba(16, 185, 129, 0.16), transparent 70%),
+    radial-gradient(520px 340px at 92% 14%, rgba(99, 102, 241, 0.16), transparent 70%),
+    radial-gradient(620px 420px at 50% 62%, rgba(244, 63, 94, 0.07), transparent 70%),
+    radial-gradient(640px 400px at 15% 100%, rgba(245, 158, 11, 0.12), transparent 70%),
+    radial-gradient(rgba(66, 84, 67, 0.16) 1px, transparent 1.4px) 0 0 / 22px 22px;
+  -webkit-mask-image: linear-gradient(#000 80%, transparent);
+  mask-image: linear-gradient(#000 80%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) { .dw-card::before { animation: none; opacity: 0.55; } }

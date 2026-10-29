@@ -53,6 +53,8 @@ const TILE_TONES = {
   rose:        { bg: 'linear-gradient(145deg, #E9918A 0%, #B6534B 100%)', fg: '#fff',    glow: 'rgba(182, 83, 75, 0.4)' },
   soft:        { bg: 'linear-gradient(145deg, #F4F2EB 0%, #E2DFD5 100%)', fg: '#5E7052', glow: 'rgba(41, 43, 37, 0.10)' },
   'rose-soft': { bg: 'linear-gradient(145deg, #FCE7EA 0%, #F6C9D0 100%)', fg: '#BE123C', glow: 'rgba(225, 29, 72, 0.18)' },
+  mint:        { bg: 'linear-gradient(145deg, #34D399 0%, #0891B2 100%)', fg: '#fff',    glow: 'rgba(16, 185, 129, 0.5)' },
+  sky:         { bg: 'linear-gradient(145deg, #38BDF8 0%, #6366F1 100%)', fg: '#fff',    glow: 'rgba(99, 102, 241, 0.5)' },
 } as const;
 
 /** Rounded gradient tile that holds a card's main icon. */
@@ -379,7 +381,7 @@ export default function DeepWorkPage() {
       {/* ══════════════════════════════════════════════════════════════════
           MAIN WORKSPACE
          ══════════════════════════════════════════════════════════════════ */}
-      <div className="w-full space-y-6">
+      <div className="w-full space-y-6 dw-page">
         {/* Header: title + history */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pb-1 dw-stagger" style={{ ['--i' as any]: 0 }}>
           <span aria-hidden="true" />
@@ -391,8 +393,8 @@ export default function DeepWorkPage() {
               className="h-16 md:h-20 w-auto object-contain"
             />
             <h1
-              className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
-              style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
+              className="dw-grad text-2xl md:text-3xl font-extrabold tracking-tight text-center"
+              style={{ fontFamily: 'DM Sans, sans-serif', ['--acc-d' as any]: '#047857', ['--acc2-d' as any]: '#4338CA' }}
             >
               Deepwork Session
             </h1>
@@ -438,14 +440,14 @@ export default function DeepWorkPage() {
           {/* START / COUNTDOWN */}
           <div
             onClick={!isRunning && isDeviceOnline && !starting ? handleStartSession : undefined}
-            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
+            className={`dw-card dw-acc-mint p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
             style={{ ['--i' as any]: 1 }}
           >
             {isRunning ? (
               <div className="w-full" style={{ containerType: 'inline-size' }}>
                 <p
-                  className="dw-blink text-center font-extrabold tracking-tight tabular-nums whitespace-nowrap"
-                  style={{ color: 'var(--forest)', fontSize: 'clamp(1rem, 7cqw, 2.4rem)', fontFamily: 'DM Sans, sans-serif' }}
+                  className="dw-blink dw-grad text-center font-extrabold tracking-tight tabular-nums whitespace-nowrap"
+                  style={{ fontSize: 'clamp(1rem, 7cqw, 2.4rem)', fontFamily: 'DM Sans, sans-serif' }}
                 >
                   Live Session : <span className="font-mono">{fmtHMS(remainingSec)}</span>
                 </p>
@@ -456,12 +458,12 @@ export default function DeepWorkPage() {
                   {isDeviceOnline ? 'Ready' : 'Offline'}
                 </CardHeading>
                 <div className="flex flex-col items-center gap-4">
-                  <Ring size={150} progress={0}>
+                  <Ring size={150} progress={0} track="rgba(16, 185, 129, 0.14)">
                     {!isDeviceOnline ? (
                       <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
                     ) : (
                       <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
-                        <IconTile tone="forest" size={68}>
+                        <IconTile tone="mint" size={68}>
                           {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
                         </IconTile>
                       </button>
@@ -472,7 +474,7 @@ export default function DeepWorkPage() {
                       Device offline
                     </span>
                   ) : (
-                    <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--forest)', fontFamily: 'DM Sans, sans-serif' }}>
+                    <span className="dw-grad text-base font-extrabold tracking-tight" style={{ fontFamily: 'DM Sans, sans-serif' }}>
                       {starting ? 'Starting…' : 'Start session'}
                     </span>
                   )}
@@ -483,7 +485,7 @@ export default function DeepWorkPage() {
 
           {/* FOCUS TIME / BREAKS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4"
+            className="dw-card dw-acc-violet p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4"
             style={{
               ['--i' as any]: 2,
               background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
@@ -494,8 +496,8 @@ export default function DeepWorkPage() {
             </CardHeading>
 
             <span
-              className="font-mono font-bold tabular-nums"
-              style={{ color: isRunning ? 'var(--ink)' : 'var(--ink-4)', fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}
+              className={`font-mono font-bold tabular-nums ${isRunning ? 'dw-grad' : ''}`}
+              style={{ color: isRunning ? undefined : 'var(--ink-4)', fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}
             >
               {fmtHMS(isRunning ? activeSec : 0)}
             </span>
@@ -514,7 +516,7 @@ export default function DeepWorkPage() {
                   </span>
                 ))}
                 {Array.from({ length: Math.max(0, maxAllowedBreaks - (currentSession?.breaks?.length || 0)) }).map((_, i) => (
-                  <span key={`free-${i}`} className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--surface-3)' }} aria-hidden="true" />
+                  <span key={`free-${i}`} className="w-2.5 h-2.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--acc) 35%, transparent)' }} aria-hidden="true" />
                 ))}
               </div>
             )}
@@ -522,7 +524,7 @@ export default function DeepWorkPage() {
 
           {/* ALARMS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5"
+            className="dw-card dw-acc-ember p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5"
             style={{
               ['--i' as any]: 3,
               background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : undefined,
@@ -538,7 +540,7 @@ export default function DeepWorkPage() {
                   key={i}
                   className="dw-scan w-2.5 h-2.5 rounded-full"
                   style={{
-                    background: currentSession?.alarmActive ? 'var(--error)' : 'var(--sage)',
+                    background: currentSession?.alarmActive ? 'var(--error)' : `hsl(${42 - i * 5} 90% 55%)`,
                     animationDelay: `${i * (currentSession?.alarmActive ? 0.07 : 0.14)}s`,
                     animationDuration: currentSession?.alarmActive ? '0.8s' : '1.8s',
                   }}
@@ -584,10 +586,10 @@ export default function DeepWorkPage() {
             )}
           </div>
           {/* MODERATOR */}
-          <div className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
+          <div className="dw-card dw-acc-sky p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
             <CardHeading dot="on">Moderator</CardHeading>
             <div className="relative">
-              <IconTile tone="forest" size={88}><AudioLines size={36} /></IconTile>
+              <IconTile tone="sky" size={88}><AudioLines size={36} /></IconTile>
               <span className="absolute inset-0 rounded-[30px] dw-halo pointer-events-none" aria-hidden="true" />
             </div>
             <div className="flex items-end gap-1 h-7" aria-hidden="true">
@@ -596,7 +598,7 @@ export default function DeepWorkPage() {
                   key={i}
                   className="dw-bar w-1.5 h-7 rounded-full"
                   style={{
-                    background: 'var(--sage)',
+                    background: 'linear-gradient(to top, #38BDF8, #6366F1)',
                     animationDelay: `${i * 0.12}s`,
                     animationDuration: sendingVoice ? '0.45s' : '1.4s',
                   }}
@@ -620,7 +622,7 @@ export default function DeepWorkPage() {
                 aria-label="Speak"
                 title="Speak"
                 className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
-                style={{ background: voiceSuccess ? 'var(--success)' : 'var(--forest)' }}
+                style={{ background: voiceSuccess ? 'var(--success)' : 'linear-gradient(135deg, #38BDF8, #6366F1)', boxShadow: '0 8px 18px -8px rgba(99,102,241,0.6)' }}
               >
                 {voiceSuccess ? <Check size={16} /> : sendingVoice ? <Timer size={16} className="animate-spin-slow" /> : <Send size={16} />}
               </button>
@@ -653,10 +655,10 @@ export default function DeepWorkPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
 
           {/* SCORE */}
-          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
+          <div className="dw-card dw-acc-teal p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
             <ChipIcon icon={<Activity size={16} />} tone="emerald" label="Productivity score" />
-            <Ring size={150} stroke={12} progress={isSessionActiveWithData ? productivityScore / 100 : 0} color="#10B981">
-              <span className="font-extrabold text-4xl tabular-nums" style={{ color: isSessionActiveWithData ? 'var(--ink)' : 'var(--ink-4)', fontFamily: 'DM Sans, sans-serif' }}>
+            <Ring size={150} stroke={12} progress={isSessionActiveWithData ? productivityScore / 100 : 0} gradient={['#10B981', '#3B82F6']} track="rgba(20, 184, 166, 0.14)">
+              <span className={`font-extrabold text-4xl tabular-nums ${isSessionActiveWithData ? 'dw-grad' : ''}`} style={{ color: isSessionActiveWithData ? undefined : 'var(--ink-4)', fontFamily: 'DM Sans, sans-serif' }}>
                 {scoreCountUp}<span className="text-lg font-bold" style={{ color: 'var(--ink-3)' }}>%</span>
               </span>
             </Ring>
@@ -675,7 +677,7 @@ export default function DeepWorkPage() {
           </div>
 
           {/* SPIKE GRAPH */}
-          <div className="dw-card p-6 flex flex-col justify-between gap-3" style={{ ['--i' as any]: 6 }} title="Productivity spike">
+          <div className="dw-card dw-acc-lime p-6 flex flex-col justify-between gap-3" style={{ ['--i' as any]: 6 }} title="Productivity spike">
             <ChipIcon icon={<Zap size={16} />} tone="amber" label="Productivity spike" />
             <div className="flex-1 flex items-center justify-center">
               <div className="relative w-full" style={{ aspectRatio: '280 / 130' }}>
@@ -716,7 +718,7 @@ export default function DeepWorkPage() {
           </div>
 
           {/* RATING */}
-          <div className="dw-card p-6 flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
+          <div className="dw-card dw-acc-rose p-6 flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
             <div className="absolute top-6 left-6">
               <ChipIcon icon={<Star size={16} />} tone="indigo" label="Rate this session" />
             </div>
