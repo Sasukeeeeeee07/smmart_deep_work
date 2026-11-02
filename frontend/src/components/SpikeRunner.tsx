@@ -63,7 +63,7 @@ export default function SpikeRunner({ level }: { level: number }) {
     if (t) {
       t.style.left = el.style.left;
       t.style.top = el.style.top;
-      t.style.transform = `translate(-50%, calc(-100% - ${MAN_H + 8}px))`;
+      t.style.transform = `translate(calc(-100% - 20px), calc(-100% - ${MAN_H - 10}px))`;
     }
   };
 
@@ -135,7 +135,7 @@ export default function SpikeRunner({ level }: { level: number }) {
       >
         <div className="relative px-2.5 py-0.5 rounded-full text-[12px] font-bold tabular-nums text-white whitespace-nowrap" style={{ background: '#0B5ED7', boxShadow: '0 3px 8px rgba(11, 94, 215, 0.4)', fontFamily: 'Poppins, sans-serif' }}>
           {pct}%
-          <span className="absolute left-1/2 -bottom-[4px] w-2 h-2 -translate-x-1/2 rotate-45" style={{ background: '#0B5ED7' }} aria-hidden="true" />
+          <span className="absolute top-1/2 -right-[3px] w-2 h-2 -translate-y-1/2 rotate-45" style={{ background: '#0B5ED7' }} aria-hidden="true" />
         </div>
       </div>
       <div ref={box} className="absolute" style={{ transformOrigin: '50% 100%', willChange: 'transform' }}>

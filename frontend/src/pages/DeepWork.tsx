@@ -628,9 +628,9 @@ export default function DeepWorkPage() {
           </div>
 
           {/* SPIKE GRAPH */}
-          <div className="dw-card px-6 md:px-10 py-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] items-center gap-6" style={{ ['--i' as any]: 6 }} title="Productivity spike">
-            <h2 className="dw-label text-[26px] md:text-[30px] leading-tight">Productivity<br />Spike</h2>
-            <div className="relative w-full h-[150px] mt-[96px] md:ml-auto md:max-w-[660px]">
+          <div className="dw-card px-6 md:px-10 py-5 grid grid-cols-1 md:grid-cols-[190px_minmax(0,1fr)] items-end gap-4" style={{ ['--i' as any]: 6 }} title="Productivity spike">
+            <h2 className="dw-label text-[26px] md:text-[30px] leading-tight md:pb-4">Productivity<br />Spike</h2>
+            <div className="relative w-full h-[140px] mt-[50px]">
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
                 <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58 L 272 112 Z"
                   style={{ fill: BLUE, opacity: spiked ? 0.08 : 0, transition: 'opacity 600ms' }} />
