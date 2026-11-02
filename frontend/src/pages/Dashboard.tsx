@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/api';
-import { TrendingUp, Timer, ArrowRight, Coins } from 'lucide-react';
+import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
 import { formatRupees, readAnnualIncome, timeValue } from '../utils/timeCurrency';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -737,49 +737,43 @@ const Dashboard = () => {
             lost: tv ? Math.round(minutes * tv.perMinute) : 0,
           };
         });
-        const todayHighlight = !selectedWeek;
-        const inputCls = 'w-16 px-2.5 py-2 rounded-xl border text-center text-base font-extrabold tabular-nums outline-none focus:ring-2 focus:ring-red-300';
+        const inputCls = 'w-[68px] px-2 py-2 rounded-lg border text-center text-lg font-extrabold tabular-nums outline-none focus:ring-2 focus:ring-red-300';
         const rows = tv ? [
           { label: 'My per year income', value: formatRupees(income) },
-          { label: 'My per day income', value: formatRupees(tv.perDay) },
+          { label: 'My per daily income', value: formatRupees(tv.perDay) },
           { label: 'My per hour income', value: formatRupees(tv.perHour) },
           { label: 'My per minute income', value: formatRupees(tv.perMinute, 2) },
         ] : [];
+        const NAVY = '#14285E';
+        const RED = '#E01B1B';
         return (
-          <div className="card p-6 md:p-7" id="time-currency">
-            <div className="mb-5">
-              {/* Highlighted header badge, same style as the graph badges */}
-              <div
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md text-xs font-black uppercase tracking-wider text-red-950 border border-red-300"
-                style={{
-                  background: 'linear-gradient(135deg, #FECACA 0%, #FCA5A5 50%, #F87171 100%)',
-                  boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)',
-                }}
-              >
-                <span className="w-2 h-2 rounded-full bg-red-800 animate-ping" />
-                <Coins size={14} />
-                <span className="tracking-wide">YOUR TIME CURRENCY</span>
-              </div>
+          <div className="rounded-[32px] md:rounded-[40px] p-5 md:p-8 border" style={{ background: '#FFFFFF', borderColor: 'rgba(255,255,255,0.8)', boxShadow: 'var(--shadow-md)' }} id="time-currency">
+            <div className="relative mb-5 md:mb-6">
+              <span className="inline-flex items-center gap-2 text-[15px] md:text-[17px] font-medium md:absolute md:left-0 md:top-0" style={{ color: RED }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: RED }} aria-hidden="true" />
+                Your time currency
+              </span>
+              <h2 className="dw-title text-center text-xl md:text-[28px] mt-2 md:mt-0 md:pt-1" style={{ color: NAVY }}>
+                Calculate your time value
+              </h2>
             </div>
             {tv ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-sm font-extrabold mb-2.5" style={{ color: 'var(--ink)' }}>Calculate your time value:</p>
-                    <div className="space-y-2">
-                      {rows.map(r => (
-                        <div key={r.label} className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>{r.label}:</span>
-                          <span className="text-lg font-extrabold tabular-nums" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>{r.value}</span>
-                        </div>
-                      ))}
+              <div className="space-y-6">
+                <div className="neo-panel px-5 md:px-8 py-4 grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+                  {rows.map(r => (
+                    <div key={r.label}>
+                      <p className="text-[14px] md:text-[17px] font-normal" style={{ color: 'var(--ink-2)' }}>{r.label}</p>
+                      <p className="text-xl md:text-[26px] font-extrabold tabular-nums mt-1" style={{ color: RED, fontFamily: 'Poppins, DM Sans, sans-serif' }}>{r.value}</p>
                     </div>
-                  </div>
-                  <div className="rounded-2xl p-4 border" style={{ background: 'rgba(182, 83, 75, 0.06)', borderColor: 'rgba(182, 83, 75, 0.25)' }}>
-                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.1fr)] gap-6 items-start">
+                  <div className="neo-panel p-5">
+                    <label className="block dw-title text-[15px] md:text-[17px] leading-snug mb-5" style={{ color: NAVY, fontWeight: 700 }}>
                       How much time did you waste yesterday? ({yLabel})
                     </label>
-                    <div className="flex items-center gap-2 flex-wrap mb-3">
+                    <div className="flex items-center gap-2.5 flex-wrap mb-5">
                       <input
                         type="number" inputMode="numeric" min={0} max={24} step={1}
                         value={wastedH}
@@ -787,9 +781,9 @@ const Dashboard = () => {
                         placeholder="0"
                         aria-label="Hours wasted yesterday"
                         className={inputCls}
-                        style={{ background: 'var(--surface)', borderColor: 'rgba(182, 83, 75, 0.35)', color: 'var(--ink)' }}
+                        style={{ background: '#F1F1F2', borderColor: 'rgba(30,32,36,0.12)', color: RED, boxShadow: '0 2px 4px rgba(30,32,36,0.12)' }}
                       />
-                      <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>hr</span>
+                      <span className="text-lg font-extrabold" style={{ color: RED }}>hr</span>
                       <input
                         type="number" inputMode="numeric" min={0} max={59} step={1}
                         value={wastedM}
@@ -797,62 +791,60 @@ const Dashboard = () => {
                         placeholder={typed ? '0' : String(autoMin)}
                         aria-label="Minutes wasted yesterday"
                         className={inputCls}
-                        style={{ background: 'var(--surface)', borderColor: 'rgba(182, 83, 75, 0.35)', color: 'var(--ink)' }}
+                        style={{ background: '#F1F1F2', borderColor: 'rgba(30,32,36,0.12)', color: RED, boxShadow: '0 2px 4px rgba(30,32,36,0.12)' }}
                       />
-                      <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>min</span>
-                      {typed && (
-                        <button
-                          type="button"
-                          onClick={() => updateWasted('', '')}
-                          className="ml-1 text-xs font-bold underline cursor-pointer"
-                          style={{ color: 'var(--ink-3)' }}
-                        >
-                          Use tracked ({autoMin} min)
-                        </button>
-                      )}
+                      <span className="text-lg font-extrabold" style={{ color: RED }}>min</span>
                     </div>
-                    <p className="text-base font-extrabold" style={{ color: 'var(--error)' }}>
+                    {typed && (
+                      <button
+                        type="button"
+                        onClick={() => updateWasted('', '')}
+                        className="mb-3 text-xs font-bold underline cursor-pointer"
+                        style={{ color: 'var(--ink-3)' }}
+                      >
+                        Use tracked ({autoMin} min)
+                      </button>
+                    )}
+                    <p className="text-[15px]" style={{ color: 'var(--ink)' }}>
                       I wasted <span className="tabular-nums">{yText}</span> yesterday ({yLabel})
                     </p>
-                    <p className="text-sm font-extrabold uppercase tracking-wider mt-2" style={{ color: 'var(--error)' }}>Time lost = Money lost</p>
-                    <p className="text-base font-extrabold mt-2" style={{ color: 'var(--error)' }}>
+                    <p className="text-[15px] uppercase" style={{ color: 'var(--ink)' }}>Time lost = Money lost</p>
+                    <p className="text-[15px] mt-4" style={{ color: 'var(--ink)' }}>
                       Money lost on {yLabel} ={' '}
-                      <span className="text-3xl font-extrabold tabular-nums" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                      <span className="text-[28px] font-normal tabular-nums align-middle" style={{ fontFamily: 'Poppins, DM Sans, sans-serif' }}>
                         {formatRupees(yMin * tv.perMinute)}
                       </span>
                     </p>
                   </div>
-                </div>
 
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>Money lost to breaks · {selectedWeek ? `${selectedWeek.name} (${selectedWeek.label})` : 'same days as the weekly graph'}</p>
-                  <div style={{ height: 230 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 18, right: 8, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }} />
-                        <YAxis width={52} tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} tickFormatter={v => formatRupees(v)} />
-                        <Tooltip
-                          cursor={{ fill: 'rgba(11, 94, 215, 0.06)' }}
-                          content={({ active, payload }: any) => {
-                            if (!active || !payload?.length) return null;
-                            const d = payload[0].payload;
-                            return (
-                              <div className="rounded-xl border px-3 py-2 text-xs font-bold shadow-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}>
-                                <p>{d.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                                <p style={{ color: 'var(--ink-3)' }}>{d.minutes} min wasted</p>
-                                <p style={{ color: 'var(--error)' }}>{formatRupees(d.lost)} lost</p>
-                              </div>
-                            );
-                          }}
-                        />
-                        <Bar dataKey="lost" radius={[6, 6, 0, 0]} maxBarSize={38} label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: 'var(--ink-2)', formatter: (v: any) => (v > 0 ? formatRupees(Number(v)) : '') }}>
-                          {chartData.map((_, i) => (
-                            <Cell key={i} fill={todayHighlight && i === chartData.length - 2 ? '#B6534B' : '#DDA569'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div>
+                    <p className="dw-title text-[12px] md:text-[13px] mb-2 px-1" style={{ color: NAVY, fontWeight: 700 }}>
+                      Money lost to breaks · {selectedWeek ? `${selectedWeek.name} (${selectedWeek.label})` : 'same days as the weekly graph'}
+                    </p>
+                    <div style={{ height: 250 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
+                          <CartesianGrid stroke="rgba(30, 32, 36, 0.35)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fill: '#5B5F67', fontSize: 13 }} tickLine={false} axisLine={{ stroke: '#3A3D44', strokeWidth: 5 }} />
+                          <YAxis width={56} allowDecimals={false} domain={[0, (max: number) => Math.max(4, Math.ceil(max))]} tick={{ fill: '#9A9EA6', fontSize: 14, fontWeight: 700 }} tickLine={false} axisLine={{ stroke: '#3A3D44', strokeWidth: 5 }} tickFormatter={v => formatRupees(v)} />
+                          <Tooltip
+                            cursor={{ stroke: 'rgba(245, 130, 32, 0.4)' }}
+                            content={({ active, payload }: any) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0].payload;
+                              return (
+                                <div className="rounded-xl border px-3 py-2 text-xs font-bold shadow-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--ink)' }}>
+                                  <p>{d.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                  <p style={{ color: 'var(--ink-3)' }}>{d.minutes} min wasted</p>
+                                  <p style={{ color: 'var(--error)' }}>{formatRupees(d.lost)} lost</p>
+                                </div>
+                              );
+                            }}
+                          />
+                          <Area type="monotone" dataKey="lost" stroke="#FF9A3C" strokeWidth={2} fill="none" dot={false} activeDot={{ r: 5, fill: '#FF9A3C', stroke: '#fff', strokeWidth: 2 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               </div>

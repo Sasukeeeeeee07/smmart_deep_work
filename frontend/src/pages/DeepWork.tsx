@@ -485,7 +485,7 @@ export default function DeepWorkPage() {
               width={88}
               height={88}
               draggable={false}
-              className={`w-[88px] h-[88px] select-none ${currentSession?.alarmActive ? 'dw-halo-warn dw-shake rounded-full' : ''}`}
+              className={`w-[88px] h-[88px] select-none ${currentSession?.alarmActive ? 'bell-vibrate-hard rounded-full' : 'bell-vibrate'}`}
               style={{ filter: 'drop-shadow(0 5px 8px rgba(190, 20, 20, 0.35))' }}
             />
 
@@ -663,7 +663,7 @@ export default function DeepWorkPage() {
                   aria-hidden="true"
                 />
               ))}
-              <SpikeRunner spiked={spiked} />
+              <SpikeRunner level={spiked ? 1 : Math.round(productivityScore / 5) / 20} />
             </div>
           </div>
 

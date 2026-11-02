@@ -480,6 +480,12 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(145deg, #FBFBFB 0%, #E3E4E6 100%);
   box-shadow: 0 5px 12px rgba(30, 32, 36, 0.2), inset 0 2px 3px rgba(255, 255, 255, 0.95);
 }
+.neo-panel {
+  background: linear-gradient(160deg, #F4F4F5 0%, #EAEBEC 100%);
+  border: 1px solid rgba(30, 32, 36, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 2px 4px rgba(30, 32, 36, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
 .dw-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 800; letter-spacing: 0.01em; text-transform: uppercase; }
 .dw-label { font-family: 'Poppins', 'DM Sans', sans-serif; font-style: italic; font-weight: 300; color: var(--forest); }
 
@@ -637,3 +643,28 @@ h1, h2, h3, h4, h5, h6 {
   .rice *, .rice .rice-eye { animation: none !important; }
   .rice-confetti { display: none; }
 }
+
+/* Alarm bell: short vibrating bursts (constant buzz while an alarm is raised) */
+.bell-vibrate      { animation: bell-vibrate 2.2s ease-in-out infinite; transform-origin: 50% 50%; }
+.bell-vibrate-hard { animation: bell-vibrate-hard 0.18s linear infinite; transform-origin: 50% 50%; }
+@keyframes bell-vibrate {
+  0%, 38%, 100% { transform: translate(0, 0) rotate(0); }
+  3%  { transform: translate(-2px, 0) rotate(-7deg); }
+  6%  { transform: translate(2px, 0) rotate(7deg); }
+  9%  { transform: translate(-2px, 1px) rotate(-6deg); }
+  12% { transform: translate(2px, -1px) rotate(6deg); }
+  15% { transform: translate(-1.5px, 0) rotate(-5deg); }
+  18% { transform: translate(1.5px, 0) rotate(5deg); }
+  22% { transform: translate(-1px, 0) rotate(-3deg); }
+  26% { transform: translate(1px, 0) rotate(3deg); }
+  30% { transform: translate(-0.5px, 0) rotate(-1.5deg); }
+  34% { transform: translate(0.5px, 0) rotate(1.5deg); }
+}
+@keyframes bell-vibrate-hard {
+  0%   { transform: translate(-2px, 1px) rotate(-8deg); }
+  25%  { transform: translate(2px, -1px) rotate(8deg); }
+  50%  { transform: translate(-2px, -1px) rotate(-8deg); }
+  75%  { transform: translate(2px, 1px) rotate(8deg); }
+  100% { transform: translate(-2px, 1px) rotate(-8deg); }
+}
+@media (prefers-reduced-motion: reduce) { .bell-vibrate, .bell-vibrate-hard { animation: none; } }

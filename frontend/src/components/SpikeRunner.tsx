@@ -3,9 +3,9 @@ import ManRunner, { type RunnerMode } from './ManRunner';
 
 /**
  * Drives the runner along the productivity-spike mountain line.
- * spiked  -> crouches, then climbs (uphill gait, downhill gait on the dip) to
- *            the peak and celebrates.
- * !spiked -> turns around and heads back down to the start, then crouches.
+ * level up   -> climbs (uphill gait, downhill gait on the dip) toward the peak and
+ *               celebrates once it reaches it.
+ * level down -> turns around and heads back down, resting where the score settles.
  * Position is updated imperatively (no page re-renders per frame).
  */
 
@@ -30,7 +30,8 @@ function pointAt(s: number) {
 
 const VMAX = 80, ACC = 100; // viewBox units / second
 
-export default function SpikeRunner({ spiked }: { spiked: boolean }) {
+/** `level` (0..1) is the productivity score: the man climbs toward the peak as it rises and heads back down as it falls. */
+export default function SpikeRunner({ level }: { level: number }) {
   const box = useRef<HTMLDivElement>(null);
   const st = useRef({ s: START_S, v: 0, ang: 0 });
   const [mode, setMode] = useState<RunnerMode>('ready');
@@ -49,8 +50,8 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
 
   useEffect(() => {
     const s = st.current;
-    const goal = spiked ? PEAK_S : START_S;
-    const rest: RunnerMode = spiked ? 'summit' : 'ready';
+    const goal = START_S + Math.min(Math.max(level, 0), 1) * (PEAK_S - START_S);
+    const rest: RunnerMode = level >= 0.99 ? 'summit' : 'ready';
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (reduced || Math.abs(goal - s.s) < 0.5) {
@@ -94,7 +95,7 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
     const delay = s.s === START_S ? 380 : 0;
     const t = window.setTimeout(() => { raf = requestAnimationFrame(tick); }, delay);
     return () => { window.clearTimeout(t); cancelAnimationFrame(raf); };
-  }, [spiked]);
+  }, [level]);
 
   const moving = mode === 'run' || mode === 'down';
 
