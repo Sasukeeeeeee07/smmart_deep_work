@@ -104,7 +104,7 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
         {moving && [0, 1, 2].map(i => (
           <span key={i} className="dw-dust" style={{ animationDelay: `${i * 0.22}s` }} />
         ))}
-        <ManRunner mode={mode} width={46} />
+        <ManRunner mode={mode} width={52} />
       </div>
     </div>
   );

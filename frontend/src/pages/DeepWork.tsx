@@ -4,7 +4,7 @@ import { LockoutScreen } from '../components/LockoutScreen';
 import SpikeRunner, { SPIKE_POINTS } from '../components/SpikeRunner';
 import { Ring, useCountUp } from '../components/DeepWorkBits';
 import {
-  Timer, Power, AlertTriangle, Bell,
+  Timer, Power, AlertTriangle,
   VolumeX, Star,
   Clock, History, X, Coffee, Send, Check, PowerOff
 } from 'lucide-react';
@@ -479,15 +479,15 @@ export default function DeepWorkPage() {
           >
             <CardHeading color={RED}>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
 
-            <div
-              className={`w-[84px] h-[84px] rounded-full p-[5px] ${currentSession?.alarmActive ? 'dw-halo-warn' : ''}`}
-              style={{ background: '#EE1C25', boxShadow: '0 5px 14px rgba(238, 28, 37, 0.45)' }}
-              aria-hidden="true"
-            >
-              <div className="dw-knob-ring w-full h-full flex items-center justify-center" style={{ color: '#FF3B1F' }}>
-                <Bell size={36} fill="currentColor" strokeWidth={1.6} style={{ filter: 'drop-shadow(0 2px 3px rgba(238, 28, 37, 0.45))' }} className={currentSession?.alarmActive ? 'dw-shake' : ''} />
-              </div>
-            </div>
+            <img
+              src="/alarm-bell.png"
+              alt=""
+              width={88}
+              height={88}
+              draggable={false}
+              className={`w-[88px] h-[88px] select-none ${currentSession?.alarmActive ? 'dw-halo-warn dw-shake rounded-full' : ''}`}
+              style={{ filter: 'drop-shadow(0 5px 8px rgba(190, 20, 20, 0.35))' }}
+            />
 
             <div className="w-full flex flex-col gap-1.5 text-[13px] font-medium" style={{ color: RED }}>
               <div className="flex items-center justify-between gap-3">
