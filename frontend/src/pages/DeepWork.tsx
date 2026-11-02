@@ -228,6 +228,9 @@ export default function DeepWorkPage() {
   const maxAllowedBreaks = isOver3Hours ? 4 : 3;
 
 
+  // How far up the spike line the man stands: the live productivity score (full climb when a spike is flagged)
+  const spikeLevel = spiked ? 1 : productivityScore / 100;
+
   const alarmCountUp = useCountUp(alarmCount);
   const scoreCountUp = useCountUp(productivityScore);
 
@@ -627,7 +630,7 @@ export default function DeepWorkPage() {
           {/* SPIKE GRAPH */}
           <div className="dw-card px-6 md:px-10 py-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] items-center gap-6" style={{ ['--i' as any]: 6 }} title="Productivity spike">
             <h2 className="dw-label text-[26px] md:text-[30px] leading-tight">Productivity<br />Spike</h2>
-            <div className="relative w-full h-[150px] md:ml-auto md:max-w-[660px]">
+            <div className="relative w-full h-[150px] mt-[96px] md:ml-auto md:max-w-[660px]">
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
                 <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58 L 272 112 Z"
                   style={{ fill: BLUE, opacity: spiked ? 0.08 : 0, transition: 'opacity 600ms' }} />
@@ -638,18 +641,6 @@ export default function DeepWorkPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke" />
-                {spiked && (
-                  <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58"
-                    pathLength={1}
-                    fill="none"
-                    stroke={BLUE}
-                    strokeWidth="3"
-                    strokeDasharray={1}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                    style={{ animation: 'dw-draw 1.6s var(--ease-out) forwards' }} />
-                )}
                 <g style={{ opacity: spiked ? 1 : 0, transition: spiked ? 'opacity 400ms 3.4s' : 'opacity 200ms' }}>
                   <path d="M 221 33 L 221 10" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
                   <path className="dw-flag" d="M 221 10 L 234 14 L 221 18 Z" style={{ fill: 'var(--terra)' }} />
@@ -663,7 +654,7 @@ export default function DeepWorkPage() {
                   aria-hidden="true"
                 />
               ))}
-              <SpikeRunner level={spiked ? 1 : Math.round(productivityScore / 5) / 20} />
+              <SpikeRunner level={spikeLevel} />
             </div>
           </div>
 
