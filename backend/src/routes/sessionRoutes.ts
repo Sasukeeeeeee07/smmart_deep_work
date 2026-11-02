@@ -37,8 +37,8 @@ router.post('/:uid/alarm-trigger',  triggerAlarm);
 
 // 48-Hour Hard Lockout & Test Controls
 router.get( '/:uid/lockout-status', getLockoutStatus);
-router.post('/:uid/test-lockout',   testLockout);
-router.post('/:uid/unlock',         unlockDevice);
+router.post('/:uid/test-lockout',   protect, authorize('ADMIN', 'MANAGER'), testLockout);
+router.post('/:uid/unlock',         protect, authorize('ADMIN', 'MANAGER'), unlockDevice);
 
 // Core session lifecycle
 router.post('/:uid/start',         startSession);

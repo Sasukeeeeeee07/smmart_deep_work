@@ -55,6 +55,7 @@ const DeepWorkSessionSchema = new mongoose_1.Schema({
     activeMinutes: { type: Number, default: 0 },
     breaks: { type: [BreakRecordSchema], default: [] },
     breakCount: { type: Number, default: 0 },
+    awayAlertCount: { type: Number, default: 0 },
     totalBreakMinutes: { type: Number, default: 0 },
     status: { type: String, enum: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'], default: 'ACTIVE' },
     lastResumedAt: { type: Date },

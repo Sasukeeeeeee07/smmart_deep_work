@@ -809,7 +809,7 @@ export default function SettingsPage() {
             </h3>
 
             <p className="text-xs text-[var(--ink-2)] leading-relaxed">
-              To protect discipline, abandoning sessions or exceeding away limits repeatedly accrues strikes. 10 consecutive invalid sessions trigger an automatic 1-hour cooldown lockout.
+              Going over the break limit makes a session invalid and adds a strike. 10 invalid sessions in a row lock the desk for 48 hours (an admin can unlock it earlier). One valid session of 20+ minutes clears the strikes. Each 30-second away alert also costs 1 SDW point from that session.
             </p>
 
             <div className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between">
@@ -825,7 +825,7 @@ export default function SettingsPage() {
                   ? 'bg-amber-500/10 text-amber-800'
                   : 'bg-emerald-500/10 text-emerald-800'
               }`}>
-                {(selectedDevice?.invalidSessionCount || 0) > 0 ? 'Warning Active' : 'Normal / Clear'}
+                {(selectedDevice?.invalidSessionCount || 0) >= 7 ? `Final warning · ${10 - (selectedDevice?.invalidSessionCount || 0)} left` : (selectedDevice?.invalidSessionCount || 0) > 0 ? 'Warning Active' : 'Normal / Clear'}
               </span>
             </div>
 

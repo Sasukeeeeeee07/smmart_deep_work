@@ -67,6 +67,15 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
     ? new Date(lockoutUntil).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : new Date(Date.now() + secondsLeft * 1000).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  // Unlock / test endpoints need an ADMIN or MANAGER login; hide the buttons for everyone else
+  const canOverride = (() => {
+    try { return ['ADMIN', 'MANAGER'].includes(JSON.parse(localStorage.getItem('user') || '{}').role); } catch { return false; }
+  })();
+  const apiError = (err: any, fallback: string) => {
+    const e = err?.response?.data?.error;
+    return (typeof e === 'string' ? e : e?.message) || fallback;
+  };
+
   const handleAdminUnlock = async () => {
     if (!confirm(`Admin override: unlock ${deviceUid}?`)) return;
     setIsUnlocking(true);
@@ -76,7 +85,7 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
       setUnlockSuccess(true);
       setTimeout(() => onUnlocked(), 1200);
     } catch (err: any) {
-      setActionError(err.response?.data?.error || 'Failed to unlock. Please try again.');
+      setActionError(apiError(err, 'Failed to unlock. Please try again.'));
       setIsUnlocking(false);
     }
   };
@@ -87,8 +96,8 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
     try {
       await sessionService.testLockout(deviceUid, 120);
       setSecondsLeft(120);
-    } catch {
-      setActionError('Failed to trigger test lockout');
+    } catch (err: any) {
+      setActionError(apiError(err, 'Failed to trigger test lockout'));
     } finally { setIsUnlocking(false); }
   };
 
@@ -318,6 +327,7 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
             Invalid sessions:{' '}
             <span style={{ color: '#E57B73', fontWeight: 700 }}>{invalidCount}/10</span>
           </span>
+          {canOverride ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={handleTestLockout}
@@ -348,6 +358,9 @@ export const LockoutScreen: React.FC<LockoutScreenProps> = ({
               )}
             </button>
           </div>
+          ) : (
+            <span style={{ fontSize: 12, color: 'rgba(245,243,237,0.35)' }}>Ask an admin or manager to unlock this desk early.</span>
+          )}
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   User,
   Activity,
   Cpu,
+  ShieldAlert,
   Users,
   PanelRightClose,
   PanelRightOpen
@@ -28,6 +29,8 @@ export default function DashboardLayout() {
 
   const [unreadCount, setUnreadCount]   = useState(0);
   const [lockedDevice, setLockedDevice] = useState<any>(null);
+  const [strikeWarning, setStrikeWarning] = useState<{ uid: string; name: string; count: number } | null>(null);
+  const [dismissedStrike, setDismissedStrike] = useState<string | null>(() => sessionStorage.getItem('dismissedStrike'));
   const [sidebarOpen, setSidebarOpen]   = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? saved === 'true' : true;
@@ -44,6 +47,11 @@ export default function DashboardLayout() {
         (d: any) => d.isLockedOut && d.lockoutUntil && new Date(d.lockoutUntil) > new Date()
       );
       setLockedDevice(locked || null);
+      // Warn as a device nears the strike limit (7+ of 10 invalid sessions)
+      const warn = devices
+        .filter((d: any) => !d.isLockedOut && (d.invalidSessionCount || 0) >= 7)
+        .sort((a: any, b: any) => (b.invalidSessionCount || 0) - (a.invalidSessionCount || 0))[0];
+      setStrikeWarning(warn ? { uid: warn.uid, name: warn.name || warn.uid, count: warn.invalidSessionCount } : null);
     } catch { /* non-fatal */ }
   };
 
@@ -261,6 +269,34 @@ export default function DashboardLayout() {
           )}
         </div>
       </header>
+
+      {/* ── Strike warning: shown from 7 of 10 invalid sessions ── */}
+      {strikeWarning && dismissedStrike !== `${strikeWarning.uid}:${strikeWarning.count}` && (
+        <div
+          role="alert"
+          className="px-4 sm:px-6 md:px-8 py-2.5 flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold"
+          style={{ background: strikeWarning.count >= 9 ? '#FDE2E2' : '#FFF1D6', color: strikeWarning.count >= 9 ? '#9B1C1C' : '#8A5A00', borderBottom: '1px solid var(--border)' }}
+        >
+          <span className="flex items-center gap-2">
+            <ShieldAlert size={16} className="shrink-0" />
+            <span>
+              Strike warning: {strikeWarning.name} has {strikeWarning.count} of 10 invalid sessions.{' '}
+              {10 - strikeWarning.count === 1 ? '1 more' : `${10 - strikeWarning.count} more`} locks it for 48 hours. A valid session of 20+ minutes clears the strikes.
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const key = `${strikeWarning.uid}:${strikeWarning.count}`;
+              sessionStorage.setItem('dismissedStrike', key);
+              setDismissedStrike(key);
+            }}
+            className="shrink-0 underline cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ── Main Layout Body with Content and Global Right-Side Navigation Bar ── */}
       <div className="flex-1 flex w-full max-w-full relative min-h-[calc(100vh-57px)]">

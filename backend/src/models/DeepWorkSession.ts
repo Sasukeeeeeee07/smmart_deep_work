@@ -22,6 +22,7 @@ export interface IDeepWorkSession extends Document {
   activeMinutes: number;         // accumulated active time (excludes breaks)
   breaks: IBreakRecord[];
   breakCount: number;
+  awayAlertCount: number;        // 30s away alerts raised in this session (each costs 1 SDW point)
   totalBreakMinutes: number;
   status: 'ACTIVE' | 'BREAK' | 'DYING' | 'COMPLETED' | 'INVALID';
   lastResumedAt?: Date;
@@ -57,6 +58,7 @@ const DeepWorkSessionSchema: Schema = new Schema<IDeepWorkSession>(
     activeMinutes:         { type: Number, default: 0 },
     breaks:                { type: [BreakRecordSchema], default: [] },
     breakCount:            { type: Number, default: 0 },
+    awayAlertCount:        { type: Number, default: 0 },
     totalBreakMinutes:     { type: Number, default: 0 },
     status:                { type: String, enum: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'], default: 'ACTIVE' },
     lastResumedAt:         { type: Date },

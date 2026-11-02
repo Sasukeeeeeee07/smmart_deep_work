@@ -5,6 +5,21 @@ import { SDWPoints } from '../models/SDWPoints';
 import { Employee } from '../models/Employee';
 import { voiceService } from '../services/voiceService';
 import { syncOfflineDevicesAndSessions } from '../services/cronService';
+import { createNotificationInternal } from './notificationController';
+import { NotificationType } from '../models/Notification';
+
+// ── Penalty rules ───────────────────────────────────────────────────────────
+const MAX_STRIKES = 10;          // invalid sessions in a row before the lockout
+const STRIKE_WARNING_AT = 7;     // start warning admins from this strike on
+const GOOD_SESSION_MINUTES = 20; // a session this long (and not invalid) clears the strikes
+const LOCKOUT_HOURS = 48;
+
+/** SDW points for a finished session: 0 if invalid, 5 if completed, 2 if seated 20+ min, minus 1 per away alert (never below 0). */
+function computeSdwPoints(status: string, activeMinutes: number, awayAlerts: number): number {
+  if (status === 'INVALID') return 0;
+  const base = status === 'COMPLETED' ? 5 : (activeMinutes >= GOOD_SESSION_MINUTES ? 2 : 0);
+  return Math.max(0, base - Math.max(0, awayAlerts || 0));
+}
 
 // Helper: get ISO week number
 function getWeekNumber(d: Date): number {
@@ -15,18 +30,34 @@ function getWeekNumber(d: Date): number {
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-// Helper: handles invalid session count and triggers 48-hour lockout if >= 10 invalid sessions
+// Helper: counts a strike for an invalid session, warns admins as the count nears the limit,
+// and triggers the 48-hour lockout at MAX_STRIKES.
 async function handleSessionInvalidation(deviceUid: string) {
   try {
     const device = await Device.findOne({ uid: deviceUid });
     if (device) {
       device.invalidSessionCount = (device.invalidSessionCount || 0) + 1;
-      if (device.invalidSessionCount >= 10) {
+      const strikes = device.invalidSessionCount;
+      if (strikes >= MAX_STRIKES) {
         device.isLockedOut = true;
-        device.lockoutUntil = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
-        device.lockoutReason = `Exceeded 10 invalid sessions (${device.invalidSessionCount}). 48-hour penalty lockout.`;
+        device.lockoutUntil = new Date(Date.now() + LOCKOUT_HOURS * 60 * 60 * 1000);
+        device.lockoutReason = `Exceeded ${MAX_STRIKES} invalid sessions (${strikes}). ${LOCKOUT_HOURS}-hour penalty lockout.`;
         device.adminUnlocked = false;
-        console.log(`[LOCKOUT] Device ${device.uid} locked out for 48h! Total invalid sessions: ${device.invalidSessionCount}`);
+        console.log(`[LOCKOUT] Device ${device.uid} locked out for ${LOCKOUT_HOURS}h! Total invalid sessions: ${strikes}`);
+        await createNotificationInternal({
+          type: NotificationType.DEVICE,
+          title: `Device locked for ${LOCKOUT_HOURS} hours`,
+          message: `${device.name || device.uid} reached ${MAX_STRIKES} invalid sessions and is locked until ${device.lockoutUntil.toLocaleString('en-IN')}. An admin can unlock it.`,
+          relatedId: device.uid,
+        });
+      } else if (strikes >= STRIKE_WARNING_AT) {
+        const left = MAX_STRIKES - strikes;
+        await createNotificationInternal({
+          type: NotificationType.DEVICE,
+          title: `Strike warning: ${strikes} of ${MAX_STRIKES}`,
+          message: `${device.name || device.uid} has ${strikes} invalid sessions in a row. ${left} more and it is locked for ${LOCKOUT_HOURS} hours. One valid session of ${GOOD_SESSION_MINUTES}+ minutes clears the strikes.`,
+          relatedId: device.uid,
+        });
       }
       await device.save();
       return {
@@ -111,7 +142,7 @@ export const startSession = async (req: Request, res: Response) => {
       return res.status(403).json({
         success: false,
         error: 'DEVICE_LOCKED_OUT',
-        message: 'System locked out for 48 hours due to exceeding 10 invalid sessions.',
+        message: `System locked out for ${LOCKOUT_HOURS} hours due to exceeding ${MAX_STRIKES} invalid sessions.`,
         data: {
           lockedOut: true,
           remainingSeconds,
@@ -193,7 +224,7 @@ export const startSession = async (req: Request, res: Response) => {
         stale.activeMinutes = Math.max(0, totalMin - (stale.totalBreakMinutes || 0));
       }
 
-      const stalePoints = stale.status === 'COMPLETED' ? 5 : (stale.activeMinutes >= 20 ? 2 : 0);
+      const stalePoints = computeSdwPoints(stale.status, stale.activeMinutes, stale.awayAlertCount);
       if (stalePoints > 0 && stale.sdwPointsEarned === 0) {
         stale.sdwPointsEarned = stalePoints;
         await SDWPoints.create({
@@ -258,9 +289,12 @@ export const startBreak = async (req: Request, res: Response) => {
     session.alarmActive = Boolean(isAwayAlert);
     session.alarmMessage = isAwayAlert ? 'Away Alert: You are away from your desk!' : '';
     session.breaks.push({ startTime: new Date() });
+    if (isAwayAlert) {
+      session.awayAlertCount = (session.awayAlertCount || 0) + 1;
+    }
 
     await session.save();
-    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive } });
+    res.json({ success: true, data: { breakCount: session.breakCount, status: 'BREAK', alarmActive: session.alarmActive, awayAlertCount: session.awayAlertCount } });
   } catch (err) {
     console.error('[SESSION] break error:', err);
     res.status(500).json({ success: false, error: 'Failed to log break' });
@@ -456,18 +490,9 @@ export const endSession = async (req: Request, res: Response) => {
       session.selfRating = selfRating;
     }
 
-    // Award SDW points: if session completed then 5 points; if seated for 20 mins then +2 points (capped at 5)
-    let pointsEarned = 0;
-    if (session.status === 'COMPLETED') {
-      session.sdwPointsEarned = 5;
-      pointsEarned = 5;
-    } else if (session.activeMinutes >= 20) {
-      session.sdwPointsEarned = 2;
-      pointsEarned = 2;
-    } else {
-      session.sdwPointsEarned = 0;
-      pointsEarned = 0;
-    }
+    // Award SDW points: 5 if completed, 2 if seated 20+ min, minus 1 per away alert
+    const pointsEarned = computeSdwPoints(session.status, session.activeMinutes, session.awayAlertCount);
+    session.sdwPointsEarned = pointsEarned;
 
     if (pointsEarned > 0) {
       await SDWPoints.create({
@@ -484,6 +509,14 @@ export const endSession = async (req: Request, res: Response) => {
     }
 
     await session.save();
+
+    // A valid session of GOOD_SESSION_MINUTES+ clears the device's strikes (they count invalid sessions in a row)
+    if (session.status === 'COMPLETED' && session.activeMinutes >= GOOD_SESSION_MINUTES) {
+      await Device.updateOne(
+        { uid: session.deviceUid, isLockedOut: { $ne: true }, invalidSessionCount: { $gt: 0 } },
+        { $set: { invalidSessionCount: 0 } }
+      );
+    }
 
     // Voice feedback
     const targetMin = session.targetDurationMinutes || 120;
@@ -717,7 +750,7 @@ export const getCurrentSession = async (req: Request, res: Response) => {
       success: true,
       data: {
         ...session.toObject(),
-        sdwPointsEarned: session.status === 'COMPLETED' ? 5 : Math.max(session.sdwPointsEarned || 0, liveActiveMinutes >= 20 ? 2 : 0),
+        sdwPointsEarned: session.status === 'INVALID' ? 0 : computeSdwPoints(session.status, liveActiveMinutes, session.awayAlertCount),
         activeMinutes: liveActiveMinutes,
         activeSeconds: liveActiveSeconds,
         totalBreakMinutes: liveTotalBreakMinutes,
