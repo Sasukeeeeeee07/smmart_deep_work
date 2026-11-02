@@ -29,7 +29,7 @@ interface Session {
 
 const BLUE = '#0B5ED7';
 const RED = '#D7262E';
-const GOLD = '#F2B01E';
+const GOLD = '#F7B500';
 
 /** Small uppercase heading pinned to the top-left corner of a card, optionally with a status dot. */
 function CardHeading({ children, dot, color }: { children: React.ReactNode; dot?: 'on' | 'off'; color?: string }) {
@@ -481,11 +481,11 @@ export default function DeepWorkPage() {
 
             <div
               className={`w-[84px] h-[84px] rounded-full p-[5px] ${currentSession?.alarmActive ? 'dw-halo-warn' : ''}`}
-              style={{ background: RED, boxShadow: '0 5px 12px rgba(215, 38, 46, 0.3)' }}
+              style={{ background: '#EE1C25', boxShadow: '0 5px 14px rgba(238, 28, 37, 0.45)' }}
               aria-hidden="true"
             >
-              <div className="dw-knob-ring w-full h-full flex items-center justify-center" style={{ color: RED }}>
-                <Bell size={34} fill="currentColor" className={currentSession?.alarmActive ? 'dw-shake' : ''} />
+              <div className="dw-knob-ring w-full h-full flex items-center justify-center" style={{ color: '#FF3B1F' }}>
+                <Bell size={36} fill="currentColor" strokeWidth={1.6} style={{ filter: 'drop-shadow(0 2px 3px rgba(238, 28, 37, 0.45))' }} className={currentSession?.alarmActive ? 'dw-shake' : ''} />
               </div>
             </div>
 
@@ -682,13 +682,12 @@ export default function DeepWorkPage() {
                   >
                     <Star
                       size={44}
-                      strokeWidth={1.4}
+                      strokeWidth={on ? 1.4 : 1.8}
                       style={{
-                        color: '#E89A0C',
-                        fill: GOLD,
-                        opacity: on || !currentSession?.selfRating ? 1 : 0.35,
-                        filter: 'drop-shadow(0 3px 3px rgba(30,32,36,0.22))',
-                        transition: 'opacity 250ms',
+                        color: on ? '#E89A0C' : '#B4B9C2',
+                        fill: on ? GOLD : 'none',
+                        filter: on ? 'drop-shadow(0 0 7px rgba(247, 181, 0, 0.95)) drop-shadow(0 0 14px rgba(247, 181, 0, 0.55))' : 'none',
+                        transition: 'color 250ms, fill 250ms, filter 250ms',
                       }}
                     />
                   </button>

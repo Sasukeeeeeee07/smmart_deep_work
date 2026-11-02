@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import RiceRunner, { type RunnerMode } from './RiceRunner';
+import ManRunner, { type RunnerMode } from './ManRunner';
 
 /**
  * Drives the runner along the productivity-spike mountain line.
@@ -104,7 +104,7 @@ export default function SpikeRunner({ spiked }: { spiked: boolean }) {
         {moving && [0, 1, 2].map(i => (
           <span key={i} className="dw-dust" style={{ animationDelay: `${i * 0.22}s` }} />
         ))}
-        <RiceRunner mode={mode} width={28} />
+        <ManRunner mode={mode} width={46} />
       </div>
     </div>
   );
