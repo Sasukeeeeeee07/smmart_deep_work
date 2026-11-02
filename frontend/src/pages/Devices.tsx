@@ -150,7 +150,7 @@ const Devices = () => {
                       className="flex items-center justify-center shrink-0"
                       style={{
                         width: 32, height: 32, borderRadius: 10,
-                        background: isOnline ? 'rgba(66, 84, 67, 0.1)' : 'var(--surface-2)',
+                        background: isOnline ? 'rgba(11, 94, 215, 0.1)' : 'var(--surface-2)',
                       }}
                     >
                       <Cpu size={15} style={{ color: isOnline ? 'var(--forest)' : 'var(--ink-4)' }} />
@@ -218,7 +218,7 @@ const Devices = () => {
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(41, 43, 37, 0.4)', backdropFilter: 'blur(4px)' }}
+          style={{ background: 'rgba(30, 32, 36, 0.4)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
         >
           <div
@@ -264,7 +264,7 @@ const Devices = () => {
                       onClick={() => setDraft(p => ({ ...p, breakDisplayMode: opt.val }))}
                       className="p-3.5 rounded-xl border text-left transition-all"
                       style={{
-                        background: draft.breakDisplayMode === opt.val ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface-2)',
+                        background: draft.breakDisplayMode === opt.val ? 'rgba(11, 94, 215, 0.08)' : 'var(--surface-2)',
                         borderColor: draft.breakDisplayMode === opt.val ? 'var(--sage-dark)' : 'var(--border)',
                       }}
                     >
@@ -295,7 +295,7 @@ const Devices = () => {
                         onClick={() => setDraft(p => ({ ...p, [key]: !on }))}
                         className="flex items-center justify-between p-3 rounded-xl border cursor-pointer select-none transition-all"
                         style={{
-                          background: on ? 'rgba(66, 84, 67, 0.05)' : 'var(--surface-2)',
+                          background: on ? 'rgba(11, 94, 215, 0.05)' : 'var(--surface-2)',
                           borderColor: on ? 'rgba(94, 112, 82, 0.4)' : 'var(--border)',
                           opacity: on ? 1 : 0.65,
                         }}

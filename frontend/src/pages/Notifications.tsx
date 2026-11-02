@@ -9,7 +9,7 @@ interface Notification {
 }
 
 const TYPE_CFG: Record<NotifType, { icon: React.ElementType; color: string; bg: string; border: string }> = {
-  TASK:   { icon: ClipboardList, color: 'var(--forest)',  bg: 'rgba(66,84,67,0.08)',   border: 'rgba(66,84,67,0.2)' },
+  TASK:   { icon: ClipboardList, color: 'var(--forest)',  bg: 'rgba(11, 94, 215,0.08)',   border: 'rgba(11, 94, 215,0.2)' },
   DEVICE: { icon: Cpu,           color: 'var(--sage-dark)',bg: 'rgba(94,112,82,0.08)',  border: 'rgba(94,112,82,0.2)' },
   SYSTEM: { icon: Info,          color: 'var(--amber-w)', bg: 'rgba(184,121,57,0.1)',  border: 'rgba(184,121,57,0.2)' },
 };

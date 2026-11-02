@@ -75,7 +75,7 @@ const RadarWidget: React.FC<RadarWidgetProps> = ({ deviceUid, employeeName }) =>
                 width: 28,
                 height: 28,
                 borderRadius: '50%',
-                background: isOccupied ? 'rgba(66, 84, 67, 0.1)' : 'var(--surface-2)',
+                background: isOccupied ? 'rgba(11, 94, 215, 0.1)' : 'var(--surface-2)',
               }}
             >
               <User size={14} style={{ color: isOccupied ? 'var(--forest)' : 'var(--ink-4)' }} />

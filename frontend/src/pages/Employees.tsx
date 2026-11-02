@@ -6,8 +6,8 @@ const ROLES = ['EMPLOYEE', 'MANAGER', 'ADMIN'] as const;
 type Role = typeof ROLES[number];
 
 const ROLE_STYLE: Record<Role, { bg: string; color: string }> = {
-  ADMIN:    { bg: 'rgba(66, 84, 67, 0.1)',   color: 'var(--forest)' },
-  MANAGER:  { bg: 'rgba(184, 121, 57, 0.1)', color: 'var(--amber-w)' },
+  ADMIN:    { bg: 'rgba(11, 94, 215, 0.1)',   color: 'var(--forest)' },
+  MANAGER:  { bg: 'rgba(217, 142, 4, 0.1)', color: 'var(--amber-w)' },
   EMPLOYEE: { bg: 'var(--surface-2)',         color: 'var(--ink-3)' },
 };
 
@@ -29,7 +29,7 @@ const Field = ({
 const Modal = ({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) => (
   <div
     className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    style={{ background: 'rgba(41, 43, 37, 0.4)', backdropFilter: 'blur(4px)' }}
+    style={{ background: 'rgba(30, 32, 36, 0.4)', backdropFilter: 'blur(4px)' }}
     onClick={e => { if (e.target === e.currentTarget) onClose(); }}
   >
     <div
@@ -230,7 +230,7 @@ const Employees = () => {
                               width: 32,
                               height: 32,
                               borderRadius: '50%',
-                              background: 'rgba(66, 84, 67, 0.1)',
+                              background: 'rgba(11, 94, 215, 0.1)',
                               color: 'var(--forest)',
                               fontFamily: 'DM Sans, sans-serif',
                             }}

@@ -453,7 +453,7 @@ const Dashboard = () => {
           style={{ 
             minHeight: 380,
             borderColor: selectedWeek ? 'var(--forest)' : 'var(--border)',
-            boxShadow: selectedWeek ? '0 4px 20px rgba(66, 84, 67, 0.12)' : undefined,
+            boxShadow: selectedWeek ? '0 4px 20px rgba(11, 94, 215, 0.12)' : undefined,
           }}
         >
           <div>
@@ -513,12 +513,12 @@ const Dashboard = () => {
                 >
                   <defs>
                     <linearGradient id="gFocus" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#425443" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#425443" stopOpacity={0}/>
+                      <stop offset="5%"  stopColor="#0B5ED7" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#0B5ED7" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="gBreaks" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#B87939" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#B87939" stopOpacity={0}/>
+                      <stop offset="5%"  stopColor="#D98E04" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#D98E04" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" vertical={false} />
@@ -535,15 +535,15 @@ const Dashboard = () => {
                     tickFormatter={v => v >= 60 ? `${(v/60).toFixed(v % 60 === 0 ? 0 : 1)}h` : `${v}m`}
                   />
                   <Tooltip content={<AreaTip />} cursor={{ stroke: 'var(--forest)', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
-                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#425443" strokeWidth={2.4} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 5, fill: '#425443', stroke: '#ffffff', strokeWidth: 2 }} />
-                  <Area type="monotone" dataKey="breaks" name="Breaks" stroke="#B87939" strokeWidth={1.8} fillOpacity={1} fill="url(#gBreaks)" dot={false} activeDot={{ r: 4, fill: '#B87939', stroke: '#ffffff', strokeWidth: 1.5 }} />
+                  <Area type="monotone" dataKey="focus"  name="Focus" stroke="#0B5ED7" strokeWidth={2.4} fillOpacity={1} fill="url(#gFocus)" dot={false} activeDot={{ r: 5, fill: '#0B5ED7', stroke: '#ffffff', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="breaks" name="Breaks" stroke="#D98E04" strokeWidth={1.8} fillOpacity={1} fill="url(#gBreaks)" dot={false} activeDot={{ r: 4, fill: '#D98E04', stroke: '#ffffff', strokeWidth: 1.5 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="flex items-center gap-6 mt-6 pt-4 border-t border-[var(--border)]">
-            {[{ color: '#425443', label: 'Focus time' }, { color: '#B87939', label: 'Break time' }].map(l => (
+            {[{ color: '#0B5ED7', label: 'Focus time' }, { color: '#D98E04', label: 'Break time' }].map(l => (
               <div key={l.label} className="flex items-center gap-2">
                 <span className="rounded-full" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
@@ -658,7 +658,7 @@ const Dashboard = () => {
                   <Tooltip
                     content={(props: any) => <BarTip {...props} onSelectWeek={handleSelectWeek} />}
                     wrapperStyle={{ pointerEvents: 'auto' }}
-                    cursor={{ fill: 'rgba(66, 84, 67, 0.06)', cursor: 'pointer' }}
+                    cursor={{ fill: 'rgba(11, 94, 215, 0.06)', cursor: 'pointer' }}
                   />
                   <Bar
                     dataKey="productivity"
@@ -681,15 +681,15 @@ const Dashboard = () => {
                         <Cell
                           key={i}
                           cursor="pointer"
-                          stroke={isSelected ? '#425443' : 'none'}
+                          stroke={isSelected ? '#0B5ED7' : 'none'}
                           strokeWidth={isSelected ? 3 : 0}
                           fill={
                             isSelected
-                              ? '#425443'
+                              ? '#0B5ED7'
                               : entry.productivity >= 80
-                              ? '#5E7052'
+                              ? '#2F5EA8'
                               : entry.productivity > 0
-                              ? '#B87939'
+                              ? '#D98E04'
                               : 'var(--border)'
                           }
                         />
@@ -702,7 +702,7 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-5 mt-6 pt-4 border-t border-[var(--border)]">
-            {[{ color: '#5E7052', label: '≥80% High Flow' }, { color: '#B87939', label: '<80% Moderate' }].map(l => (
+            {[{ color: '#2F5EA8', label: '≥80% High Flow' }, { color: '#D98E04', label: '<80% Moderate' }].map(l => (
               <div key={l.label} className="flex items-center gap-2">
                 <span className="rounded-sm" style={{ width: 8, height: 8, background: l.color, display: 'block' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>{l.label}</span>
@@ -833,7 +833,7 @@ const Dashboard = () => {
                         <XAxis dataKey="label" tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={{ stroke: 'var(--ink-2)', strokeWidth: 1.5 }} />
                         <YAxis width={52} tick={{ fill: 'var(--ink)', fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} tickFormatter={v => formatRupees(v)} />
                         <Tooltip
-                          cursor={{ fill: 'rgba(66, 84, 67, 0.06)' }}
+                          cursor={{ fill: 'rgba(11, 94, 215, 0.06)' }}
                           content={({ active, payload }: any) => {
                             if (!active || !payload?.length) return null;
                             const d = payload[0].payload;

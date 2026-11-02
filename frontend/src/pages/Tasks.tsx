@@ -164,7 +164,7 @@ function TaskCard({
             className="flex items-center justify-center shrink-0 text-xs font-bold"
             style={{
               width: 22, height: 22, borderRadius: '50%',
-              background: 'rgba(66,84,67,0.1)',
+              background: 'rgba(11, 94, 215,0.1)',
               color: 'var(--forest)',
               fontFamily: 'DM Sans, sans-serif',
             }}

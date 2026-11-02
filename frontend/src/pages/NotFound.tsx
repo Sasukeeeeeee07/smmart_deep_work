@@ -16,7 +16,7 @@ export default function NotFound() {
         
         <div 
           className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center shadow-xs"
-          style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}
+          style={{ background: 'rgba(11, 94, 215, 0.1)', color: 'var(--forest)' }}
         >
           <Compass size={32} className="stroke-[2.2]" />
         </div>

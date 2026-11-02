@@ -32,19 +32,19 @@ function EntryRow({ entry }: { entry: ModerationEntry }) {
     <div
       className="flex items-start gap-3 px-4 py-3.5 rounded-xl border transition-colors"
       style={{
-        background: isAlarm ? 'rgba(182,83,75,0.04)' : 'rgba(66,84,67,0.04)',
-        borderColor: isAlarm ? 'rgba(182,83,75,0.18)' : 'rgba(66,84,67,0.18)',
+        background: isAlarm ? 'rgba(182,83,75,0.04)' : 'rgba(11, 94, 215,0.04)',
+        borderColor: isAlarm ? 'rgba(182,83,75,0.18)' : 'rgba(11, 94, 215,0.18)',
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = isAlarm ? 'rgba(182,83,75,0.08)' : 'rgba(66,84,67,0.07)')}
-      onMouseLeave={e => (e.currentTarget.style.background = isAlarm ? 'rgba(182,83,75,0.04)' : 'rgba(66,84,67,0.04)')}
+      onMouseEnter={e => (e.currentTarget.style.background = isAlarm ? 'rgba(182,83,75,0.08)' : 'rgba(11, 94, 215,0.07)')}
+      onMouseLeave={e => (e.currentTarget.style.background = isAlarm ? 'rgba(182,83,75,0.04)' : 'rgba(11, 94, 215,0.04)')}
     >
       {/* Icon */}
       <div
         className="flex items-center justify-center shrink-0 mt-0.5 rounded-lg"
         style={{
           width: 30, height: 30,
-          background: isAlarm ? 'rgba(182,83,75,0.12)' : 'rgba(66,84,67,0.1)',
-          border: `1px solid ${isAlarm ? 'rgba(182,83,75,0.2)' : 'rgba(66,84,67,0.18)'}`,
+          background: isAlarm ? 'rgba(182,83,75,0.12)' : 'rgba(11, 94, 215,0.1)',
+          border: `1px solid ${isAlarm ? 'rgba(182,83,75,0.2)' : 'rgba(11, 94, 215,0.18)'}`,
         }}
       >
         {isAlarm
@@ -143,7 +143,7 @@ export default function ModerationHistory({ deviceUid, onBack }: Props) {
       {!loading && data && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total actions', value: data.totalActions, icon: Shield,        color: 'var(--forest)',   bg: 'rgba(66,84,67,0.08)' },
+            { label: 'Total actions', value: data.totalActions, icon: Shield,        color: 'var(--forest)',   bg: 'rgba(11, 94, 215,0.08)' },
             { label: 'Commands',      value: data.commands,     icon: Terminal,      color: 'var(--sage-dark)',bg: 'rgba(94,112,82,0.08)' },
             { label: 'Alarms raised', value: data.alarms,       icon: AlertTriangle, color: 'var(--error)',    bg: 'rgba(182,83,75,0.08)' },
           ].map(({ label, value, icon: Icon, color, bg }) => (
@@ -169,7 +169,7 @@ export default function ModerationHistory({ deviceUid, onBack }: Props) {
             className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all border"
             style={{
               background: filterType === t
-                ? (t === 'ALARM' ? 'rgba(182,83,75,0.1)' : t === 'COMMAND' ? 'rgba(66,84,67,0.1)' : 'var(--surface-2)')
+                ? (t === 'ALARM' ? 'rgba(182,83,75,0.1)' : t === 'COMMAND' ? 'rgba(11, 94, 215,0.1)' : 'var(--surface-2)')
                 : 'transparent',
               color: filterType === t
                 ? (t === 'ALARM' ? 'var(--error)' : t === 'COMMAND' ? 'var(--sage-dark)' : 'var(--ink)')

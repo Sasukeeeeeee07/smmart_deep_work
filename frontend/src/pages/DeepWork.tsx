@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { deviceService, sessionService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
-import SpikeRunner from '../components/SpikeRunner';
+import SpikeRunner, { SPIKE_POINTS } from '../components/SpikeRunner';
 import { Ring, useCountUp } from '../components/DeepWorkBits';
 import {
-  Timer, Play, AlertTriangle,
+  Timer, Power, AlertTriangle, Bell,
   VolumeX, Star,
-  Clock, Activity,
-  History, X, Zap, Coffee, Send, Check, PowerOff, AudioLines
+  Clock, History, X, Coffee, Send, Check, PowerOff
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -28,60 +27,18 @@ interface Session {
   moderationLog?: ModerationLog[];
 }
 
-const CHIP_TONES = {
-  emerald: { bg: 'rgba(16, 185, 129, 0.14)', fg: '#047857' },
-  amber:   { bg: 'rgba(245, 158, 11, 0.16)', fg: '#B45309' },
-  indigo:  { bg: 'rgba(99, 102, 241, 0.14)', fg: '#4338CA' },
-} as const;
+const BLUE = '#0B5ED7';
+const RED = '#D7262E';
+const GOLD = '#F2B01E';
 
-/** Small icon badge with a short label, used as the header of the metric cards. */
-function ChipIcon({ icon, tone, label }: { icon: React.ReactNode; tone: keyof typeof CHIP_TONES; label: string }) {
-  const t = CHIP_TONES[tone];
+/** Small uppercase heading pinned to the top-left corner of a card, optionally with a status dot. */
+function CardHeading({ children, dot, color }: { children: React.ReactNode; dot?: 'on' | 'off'; color?: string }) {
   return (
-    <div className="flex items-center gap-2.5 self-start">
-      <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: t.bg, color: t.fg }}>
-        {icon}
-      </div>
-      <span className="text-sm font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{label}</span>
-    </div>
-  );
-}
-
-const TILE_TONES = {
-  forest:      { bg: 'linear-gradient(145deg, #7C957D 0%, #425443 100%)', fg: '#fff',    glow: 'rgba(66, 84, 67, 0.35)' },
-  amber:       { bg: 'linear-gradient(145deg, #DDA569 0%, #B87939 100%)', fg: '#fff',    glow: 'rgba(184, 121, 57, 0.4)' },
-  rose:        { bg: 'linear-gradient(145deg, #E9918A 0%, #B6534B 100%)', fg: '#fff',    glow: 'rgba(182, 83, 75, 0.4)' },
-  soft:        { bg: 'linear-gradient(145deg, #F4F2EB 0%, #E2DFD5 100%)', fg: '#5E7052', glow: 'rgba(41, 43, 37, 0.10)' },
-  'rose-soft': { bg: 'linear-gradient(145deg, #FCE7EA 0%, #F6C9D0 100%)', fg: '#BE123C', glow: 'rgba(225, 29, 72, 0.18)' },
-} as const;
-
-/** Rounded gradient tile that holds a card's main icon. */
-function IconTile({ tone, size, className = '', children }: { tone: keyof typeof TILE_TONES; size: number; className?: string; children: React.ReactNode }) {
-  const t = TILE_TONES[tone];
-  return (
-    <div
-      className={`flex items-center justify-center shrink-0 ${className}`}
-      style={{
-        width: size, height: size, borderRadius: size * 0.34, background: t.bg, color: t.fg,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.45), 0 10px 22px -8px ${t.glow}`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Card heading pinned to the top corner (right by default), optionally with a status dot. */
-function CardHeading({ children, dot, pulse, left, big }: { children: React.ReactNode; dot?: 'on' | 'off'; pulse?: boolean; left?: boolean; big?: boolean }) {
-  return (
-    <div className={`absolute top-4 flex items-center gap-2 max-w-[75%] ${left ? 'left-5' : 'right-5'}`}>
+    <div className="absolute top-4 left-5 flex items-center gap-2 max-w-[85%]">
       {dot && (
-        <span className={`w-2 h-2 rounded-full shrink-0 ${dot === 'on' ? 'bg-emerald-500' : 'bg-rose-500'} ${pulse ? 'animate-pulse-gentle' : ''}`} aria-hidden="true" />
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot === 'on' ? '#F5B800' : RED }} aria-hidden="true" />
       )}
-      <span
-        className={`uppercase tracking-wider leading-tight truncate ${left ? 'text-left' : 'text-right'} ${big ? 'text-base font-extrabold' : 'text-[11px] font-bold'}`}
-        style={{ color: big ? 'var(--ink)' : 'var(--ink-3)' }}
-      >
+      <span className="uppercase tracking-wide leading-tight truncate text-[12px] font-medium" style={{ color: color || 'var(--ink-2)' }}>
         {children}
       </span>
     </div>
@@ -381,20 +338,15 @@ export default function DeepWorkPage() {
          ══════════════════════════════════════════════════════════════════ */}
       <div className="w-full space-y-6">
         {/* Header: title + history */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pb-1 dw-stagger" style={{ ['--i' as any]: 0 }}>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 pt-4 pb-2 dw-stagger" style={{ ['--i' as any]: 0 }}>
           <span aria-hidden="true" />
-          <div className="flex flex-col items-center gap-2">
-            <h1
-              className="text-2xl md:text-3xl font-extrabold tracking-tight text-center"
-              style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}
-            >
-              Deepwork Session
-            </h1>
-          </div>
+          <h1 className="dw-title text-2xl md:text-[34px] text-center" style={{ color: '#1B1B1B' }}>
+            Deepwork Session
+          </h1>
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="justify-self-end relative w-11 h-11 rounded-2xl flex items-center justify-center border cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--forest)] active:scale-95"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--forest)' }}
+            className="dw-knob-ring justify-self-end relative w-11 h-11 flex items-center justify-center cursor-pointer transition-transform duration-200 hover:-translate-y-0.5 active:scale-95"
+            style={{ color: BLUE }}
             title="History"
             aria-label="Session history"
           >
@@ -402,7 +354,7 @@ export default function DeepWorkPage() {
             {allSessions.length > 0 && (
               <span
                 className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center text-white"
-                style={{ background: 'var(--forest)' }}
+                style={{ background: BLUE }}
               >
                 {allSessions.length}
               </span>
@@ -427,48 +379,51 @@ export default function DeepWorkPage() {
         )}
 
         {/* ── Action cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-10 sm:grid-rows-2 sm:min-h-[calc(100vh-250px)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
           {/* START / COUNTDOWN */}
           <div
             onClick={!isRunning && isDeviceOnline && !starting ? handleStartSession : undefined}
-            className={`dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
+            className={`dw-card p-5 pt-11 min-h-[230px] flex flex-col items-center justify-center ${!isRunning && isDeviceOnline ? 'cursor-pointer' : ''}`}
             style={{ ['--i' as any]: 1 }}
           >
             {isRunning ? (
               <div className="w-full" style={{ containerType: 'inline-size' }}>
                 <p
-                  className="dw-blink text-center font-extrabold tracking-tight tabular-nums whitespace-nowrap"
-                  style={{ color: 'var(--forest)', fontSize: 'clamp(1rem, 7cqw, 2.4rem)', fontFamily: 'DM Sans, sans-serif' }}
+                  className="dw-blink text-center font-bold tracking-tight tabular-nums whitespace-nowrap"
+                  style={{ color: BLUE, fontSize: 'clamp(1rem, 7cqw, 2.2rem)', fontFamily: 'Poppins, sans-serif' }}
                 >
                   Live Session : <span className="font-mono">{fmtHMS(remainingSec)}</span>
                 </p>
               </div>
             ) : (
               <>
-                <CardHeading left dot={isDeviceOnline ? 'on' : 'off'}>
+                <CardHeading dot={isDeviceOnline ? 'on' : 'off'}>
                   {isDeviceOnline ? 'Ready' : 'Offline'}
                 </CardHeading>
-                <div className="flex flex-col items-center gap-4">
-                  <Ring size={150} progress={0}>
-                    {!isDeviceOnline ? (
-                      <IconTile tone="rose-soft" size={52} className="dw-float"><PowerOff size={22} /></IconTile>
-                    ) : (
-                      <button type="button" disabled={starting} aria-label="Start session" className="cursor-pointer rounded-[22px] dw-halo transition-transform duration-200 hover:scale-110 active:scale-95">
-                        <IconTile tone="forest" size={68}>
-                          {starting ? <Timer size={28} className="animate-spin-slow" /> : <Play size={28} fill="currentColor" className="ml-0.5" />}
-                        </IconTile>
-                      </button>
-                    )}
-                  </Ring>
+                <div className="flex flex-col items-center gap-3">
                   {!isDeviceOnline ? (
-                    <span className="text-base font-extrabold tracking-tight" style={{ color: '#BE123C', fontFamily: 'DM Sans, sans-serif' }}>
-                      Device offline
-                    </span>
+                    <>
+                      <div className="dw-knob dw-float w-[100px] h-[100px] flex items-center justify-center" style={{ color: RED }}>
+                        <PowerOff size={40} strokeWidth={2.6} />
+                      </div>
+                      <span className="text-[17px] font-bold" style={{ color: RED, fontFamily: 'Poppins, sans-serif' }}>Device offline</span>
+                    </>
                   ) : (
-                    <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--forest)', fontFamily: 'DM Sans, sans-serif' }}>
-                      {starting ? 'Starting…' : 'Start session'}
-                    </span>
+                    <>
+                      <button
+                        type="button"
+                        disabled={starting}
+                        aria-label="Start session"
+                        className="dw-knob w-[100px] h-[100px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95"
+                        style={{ color: BLUE }}
+                      >
+                        {starting ? <Timer size={40} className="animate-spin-slow" /> : <Power size={44} strokeWidth={3} />}
+                      </button>
+                      <span className="text-[17px] font-bold" style={{ color: BLUE, fontFamily: 'Poppins, sans-serif' }}>
+                        {starting ? 'Starting…' : 'Start Session'}
+                      </span>
+                    </>
                   )}
                 </div>
               </>
@@ -477,19 +432,19 @@ export default function DeepWorkPage() {
 
           {/* FOCUS TIME / BREAKS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-4"
+            className="dw-card p-5 pt-11 min-h-[230px] flex flex-col items-center justify-center gap-4"
             style={{
               ['--i' as any]: 2,
-              background: currentSession?.status === 'BREAK' ? 'rgba(184, 121, 57, 0.08)' : undefined,
+              background: currentSession?.status === 'BREAK' ? 'rgba(217, 142, 4, 0.10)' : undefined,
             }}
           >
-            <CardHeading left>
+            <CardHeading>
               {currentSession?.status === 'BREAK' ? 'On break' : isRunning ? 'Focus time' : 'No session'}
             </CardHeading>
 
             <span
-              className="font-mono font-bold tabular-nums"
-              style={{ color: isRunning ? 'var(--ink)' : 'var(--ink-4)', fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}
+              className="font-semibold tabular-nums"
+              style={{ color: BLUE, fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(1.75rem, 3vw, 2.6rem)', letterSpacing: '0.02em' }}
             >
               {fmtHMS(isRunning ? activeSec : 0)}
             </span>
@@ -501,7 +456,7 @@ export default function DeepWorkPage() {
                     key={i}
                     title={`Break ${i + 1}`}
                     className="dw-stagger inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold tabular-nums"
-                    style={{ ['--i' as any]: 0, background: 'rgba(184, 121, 57, 0.14)', color: 'var(--amber-w)' }}
+                    style={{ ['--i' as any]: 0, background: 'rgba(217, 142, 4, 0.14)', color: 'var(--amber-w)' }}
                   >
                     <Coffee size={12} />
                     {formatBreakTime(b.startTime)}
@@ -516,49 +471,41 @@ export default function DeepWorkPage() {
 
           {/* ALARMS */}
           <div
-            className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5"
+            className="dw-card p-5 pt-11 min-h-[230px] flex flex-col items-center justify-center gap-4"
             style={{
               ['--i' as any]: 3,
-              background: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.08)' : undefined,
-              borderColor: currentSession?.alarmActive ? 'rgba(182, 83, 75, 0.4)' : undefined,
+              background: currentSession?.alarmActive ? 'rgba(215, 38, 46, 0.08)' : undefined,
             }}
           >
-            <CardHeading left big>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
+            <CardHeading color={RED}>{currentSession?.alarmActive ? (currentSession.alarmMessage || 'Away alert!') : 'Alarms'}</CardHeading>
 
-            {/* Scanning dots: calm sweep when quiet, fast red sweep when an alarm is raised */}
-            <div className="flex items-center justify-center gap-2 h-6" aria-hidden="true">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <span
-                  key={i}
-                  className="dw-scan w-2.5 h-2.5 rounded-full"
-                  style={{
-                    background: currentSession?.alarmActive ? 'var(--error)' : 'var(--sage)',
-                    animationDelay: `${i * (currentSession?.alarmActive ? 0.07 : 0.14)}s`,
-                    animationDuration: currentSession?.alarmActive ? '0.8s' : '1.8s',
-                  }}
-                />
-              ))}
+            <div
+              className={`w-[84px] h-[84px] rounded-full p-[5px] ${currentSession?.alarmActive ? 'dw-halo-warn' : ''}`}
+              style={{ background: RED, boxShadow: '0 5px 12px rgba(215, 38, 46, 0.3)' }}
+              aria-hidden="true"
+            >
+              <div className="dw-knob-ring w-full h-full flex items-center justify-center" style={{ color: RED }}>
+                <Bell size={34} fill="currentColor" className={currentSession?.alarmActive ? 'dw-shake' : ''} />
+              </div>
             </div>
 
-            <div className="w-full flex flex-col gap-3">
+            <div className="w-full flex flex-col gap-1.5 text-[13px] font-medium" style={{ color: RED }}>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Alarm Raised</span>
-                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: alarmCount > 0 ? 'var(--error)' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                  {alarmCountUp}
-                </span>
+                <span>Alarm Raised</span>
+                <span className="font-semibold tabular-nums" style={{ color: alarmCount > 0 ? RED : 'var(--ink)' }}>{alarmCountUp}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Breaks taken</span>
-                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                <span>Breaks Taken</span>
+                <span className="font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
                   {currentSession?.breakCount ?? currentSession?.breaks?.length ?? 0}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-base font-extrabold" style={{ color: 'var(--ink-2)' }}>Break time</span>
-                <span className="font-extrabold text-2xl tabular-nums leading-none" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                  {currentSession?.totalBreakMinutes || 0}<span className="text-base font-bold" style={{ color: 'var(--ink-3)' }}>m</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--ink-3)' }}> in </span>
-                  <span className="text-base font-mono">{isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
+                <span>Break Time</span>
+                <span className="font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
+                  {currentSession?.totalBreakMinutes || 0}<span className="text-[11px]"> m</span>
+                  <span className="text-[11px] font-medium"> in </span>
+                  <span className="text-[11px] font-mono">{isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00'}</span>
                 </span>
               </div>
             </div>
@@ -571,31 +518,35 @@ export default function DeepWorkPage() {
                 aria-label="Stop sound"
                 title="Stop sound"
                 className="absolute top-3 right-4 w-9 h-9 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-110 active:scale-95"
-                style={{ background: 'var(--error)' }}
+                style={{ background: RED }}
               >
                 <VolumeX size={16} />
               </button>
             )}
           </div>
+
           {/* MODERATOR */}
-          <div className="dw-card p-6 pt-12 min-h-[250px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
-            <CardHeading left big dot="on">Moderator Intervention</CardHeading>
-            <div className="relative">
-              <IconTile tone="forest" size={88}><AudioLines size={36} /></IconTile>
-              <span className="absolute inset-0 rounded-[30px] dw-halo pointer-events-none" aria-hidden="true" />
-            </div>
-            <div className="flex items-end gap-1 h-7" aria-hidden="true">
-              {[0, 1, 2, 3, 4, 5, 6].map(i => (
-                <span
-                  key={i}
-                  className="dw-bar w-1.5 h-7 rounded-full"
-                  style={{
-                    background: 'var(--sage)',
-                    animationDelay: `${i * 0.12}s`,
-                    animationDuration: sendingVoice ? '0.45s' : '1.4s',
-                  }}
-                />
-              ))}
+          <div className="dw-card p-5 pt-11 min-h-[230px] flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 4 }}>
+            <CardHeading>Moderator Intervention</CardHeading>
+            <div
+              className="w-[90px] h-[90px] rounded-full p-[6px]"
+              style={{ background: BLUE, boxShadow: '0 5px 12px rgba(11, 94, 215, 0.3)' }}
+              aria-hidden="true"
+            >
+              <div className="dw-knob-ring w-full h-full flex items-end justify-center gap-1.5 pb-[22px]">
+                {[16, 30, 22, 36].map((h, i) => (
+                  <span
+                    key={i}
+                    className="dw-bar w-[7px] rounded-[2px]"
+                    style={{
+                      height: h,
+                      background: '#F5C400',
+                      animationDelay: `${i * 0.12}s`,
+                      animationDuration: sendingVoice ? '0.45s' : '1.6s',
+                    }}
+                  />
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-1.5 w-full">
               <input
@@ -603,9 +554,10 @@ export default function DeepWorkPage() {
                 value={customVoice}
                 onChange={e => setCustomVoice(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendVoice(customVoice)}
-                placeholder="Say something to the desk…"
+                placeholder="say something to the desk…"
                 aria-label="Message for the desk speaker"
-                className="input-base text-xs flex-1 py-2 px-4 rounded-2xl min-w-0"
+                className="input-base text-[11px] flex-1 py-1.5 px-3 min-w-0"
+                style={{ borderRadius: 6, borderWidth: 1 }}
               />
               <button
                 type="button"
@@ -613,10 +565,10 @@ export default function DeepWorkPage() {
                 disabled={sendingVoice || !customVoice.trim()}
                 aria-label="Speak"
                 title="Speak"
-                className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
-                style={{ background: voiceSuccess ? 'var(--success)' : 'var(--forest)' }}
+                className="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+                style={{ background: voiceSuccess ? 'var(--success)' : BLUE }}
               >
-                {voiceSuccess ? <Check size={16} /> : sendingVoice ? <Timer size={16} className="animate-spin-slow" /> : <Send size={16} />}
+                {voiceSuccess ? <Check size={14} /> : sendingVoice ? <Timer size={14} className="animate-spin-slow" /> : <Send size={14} />}
               </button>
             </div>
           </div>
@@ -626,7 +578,7 @@ export default function DeepWorkPage() {
         {isRunning && remainingSec <= 15 * 60 && (
           <div
             className="dw-stagger p-3 rounded-3xl border flex items-center justify-center gap-3 flex-wrap"
-            style={{ background: 'rgba(184, 121, 57, 0.08)', borderColor: 'rgba(184, 121, 57, 0.3)', ['--i' as any]: 0 }}
+            style={{ background: 'rgba(217, 142, 4, 0.08)', borderColor: 'rgba(217, 142, 4, 0.3)', ['--i' as any]: 0 }}
           >
             <Clock size={20} className="animate-pulse-gentle" style={{ color: 'var(--amber-w)' }} />
             {[15, 30, 45, 60].map(m => (
@@ -643,100 +595,107 @@ export default function DeepWorkPage() {
           </div>
         )}
 
-        {/* ── Metric cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+        {/* ── Metric rows ── */}
+        <div className="flex flex-col gap-5">
 
           {/* SCORE */}
-          <div className="dw-card p-6 flex flex-col items-center justify-between gap-5" style={{ ['--i' as any]: 5 }} title="Productivity">
-            <ChipIcon icon={<Activity size={16} />} tone="emerald" label="Productivity score" />
-            <Ring size={150} stroke={12} progress={isSessionActiveWithData ? productivityScore / 100 : 0} color="#10B981">
-              <span className="font-extrabold text-4xl tabular-nums" style={{ color: isSessionActiveWithData ? 'var(--ink)' : 'var(--ink-4)', fontFamily: 'DM Sans, sans-serif' }}>
-                {scoreCountUp}<span className="text-lg font-bold" style={{ color: 'var(--ink-3)' }}>%</span>
-              </span>
-            </Ring>
-            <div className="w-full flex flex-col gap-2.5">
+          <div className="dw-card px-6 md:px-10 py-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.2fr)] items-center gap-6" style={{ ['--i' as any]: 5 }} title="Productivity">
+            <h2 className="dw-label text-[26px] md:text-[30px] leading-tight">Productivity Score</h2>
+            <div className="justify-self-center">
+              <Ring size={124} stroke={10} progress={isSessionActiveWithData ? productivityScore / 100 : 0} color="#D9A900" track="#F0DD3C">
+                <div className="dw-knob-ring w-[96px] h-[96px] flex items-center justify-center">
+                  <span className="font-bold text-[28px] tabular-nums" style={{ color: BLUE, fontFamily: 'Poppins, sans-serif' }}>
+                    {scoreCountUp}%
+                  </span>
+                </div>
+              </Ring>
+            </div>
+            <div className="justify-self-center md:justify-self-end grid grid-cols-[auto_auto] gap-x-10 gap-y-1.5 items-center">
               {[
-                { label: 'Total duration', value: isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00' },
-                { label: 'Focus time', value: isRunning ? fmtHMS(activeSec) : '00:00:00' },
-                { label: 'Break time', value: isRunning ? fmtHMS((currentSession?.totalBreakMinutes || 0) * 60) : '00:00:00' },
+                { label: 'Total Duration', value: isRunning ? fmtHMS(totalDeskTimeSec) : '00:00:00' },
+                { label: 'Focus Time', value: isRunning ? fmtHMS(activeSec) : '00:00:00' },
+                { label: 'Break Time', value: isRunning ? fmtHMS((currentSession?.totalBreakMinutes || 0) * 60) : '00:00:00' },
               ].map(r => (
-                <div key={r.label} className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold" style={{ color: 'var(--ink-2)' }}>{r.label}</span>
-                  <span className="font-mono font-bold text-sm tabular-nums" style={{ color: 'var(--ink)' }}>{r.value}</span>
+                <div key={r.label} className="contents">
+                  <span className="text-[17px] font-medium" style={{ color: 'var(--ink)' }}>{r.label}</span>
+                  <span className="font-bold text-[17px] tabular-nums" style={{ color: BLUE, fontFamily: 'Poppins, sans-serif' }}>{r.value}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* SPIKE GRAPH */}
-          <div className="dw-card p-6 flex flex-col justify-between gap-3" style={{ ['--i' as any]: 6 }} title="Productivity spike">
-            <ChipIcon icon={<Zap size={16} />} tone="amber" label="Productivity spike" />
-            <div className="flex-1 flex items-center justify-center">
-              <div className="relative w-full" style={{ aspectRatio: '280 / 130' }}>
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
-                  <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58 L 272 112 Z"
-                    style={{ fill: 'var(--forest)', opacity: spiked ? 0.12 : 0.05, transition: 'opacity 600ms' }} />
-                  <path d="M 8 112 L 272 112" fill="none" stroke="var(--border)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <div className="dw-card px-6 md:px-10 py-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] items-center gap-6" style={{ ['--i' as any]: 6 }} title="Productivity spike">
+            <h2 className="dw-label text-[26px] md:text-[30px] leading-tight">Productivity<br />Spike</h2>
+            <div className="relative w-full h-[150px] md:ml-auto md:max-w-[660px]">
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 280 130" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58 L 272 112 Z"
+                  style={{ fill: BLUE, opacity: spiked ? 0.08 : 0, transition: 'opacity 600ms' }} />
+                <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58"
+                  fill="none"
+                  stroke="#9AA0A8"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke" />
+                {spiked && (
                   <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58"
+                    pathLength={1}
                     fill="none"
-                    stroke="var(--ink-4)"
+                    stroke={BLUE}
                     strokeWidth="3"
-                    strokeDasharray="5 5"
+                    strokeDasharray={1}
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    opacity={spiked ? 0 : 1}
-                    style={{ transition: 'opacity 400ms' }}
-                    vectorEffect="non-scaling-stroke" />
-                  {spiked && (
-                    <path d="M 8 112 L 62 112 L 108 72 L 142 92 L 205 24 L 272 58"
-                      pathLength={1}
-                      fill="none"
-                      stroke="#10B981"
-                      strokeWidth="3.5"
-                      strokeDasharray={1}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
-                      style={{ animation: 'dw-draw 1.6s var(--ease-out) forwards' }} />
-                  )}
-                  <g style={{ opacity: spiked ? 1 : 0, transition: spiked ? 'opacity 400ms 3.4s' : 'opacity 200ms' }}>
-                    <path d="M 221 33 L 221 10" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-                    <path className="dw-flag" d="M 221 10 L 234 14 L 221 18 Z" style={{ fill: 'var(--terra)' }} />
-                  </g>
-                </svg>
-                <SpikeRunner spiked={spiked} />
-              </div>
+                    vectorEffect="non-scaling-stroke"
+                    style={{ animation: 'dw-draw 1.6s var(--ease-out) forwards' }} />
+                )}
+                <g style={{ opacity: spiked ? 1 : 0, transition: spiked ? 'opacity 400ms 3.4s' : 'opacity 200ms' }}>
+                  <path d="M 221 33 L 221 10" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                  <path className="dw-flag" d="M 221 10 L 234 14 L 221 18 Z" style={{ fill: 'var(--terra)' }} />
+                </g>
+              </svg>
+              {SPIKE_POINTS.slice(1).map(([x, y], i) => (
+                <span
+                  key={i}
+                  className="absolute w-3.5 h-3.5 rounded-full"
+                  style={{ left: `${(x / 280) * 100}%`, top: `${(y / 130) * 100}%`, transform: 'translate(-50%, -50%)', background: '#F5D50A', boxShadow: '0 1px 2px rgba(30,32,36,0.25)' }}
+                  aria-hidden="true"
+                />
+              ))}
+              <SpikeRunner spiked={spiked} />
             </div>
           </div>
 
           {/* RATING */}
-          <div className="dw-card p-6 flex flex-col items-center justify-center gap-5" style={{ ['--i' as any]: 7 }} title="Rate session">
-            <div className="absolute top-6 left-6">
-              <ChipIcon icon={<Star size={16} />} tone="indigo" label="Self Rating" />
-            </div>
-            <div className="flex items-center gap-1.5">
+          <div className="dw-card px-6 md:px-10 py-6 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] items-center gap-6" style={{ ['--i' as any]: 7 }} title="Rate session">
+            <h2 className="dw-label text-[26px] md:text-[30px] leading-tight">Self Rating</h2>
+            <div className="flex items-center gap-1.5 md:pl-[8%]">
               {[1, 2, 3, 4, 5].map(star => {
                 const on = star <= (currentSession?.selfRating || 0);
                 return (
                   <button
                     key={`${star}-${on}`}
                     onClick={() => handleRate(star)}
-                    className={`p-1.5 rounded-xl cursor-pointer transition-transform duration-200 hover:scale-125 hover:-rotate-6 active:scale-90 ${on ? 'dw-pop' : ''}`}
+                    className={`p-1 rounded-xl cursor-pointer transition-transform duration-200 hover:scale-125 hover:-rotate-6 active:scale-90 ${on ? 'dw-pop' : ''}`}
                     aria-label={`Rate ${star}`}
                   >
                     <Star
-                      size={30}
+                      size={44}
+                      strokeWidth={1.4}
                       style={{
-                        color: on ? 'var(--amber-w)' : 'var(--border-strong)',
-                        fill: on ? 'var(--amber-w)' : 'none',
-                        transition: 'color 250ms, fill 250ms',
+                        color: '#E89A0C',
+                        fill: GOLD,
+                        opacity: on || !currentSession?.selfRating ? 1 : 0.35,
+                        filter: 'drop-shadow(0 3px 3px rgba(30,32,36,0.22))',
+                        transition: 'opacity 250ms',
                       }}
                     />
                   </button>
                 );
               })}
             </div>
-                      </div>
+          </div>
 
         </div>
 
@@ -754,7 +713,7 @@ export default function DeepWorkPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-[var(--border)]">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(66,84,67,0.1)', color: 'var(--forest)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(11, 94, 215,0.1)', color: 'var(--forest)' }}>
                   <History size={18} />
                 </div>
                 <div>

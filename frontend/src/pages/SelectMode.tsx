@@ -117,7 +117,7 @@ export default function SelectMode() {
           </Link>
           <div className="hidden sm:block h-5 w-[1px]" style={{ background: 'var(--border)' }} />
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-3 py-1 rounded-lg" style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)', border: '1px solid rgba(66, 84, 67, 0.2)' }}>
+            <span className="text-xs font-bold px-3 py-1 rounded-lg" style={{ background: 'rgba(11, 94, 215, 0.1)', color: 'var(--forest)', border: '1px solid rgba(11, 94, 215, 0.2)' }}>
               {user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || 'User'}
             </span>
           </div>
@@ -178,7 +178,7 @@ export default function SelectMode() {
           className="flex-1 flex flex-col items-center justify-center p-8 md:p-16 transition-colors duration-300 relative cursor-pointer"
           style={{
             background: hovered === 'entrepreneur'
-              ? 'rgba(66, 84, 67, 0.04)'
+              ? 'rgba(11, 94, 215, 0.04)'
               : 'transparent',
             borderRight: '1px solid var(--border)',
           }}

@@ -193,7 +193,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-xs"
-              style={{ background: 'rgba(66, 84, 67, 0.1)', color: 'var(--forest)' }}
+              style={{ background: 'rgba(11, 94, 215, 0.1)', color: 'var(--forest)' }}
             >
               <Sliders size={22} className="stroke-[2.5]" />
             </div>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
       >
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[rgba(66,84,67,0.12)] text-[var(--forest)]">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[rgba(11, 94, 215,0.12)] text-[var(--forest)]">
               <Clock size={18} />
             </div>
             <div>
@@ -323,7 +323,7 @@ export default function SettingsPage() {
                   onClick={() => setWorkspaceSettings(prev => ({ ...prev, targetFocusMin: preset.min }))}
                   className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between relative ${
                     active
-                      ? 'border-[var(--forest)] bg-[rgba(66,84,67,0.06)] shadow-xs ring-2 ring-[var(--forest)]'
+                      ? 'border-[var(--forest)] bg-[rgba(11, 94, 215,0.06)] shadow-xs ring-2 ring-[var(--forest)]'
                       : 'border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--border-strong)]'
                   }`}
                 >
@@ -846,7 +846,7 @@ export default function SettingsPage() {
       <div 
         className="sticky bottom-4 z-30 p-4 rounded-2xl border shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4"
         style={{
-          background: 'rgba(255, 254, 250, 0.96)',
+          background: 'rgba(247, 247, 248, 0.96)',
           backdropFilter: 'blur(10px)',
           borderColor: 'var(--border-strong)'
         }}

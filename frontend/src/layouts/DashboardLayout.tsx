@@ -13,7 +13,6 @@ import {
   Activity,
   Cpu,
   Users,
-  X,
   PanelRightClose,
   PanelRightOpen
 } from 'lucide-react';
@@ -96,18 +95,20 @@ export default function DashboardLayout() {
   const isIndividual = workspaceMode === 'individual';
   const isLeadership = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard';
+  // The side menu carries the logo (as in the design); the header shows it only when the menu is hidden
+  const showHeaderLogo = isDashboard || !sidebarOpen;
 
   const navLinks = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { label: 'Deep Work', path: '/deepwork', icon: Timer },
-    { label: 'Tasks', path: '/tasks', icon: CheckSquare },
-    { label: 'Profile', path: '/profile', icon: User },
+    { label: 'Dashboard', tint: '#2F6FE4', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Deep Work', tint: '#3B6FD0', path: '/deepwork', icon: Timer },
+    { label: 'Tasks', tint: '#1E6AE1', path: '/tasks', icon: CheckSquare },
+    { label: 'Profile', tint: '#0EA5D9', path: '/profile', icon: User },
     ...(!isIndividual ? [
-      { label: 'Activity Monitor', path: '/activity', icon: Activity },
-      { label: 'Devices', path: '/devices', icon: Cpu },
-      ...(isLeadership ? [{ label: 'Staff Members', path: '/employees', icon: Users }] : [])
+      { label: 'Activity Monitor', tint: '#2F6FE4', path: '/activity', icon: Activity },
+      { label: 'Devices', tint: '#3B7BE8', path: '/devices', icon: Cpu },
+      ...(isLeadership ? [{ label: 'Staff Members', tint: '#1E6AE1', path: '/employees', icon: Users }] : [])
     ] : []),
-    { label: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
+    { label: 'Notifications', tint: '#2F6FE4', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
   ];
 
   return (
@@ -119,7 +120,7 @@ export default function DashboardLayout() {
       <header
         className="sticky top-0 z-50 px-4 sm:px-6 md:px-8 py-3 flex items-center justify-between shrink-0 w-full max-w-full relative"
         style={{
-          background: 'rgba(255, 254, 250, 0.95)',
+          background: 'rgba(247, 247, 248, 0.95)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--border)',
         }}
@@ -150,7 +151,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Center: Aesthetic 'smmart deep work' Logo placed in the middle */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10 pointer-events-auto">
+        <div className={`absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10 pointer-events-auto transition-opacity ${showHeaderLogo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} aria-hidden={!showHeaderLogo}>
           <Link 
             to="/dashboard" 
             className="flex items-center group cursor-pointer transition-transform hover:scale-105 active:scale-95"
@@ -211,7 +212,7 @@ export default function DashboardLayout() {
               width: 32,
               height: 32,
               borderRadius: '50%',
-              background: 'rgba(66, 84, 67, 0.12)',
+              background: 'rgba(11, 94, 215, 0.12)',
               color: 'var(--forest)',
               fontFamily: 'DM Sans, sans-serif',
             }}
@@ -248,7 +249,7 @@ export default function DashboardLayout() {
               className="p-2 rounded-xl transition-all border cursor-pointer hover:border-[var(--forest)] hover:shadow-2xs ml-0.5"
               style={{
                 borderColor: sidebarOpen ? 'var(--forest)' : 'var(--border)',
-                background: sidebarOpen ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface)',
+                background: sidebarOpen ? 'rgba(11, 94, 215, 0.08)' : 'var(--surface)',
                 color: sidebarOpen ? 'var(--forest)' : 'var(--ink)',
               }}
               title={sidebarOpen ? "Close side menu" : "Open side menu"}
@@ -284,87 +285,63 @@ export default function DashboardLayout() {
           <aside
             className={`
               fixed lg:sticky top-[57px] right-0 h-[calc(100vh-57px)] z-40 lg:z-20
-              flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out select-none
+              flex flex-col shrink-0 transition-all duration-300 ease-in-out select-none
               ${
                 sidebarOpen
-                  ? 'w-60 translate-x-0 opacity-100 border-l shadow-2xl lg:shadow-none'
-                  : 'w-0 translate-x-full lg:translate-x-0 lg:w-0 opacity-0 pointer-events-none border-l-0 overflow-hidden'
+                  ? 'w-[272px] max-w-[85vw] translate-x-0 opacity-100 shadow-2xl lg:shadow-none'
+                  : 'w-0 translate-x-full lg:translate-x-0 lg:w-0 opacity-0 pointer-events-none overflow-hidden'
               }
             `}
-            style={{
-              background: 'rgba(255, 254, 250, 0.98)',
-              backdropFilter: 'blur(16px)',
-              borderColor: 'var(--border)',
-            }}
+            style={{ background: '#C9D4E0' }}
             aria-label="Navigation Menu"
           >
             {/* Inner fixed-width wrapper to prevent layout wrap during width collapse */}
-            <div className="w-60 h-full flex flex-col justify-between p-3.5 overflow-y-auto">
-              {/* Top section: Header & Navigation Links */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border)]">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--ink-3)]">
-                    Menu
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarOpen(false)}
-                    className="p-1 rounded-lg text-[var(--ink-3)] hover:text-[var(--forest)] hover:bg-stone-100 transition-colors cursor-pointer"
-                    title="Close side menu"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
+            <div className="w-[272px] max-w-[85vw] h-full flex flex-col overflow-y-auto">
+              <Link
+                to="/dashboard"
+                className="flex items-center justify-center pt-7 pb-6 shrink-0"
+                title="smmart deep work"
+                onClick={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+              >
+                <img src="/smmart-logo.png" alt="smmart deep work" className="w-[150px] h-auto object-contain" />
+              </Link>
 
-                <nav className="space-y-1">
-                  {navLinks.map(item => {
-                    const Icon = item.icon;
-                    const active = location.pathname === item.path;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => {
-                          if (window.innerWidth < 1024) setSidebarOpen(false);
-                        }}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                          active
-                            ? 'shadow-xs'
-                            : 'hover:bg-[var(--surface-2)]'
-                        }`}
-                        style={{
-                          background: active ? 'rgba(66, 84, 67, 0.12)' : 'transparent',
-                          color: active ? 'var(--forest)' : 'var(--ink-3)',
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon size={18} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && item.badge > 0 && (
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold"
-                            style={{ background: 'var(--error)' }}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
+              <nav className="flex flex-col border-t" style={{ borderColor: 'rgba(30, 32, 36, 0.14)' }}>
+                {navLinks.map(item => {
+                  const Icon = item.icon;
+                  const active = location.pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                      className="side-nav-item"
+                    >
+                      <span className="flex items-center gap-4">
+                        <Icon size={22} strokeWidth={1.8} style={{ color: item.tint }} />
+                        <span>{item.label}</span>
+                      </span>
+                      {item.badge && item.badge > 0 && (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-bold not-italic"
+                          style={{ background: 'var(--error)' }}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
 
-              {/* Bottom Actions: Sign Out */}
-              <div className="flex flex-col items-stretch gap-2 pt-3 border-t border-[var(--border)] w-full">
+              <div className="mt-auto pb-6 pt-8 flex justify-center shrink-0">
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer hover:bg-[rgba(182,83,75,0.1)] hover:text-[var(--error)] text-left w-full"
-                  style={{ color: 'var(--ink-2)' }}
+                  className="side-nav-item !w-auto !border-0 !py-2 !px-4 hover:!bg-transparent hover:underline"
                 >
-                  <LogOut size={18} />
-                  <span>Sign Out</span>
+                  Sign Out
                 </button>
               </div>
             </div>

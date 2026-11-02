@@ -61,7 +61,7 @@ export default function Profile() {
       <div
         className="p-6 md:p-8 rounded-3xl border shadow-xs relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, rgba(66, 84, 67, 0.08) 0%, rgba(74, 124, 89, 0.04) 100%)',
+          background: 'linear-gradient(135deg, rgba(11, 94, 215, 0.08) 0%, rgba(74, 124, 89, 0.04) 100%)',
           borderColor: 'var(--border)',
         }}
       >
@@ -86,8 +86,8 @@ export default function Profile() {
                 <span
                   className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
                   style={{
-                    background: 'rgba(66, 84, 67, 0.1)',
-                    borderColor: 'rgba(66, 84, 67, 0.25)',
+                    background: 'rgba(11, 94, 215, 0.1)',
+                    borderColor: 'rgba(11, 94, 215, 0.25)',
                     color: 'var(--forest)',
                   }}
                 >

@@ -19,10 +19,10 @@ const LABEL: Record<RunnerMode, string> = {
 };
 
 const SPARKS: [number, number, string, string][] = [
-  [4, 9, '#F2B84B', '0s'], [37, 7, '#C47F61', '0.28s'], [2, 27, '#87977A', '0.55s'], [38, 25, '#F2B84B', '0.8s'],
+  [4, 9, '#F2B84B', '0s'], [37, 7, '#F58220', '0.28s'], [2, 27, '#7C9CC9', '0.55s'], [38, 25, '#F2B84B', '0.8s'],
 ];
 const CONFETTI: [number, string, string][] = [
-  [8, '#C47F61', '0s'], [15, '#F2B84B', '0.25s'], [22, '#87977A', '0.5s'], [28, '#425443', '0.15s'], [34, '#C47F61', '0.4s'], [19, '#F2B84B', '0.7s'],
+  [8, '#F58220', '0s'], [15, '#F2B84B', '0.25s'], [22, '#7C9CC9', '0.5s'], [28, '#0B5ED7', '0.15s'], [34, '#F58220', '0.4s'], [19, '#F2B84B', '0.7s'],
 ];
 
 export default function RiceRunner({ mode = 'ready', width = 28 }: { mode?: RunnerMode; width?: number }) {
@@ -54,11 +54,11 @@ export default function RiceRunner({ mode = 'ready', width = 28 }: { mode?: Runn
         </g>
         <g className="rice-leg2">
           <path d="M25 36 L25 42" stroke={INK} strokeWidth="3" strokeLinecap="round" />
-          <ellipse cx="26.6" cy="43.6" rx="3.6" ry="1.9" fill="#425443" stroke={INK} strokeWidth="1" />
+          <ellipse cx="26.6" cy="43.6" rx="3.6" ry="1.9" fill="#0B5ED7" stroke={INK} strokeWidth="1" />
         </g>
         <g className="rice-leg1">
           <path d="M15 36 L15 42" stroke={INK} strokeWidth="3" strokeLinecap="round" />
-          <ellipse cx="16.6" cy="43.6" rx="3.6" ry="1.9" fill="#C47F61" stroke={INK} strokeWidth="1" />
+          <ellipse cx="16.6" cy="43.6" rx="3.6" ry="1.9" fill="#F58220" stroke={INK} strokeWidth="1" />
         </g>
 
         {/* the grain */}
@@ -66,14 +66,14 @@ export default function RiceRunner({ mode = 'ready', width = 28 }: { mode?: Runn
           d="M20 6.5 C29.5 7.5 32 19 31 28 C30 37.5 25.5 40.5 20 40.5 C14.5 40.5 10 37.5 9 28 C8 19 10.5 7.5 20 6.5 Z"
           fill={GRAIN} stroke={INK} strokeWidth="1.7" strokeLinejoin="round"
         />
-        <path d="M27 12 C30.5 19 30.5 31 26 38.5 C29.5 36 31 31 30.5 26 C30 19 29 14 27 12 Z" fill="rgba(66,84,67,0.10)" />
-        <path d="M21.5 11 C24 17 24 25 21.5 32" fill="none" stroke="rgba(66,84,67,0.20)" strokeWidth="1.1" strokeLinecap="round" />
+        <path d="M27 12 C30.5 19 30.5 31 26 38.5 C29.5 36 31 31 30.5 26 C30 19 29 14 27 12 Z" fill="rgba(11, 94, 215,0.10)" />
+        <path d="M21.5 11 C24 17 24 25 21.5 32" fill="none" stroke="rgba(11, 94, 215,0.20)" strokeWidth="1.1" strokeLinecap="round" />
 
         {/* headband + fluttering tail */}
         <g className="rice-tail">
-          <path d="M10.5 16 L2.5 12.5 L4.5 16.2 L2 19.5 Z" fill="#C47F61" stroke={INK} strokeWidth="0.9" strokeLinejoin="round" />
+          <path d="M10.5 16 L2.5 12.5 L4.5 16.2 L2 19.5 Z" fill="#F58220" stroke={INK} strokeWidth="0.9" strokeLinejoin="round" />
         </g>
-        <path d="M9.6 15.4 Q20 11.8 31.2 15.4 L31.3 18.9 Q20 15.4 9.7 18.9 Z" fill="#C47F61" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
+        <path d="M9.6 15.4 Q20 11.8 31.2 15.4 L31.3 18.9 Q20 15.4 9.7 18.9 Z" fill="#F58220" stroke={INK} strokeWidth="1" strokeLinejoin="round" />
 
         {/* face */}
         {summit ? (
@@ -90,8 +90,8 @@ export default function RiceRunner({ mode = 'ready', width = 28 }: { mode?: Runn
             <path d="M19.6 26.6 Q21.6 28.6 23.6 26.6" fill="none" stroke={INK} strokeWidth="1.2" strokeLinecap="round" />
           </>
         )}
-        <ellipse cx="13.8" cy="26.6" rx="2.1" ry="1.3" fill="#C47F61" opacity="0.42" />
-        <ellipse cx="29.2" cy="26.6" rx="2.1" ry="1.3" fill="#C47F61" opacity="0.42" />
+        <ellipse cx="13.8" cy="26.6" rx="2.1" ry="1.3" fill="#F58220" opacity="0.42" />
+        <ellipse cx="29.2" cy="26.6" rx="2.1" ry="1.3" fill="#F58220" opacity="0.42" />
 
         {/* near arm */}
         <g className="rice-arm1">

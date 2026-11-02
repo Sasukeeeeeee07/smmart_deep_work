@@ -280,7 +280,7 @@ export default function ModeratorConfig() {
       <div 
         className="p-6 sm:p-8 rounded-3xl border transition-all relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, rgba(66, 84, 67, 0.08) 0%, rgba(255, 254, 250, 0.95) 100%)',
+          background: 'linear-gradient(135deg, rgba(11, 94, 215, 0.08) 0%, rgba(247, 247, 248, 0.95) 100%)',
           borderColor: 'var(--border)',
         }}
       >
@@ -290,8 +290,8 @@ export default function ModeratorConfig() {
               <span 
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border"
                 style={{
-                  background: 'rgba(66, 84, 67, 0.12)',
-                  borderColor: 'rgba(66, 84, 67, 0.25)',
+                  background: 'rgba(11, 94, 215, 0.12)',
+                  borderColor: 'rgba(11, 94, 215, 0.25)',
                   color: 'var(--forest)',
                 }}
               >
@@ -452,7 +452,7 @@ export default function ModeratorConfig() {
                   onClick={() => setStrictness(m.id as any)}
                   className="p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between"
                   style={{
-                    background: active ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface-2)',
+                    background: active ? 'rgba(11, 94, 215, 0.08)' : 'var(--surface-2)',
                     borderColor: active ? 'var(--forest)' : 'var(--border)',
                   }}
                 >
@@ -550,10 +550,10 @@ export default function ModeratorConfig() {
                 }}
                 className="p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between"
                 style={{
-                  background: active ? 'rgba(66, 84, 67, 0.08)' : 'var(--surface-2)',
+                  background: active ? 'rgba(11, 94, 215, 0.08)' : 'var(--surface-2)',
                   borderColor: active ? 'var(--forest)' : 'var(--border)',
                   transform: active ? 'translateY(-2px)' : 'none',
-                  boxShadow: active ? '0 4px 12px rgba(66, 84, 67, 0.1)' : 'none',
+                  boxShadow: active ? '0 4px 12px rgba(11, 94, 215, 0.1)' : 'none',
                 }}
               >
                 <div>
