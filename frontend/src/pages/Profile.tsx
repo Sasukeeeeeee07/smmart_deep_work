@@ -1,25 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save, Coins, Building2, CalendarDays, BadgeCheck } from 'lucide-react';
+import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save, Coins } from 'lucide-react';
 import { formatRupees, timeValue, WORKING_DAYS_PER_YEAR, WORKING_HOURS_PER_DAY } from '../utils/timeCurrency';
-
-const WORK_EXPERIENCE = [
-  {
-    company: 'Scad Technologies',
-    role: 'Software Developer',
-    period: 'Dec 2025 – Present',
-    type: 'Full-time',
-    current: true,
-    note: '',
-  },
-  {
-    company: 'Cognifyz IT Solutions Pvt. Ltd.',
-    role: 'Software Development Intern',
-    period: '19 Jun 2026 – 19 Jul 2026',
-    type: 'Internship',
-    current: false,
-    note: 'Internship Completion Certificate issued 19 Jul 2026',
-  },
-];
 
 export default function Profile() {
   const userStr = localStorage.getItem('user');
@@ -309,71 +290,6 @@ export default function Profile() {
           </button>
         </div>
       </form>
-
-      {/* Work Experience */}
-      <div className="p-6 md:p-8 rounded-3xl border shadow-xs space-y-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <div className="border-b pb-4" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="text-lg font-bold" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-            Work Experience
-          </h2>
-          <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
-            Professional roles and internships
-          </p>
-        </div>
-
-        <ol className="space-y-5">
-          {WORK_EXPERIENCE.map((job, i) => (
-            <li key={job.company} className="flex gap-4">
-              <div className="flex flex-col items-center shrink-0">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center border"
-                  style={{
-                    background: job.current ? 'rgba(11, 94, 215, 0.1)' : 'var(--surface)',
-                    borderColor: job.current ? 'rgba(11, 94, 215, 0.25)' : 'var(--border)',
-                    color: 'var(--forest)',
-                  }}
-                >
-                  <Building2 size={18} />
-                </div>
-                {i < WORK_EXPERIENCE.length - 1 && (
-                  <div className="w-px flex-1 mt-2" style={{ background: 'var(--border)' }} />
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1 pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{job.role}</h3>
-                  {job.current && (
-                    <span
-                      className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
-                      style={{ background: 'rgba(11, 94, 215, 0.1)', borderColor: 'rgba(11, 94, 215, 0.25)', color: 'var(--forest)' }}
-                    >
-                      Current
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--ink-2)' }}>{job.company}</p>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs" style={{ color: 'var(--ink-4)' }}>
-                  <span className="flex items-center gap-1.5">
-                    <CalendarDays size={13} />
-                    {job.period}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Briefcase size={13} />
-                    {job.type}
-                  </span>
-                </div>
-                {job.note && (
-                  <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
-                    <BadgeCheck size={13} style={{ color: 'var(--forest)' }} />
-                    {job.note}
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
     </div>
   );
 }
