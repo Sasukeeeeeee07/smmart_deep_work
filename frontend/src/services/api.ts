@@ -84,6 +84,14 @@ export const taskService = {
     const response = await api.delete(`/tasks/${id}`);
     return response.data.data;
   },
+  getMissedTasks: async () => {
+    const response = await api.get('/tasks/missed');
+    return response.data.data;
+  },
+  addMissedTask: async (data: { title: string; description?: string }) => {
+    const response = await api.post('/tasks/missed', data);
+    return response.data.data;
+  },
 };
 
 // Notification Services

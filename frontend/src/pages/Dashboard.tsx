@@ -16,7 +16,8 @@ interface WeekData  {
   weekIndex: number;
   focus: number;
   breaks: number;
-  productivity: number;
+  productivity: number;      // efficiency: focus time as a % of the goal for that period
+  targetMinutes: number;     // the goal for that period (daily goal x working days)
   sessions: number;
   days: DayData[];
 }
@@ -33,7 +34,34 @@ const fmtHoursDecimal = (mins: number) => {
   return `${decimal} hrs (${h}h ${m}m)`;
 };
 
+/** Daily deep-work goal in minutes, from the Profile page (falls back to 4 h). */
+const getDailyGoalMinutes = () => {
+  try {
+    const profile = JSON.parse(localStorage.getItem('smmart_profile') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const h = parseFloat(profile.dailyTargetHours ?? user.dailyTargetHours);
+    return (Number.isFinite(h) && h > 0 ? h : 4) * 60;
+  } catch { return 240; }
+};
+
+/** Monday-to-Friday days between two dates, both inclusive. */
+const countWeekdays = (start: Date, end: Date) => {
+  let n = 0;
+  const d = new Date(start); d.setHours(0, 0, 0, 0);
+  const last = new Date(end); last.setHours(0, 0, 0, 0);
+  while (d <= last) { const w = d.getDay(); if (w !== 0 && w !== 6) n++; d.setDate(d.getDate() + 1); }
+  return n;
+};
+
+/**
+ * Efficiency = focus time against what the daily goal asked for, capped at 100%.
+ * Using the device once in a month therefore scores a few percent, not 93%.
+ */
+const efficiencyPct = (focusMinutes: number, targetMinutes: number) =>
+  targetMinutes > 0 ? Math.min(100, Math.round((focusMinutes / targetMinutes) * 100)) : 0;
+
 const computeClientAnalytics = (sessions: any[]) => {
+  const goal = getDailyGoalMinutes();
   const now = new Date();
   const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
@@ -65,7 +93,7 @@ const computeClientAnalytics = (sessions: any[]) => {
     const ws = sessions.filter(s => { const t = new Date(s.startTime).getTime(); return t >= start.getTime() && t <= end.getTime(); });
     const focus  = ws.reduce((a, s) => a + getCappedActive(s), 0);
     const breaks = ws.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0);
-    const total  = focus + breaks;
+    const targetMinutes = goal * countWeekdays(start, end);
 
     // 7 specific days for this week
     const weekDays: DayData[] = [];
@@ -93,7 +121,8 @@ const computeClientAnalytics = (sessions: any[]) => {
       weekIndex: 3 - w,
       focus,
       breaks,
-      productivity: total > 0 ? Math.round((focus / total) * 100) : 0,
+      productivity: efficiencyPct(focus, targetMinutes),
+      targetMinutes,
       sessions: ws.length,
       days: weekDays,
     });
@@ -102,8 +131,8 @@ const computeClientAnalytics = (sessions: any[]) => {
   const ms = new Date(now); ms.setDate(ms.getDate() - 30);
   const mSess = sessions.filter(s => new Date(s.startTime).getTime() >= ms.getTime());
   const mF = mSess.reduce((a, s) => a + getCappedActive(s), 0);
-  const mB = mSess.reduce((a, s) => a + (s.totalBreakMinutes || 0), 0);
-  const averageMonthlyScore = (mF + mB) > 0 ? parseFloat(((mF / (mF + mB)) * 100).toFixed(1)) : 0;
+  const mTarget = goal * countWeekdays(ms, now);
+  const averageMonthlyScore = mTarget > 0 ? parseFloat(Math.min(100, (mF / mTarget) * 100).toFixed(1)) : 0;
 
   return {
     weeklyData,
@@ -117,7 +146,8 @@ const AreaTip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as DayData;
   const total = (d.focus || 0) + (d.breaks || 0);
-  const pct = total > 0 ? Math.round(((d.focus || 0) / total) * 100) : 0;
+  const goalMin = getDailyGoalMinutes();
+  const pct = efficiencyPct(d.focus || 0, goalMin);
   return (
     <div
       className="card shadow-xl rounded-2xl border"
@@ -169,7 +199,7 @@ const AreaTip = ({ active, payload, label }: any) => {
 
         {total > 0 && (
           <div className="flex justify-between items-baseline gap-4 pt-1 border-t border-dashed border-[var(--border)]">
-            <span className="font-semibold text-xs" style={{ color: 'var(--sage-dark)' }}>Efficiency:</span>
+            <span className="font-semibold text-xs" style={{ color: 'var(--sage-dark)' }}>Efficiency (vs {fmtHoursDecimal(goalMin).split(' ')[0]} h goal):</span>
             <span className="font-extrabold text-xs tabular-nums" style={{ color: pct >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
               {pct}%
             </span>
@@ -206,9 +236,15 @@ const BarTip = ({ active, payload, onSelectWeek }: any) => {
       </div>
       <div className="space-y-2">
         <div className="flex justify-between items-baseline gap-4">
-          <span className="font-semibold text-xs" style={{ color: 'var(--ink-3)' }}>Productivity Score:</span>
+          <span className="font-semibold text-xs" style={{ color: 'var(--ink-3)' }}>Efficiency:</span>
           <span className="font-extrabold text-sm" style={{ color: d.productivity >= 80 ? 'var(--forest)' : 'var(--amber-w)' }}>
             {d.productivity}%
+          </span>
+        </div>
+        <div className="flex justify-between items-baseline gap-4">
+          <span className="font-medium text-xs" style={{ color: 'var(--ink-3)' }}>Goal for the week:</span>
+          <span className="font-semibold text-xs tabular-nums" style={{ color: 'var(--ink-2)' }}>
+            {fmtHoursDecimal(d.targetMinutes || 0)}
           </span>
         </div>
         <div className="flex justify-between items-baseline gap-4">
@@ -417,6 +453,15 @@ const Dashboard = () => {
           finalWeeklyData = backendAnalytics.weeklyData;
         }
 
+        // Efficiency is always measured against the daily goal, whichever source the weeks came from
+        finalMonthlyData = finalMonthlyData.map((w: WeekData, i: number) => {
+          const targetMinutes = clientAnalytics.monthlyData[i]?.targetMinutes ?? w.targetMinutes ?? 0;
+          return { ...w, targetMinutes, productivity: efficiencyPct(w.focus || 0, targetMinutes) };
+        });
+        const sumFocus = finalMonthlyData.reduce((a: number, w: WeekData) => a + (w.focus || 0), 0);
+        const sumTarget = finalMonthlyData.reduce((a: number, w: WeekData) => a + (w.targetMinutes || 0), 0);
+        finalAvgScore = sumTarget > 0 ? parseFloat(Math.min(100, (sumFocus / sumTarget) * 100).toFixed(1)) : 0;
+
         setWeeklyData(finalWeeklyData);
         setMonthlyData(finalMonthlyData);
         setAvgScore(finalAvgScore);
@@ -613,7 +658,7 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     <p className="text-xs" style={{ color: 'var(--ink-4)' }}>
-                      Hover on any week to view details or click to inspect its 7-day breakdown
+                      Efficiency = focus time vs your daily goal. Click a week for its 7-day breakdown
                     </p>
                   )}
                 </div>

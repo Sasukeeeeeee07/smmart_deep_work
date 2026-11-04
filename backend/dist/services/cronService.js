@@ -5,6 +5,7 @@ const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const Device_1 = require("../models/Device");
 const Task_1 = require("../models/Task");
 const voiceService_1 = require("./voiceService");
+const penaltyService_1 = require("./penaltyService");
 // Device offline threshold in milliseconds (default 120 seconds / 2 minutes)
 const OFFLINE_THRESHOLD_MS = (parseInt(process.env.DEVICE_OFFLINE_THRESHOLD_SECONDS || '120', 10)) * 1000;
 const syncOfflineDevicesAndSessions = async () => {
@@ -72,6 +73,8 @@ const startCronJobs = () => {
         try {
             console.log('[CRON] Running background checks...');
             const now = new Date();
+            // 0. Overdue tasks become missed tasks (with their SDW penalty)
+            await (0, penaltyService_1.flagOverdueTasks)();
             // 1. Check for tasks assigned today that haven't been completed for a long time (e.g. > 4 hours)
             const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);
             const pendingTasks = await Task_1.Task.find({

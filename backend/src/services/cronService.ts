@@ -2,6 +2,7 @@ import { DeepWorkSession } from '../models/DeepWorkSession';
 import { Device } from '../models/Device';
 import { Task, TaskStatus } from '../models/Task';
 import { voiceService } from './voiceService';
+import { flagOverdueTasks } from './penaltyService';
 
 // Device offline threshold in milliseconds (default 120 seconds / 2 minutes)
 const OFFLINE_THRESHOLD_MS = (parseInt(process.env.DEVICE_OFFLINE_THRESHOLD_SECONDS || '120', 10)) * 1000;
@@ -83,6 +84,9 @@ export const startCronJobs = () => {
       console.log('[CRON] Running background checks...');
       
       const now = new Date();
+
+      // 0. Overdue tasks become missed tasks (with their SDW penalty)
+      await flagOverdueTasks();
 
       // 1. Check for tasks assigned today that haven't been completed for a long time (e.g. > 4 hours)
       const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);

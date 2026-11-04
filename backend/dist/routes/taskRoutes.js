@@ -11,6 +11,8 @@ const router = express_1.default.Router();
 router.use(auth_1.protect);
 // Routes accessible by all authenticated users (to read tasks)
 router.get('/', taskController_1.getTasks);
+router.get('/missed', taskController_1.getMissedTasks); // must stay above '/:id'
+router.post('/missed', taskController_1.addMissedTask);
 router.get('/:id', taskController_1.getTask);
 router.patch('/:id/status', taskController_1.updateTaskStatus);
 // Admin/Manager only for create, edit, delete

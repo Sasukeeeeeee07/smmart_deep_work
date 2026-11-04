@@ -1,15 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTask = exports.updateTaskStatus = exports.updateTask = exports.createTask = exports.getTask = exports.getTasks = void 0;
+exports.addMissedTask = exports.getMissedTasks = exports.deleteTask = exports.updateTaskStatus = exports.updateTask = exports.createTask = exports.getTask = exports.getTasks = void 0;
 const Task_1 = require("../models/Task");
 const TaskHistory_1 = require("../models/TaskHistory");
+const Employee_1 = require("../models/Employee");
+const penaltyService_1 = require("../services/penaltyService");
 // @desc    Get all tasks (with optional filters)
 // @route   GET /api/tasks
 // @access  Private
 const getTasks = async (req, res) => {
     try {
         const { status, priority, assignedTo } = req.query;
-        const filter = {};
+        // Anything past its due date and not done becomes a missed task (and leaves the board)
+        await (0, penaltyService_1.flagOverdueTasks)();
+        const filter = { missed: { $ne: true } };
         if (status)
             filter.status = status;
         if (priority)
@@ -149,3 +153,58 @@ const deleteTask = async (req, res) => {
     }
 };
 exports.deleteTask = deleteTask;
+// ── Missed tasks ("tasks I did not do") ────────────────────────────────────
+async function myEmployeeIds(req) {
+    const emps = await Employee_1.Employee.find({ $or: [{ user: req.user._id }, { email: req.user.email }] }).select('_id');
+    return emps.map(e => e._id);
+}
+// @desc    Missed tasks of the current user (created by them or assigned to them) + penalty summary
+// @route   GET /api/tasks/missed
+// @access  Private
+const getMissedTasks = async (req, res) => {
+    try {
+        await (0, penaltyService_1.flagOverdueTasks)();
+        const empIds = await myEmployeeIds(req);
+        const tasks = await Task_1.Task.find({
+            missed: true,
+            $or: [{ createdBy: req.user._id }, { assignedTo: { $in: empIds } }],
+        })
+            .populate('assignedTo', 'firstName lastName email')
+            .sort({ missedAt: -1 });
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthPenalty = tasks
+            .filter(t => t.missedAt && t.missedAt >= monthStart)
+            .reduce((sum, t) => sum + (t.penaltyPoints || 0), 0);
+        res.json({ success: true, data: { tasks, penaltyPerTask: penaltyService_1.MISSED_TASK_PENALTY, monthPenalty } });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch missed tasks' } });
+    }
+};
+exports.getMissedTasks = getMissedTasks;
+// @desc    Log a task the user did not do. Costs MISSED_TASK_PENALTY SDW points.
+// @route   POST /api/tasks/missed
+// @access  Private
+const addMissedTask = async (req, res) => {
+    try {
+        const title = String(req.body.title || '').trim();
+        if (!title) {
+            return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Title is required' } });
+        }
+        const [empId] = await myEmployeeIds(req);
+        const task = await Task_1.Task.create({
+            title,
+            description: req.body.description ? String(req.body.description).trim() : undefined,
+            assignedTo: empId || undefined,
+            createdBy: req.user._id,
+            status: Task_1.TaskStatus.TODO,
+        });
+        const missed = await (0, penaltyService_1.markTaskMissed)(String(task._id), 'MANUAL');
+        res.status(201).json({ success: true, data: missed || task });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to log missed task' } });
+    }
+};
+exports.addMissedTask = addMissedTask;

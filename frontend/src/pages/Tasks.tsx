@@ -12,7 +12,8 @@ import {
   AlertCircle, 
   CheckCircle2, 
   Circle, 
-  Check 
+  Check,
+  ShieldAlert
 } from 'lucide-react';
 import { soundFX } from '../utils/sound';
 
@@ -24,7 +25,10 @@ interface Task {
   _id: string; title: string; description?: string;
   status: TaskStatus; priority: TaskPriority;
   assignedTo?: Employee; dueDate?: string; createdAt: string;
+  missed?: boolean; missedAt?: string; missedReason?: 'OVERDUE' | 'MANUAL';
+  penaltyApplied?: boolean; penaltyPoints?: number;
 }
+interface MissedData { tasks: Task[]; penaltyPerTask: number; monthPenalty: number; }
 
 const COLUMNS: { key: TaskStatus; label: string; countColor: string }[] = [
   { key: 'TODO',        label: 'To do',       countColor: 'var(--ink-4)' },
@@ -214,6 +218,10 @@ const Tasks = () => {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [missed, setMissed] = useState<MissedData>({ tasks: [], penaltyPerTask: 1, monthPenalty: 0 });
+  const [missedTitle, setMissedTitle] = useState('');
+  const [missedNote, setMissedNote] = useState('');
+  const [addingMissed, setAddingMissed] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', priority: 'MEDIUM' as TaskPriority, assignedTo: '', dueDate: '',
   });
@@ -221,12 +229,14 @@ const Tasks = () => {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const [tasksData, empData] = await Promise.all([
+      const [tasksData, empData, missedData] = await Promise.all([
         taskService.getAllTasks().catch(() => []),
         employeeService.getAllEmployees().catch(() => []),
+        taskService.getMissedTasks().catch(() => null),
       ]);
       setTasks(tasksData || []);
       setEmps(empData || []);
+      if (missedData) setMissed(missedData);
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Failed to load tasks');
     } finally { setLoading(false); }
@@ -248,6 +258,28 @@ const Tasks = () => {
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Failed to create task');
     } finally { setSubmitting(false); }
+  };
+
+  const handleAddMissed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = missedTitle.trim();
+    if (!title) return;
+    if (!window.confirm(`Log "${title}" as a task you did not do? This costs you ${missed.penaltyPerTask} SDW point.`)) return;
+    setAddingMissed(true);
+    try {
+      await taskService.addMissedTask({ title, description: missedNote.trim() || undefined });
+      setMissedTitle(''); setMissedNote('');
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.response?.data?.error?.message || 'Failed to log the missed task');
+    } finally { setAddingMissed(false); }
+  };
+
+  const handleFinishLate = async (task: Task) => {
+    try {
+      await taskService.updateTaskStatus(task._id, 'COMPLETED', 'Finished late');
+      await fetchData();
+    } catch { setError('Failed to update task status'); }
   };
 
   const handleDelete = async (id: string) => {
@@ -403,6 +435,99 @@ const Tasks = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Missed tasks: tasks I did not do (each one costs SDW points) ── */}
+      {!loading && (
+        <div className="rounded-2xl border p-5 md:p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'rgba(215, 38, 46, 0.25)' }}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(215, 38, 46, 0.1)', color: '#D7262E' }}>
+                <ShieldAlert size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>Tasks I did not do</h2>
+                <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
+                  Tasks past their due date land here on their own. You can also log one yourself. Each costs {missed.penaltyPerTask} SDW point.
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase font-bold tracking-wide" style={{ color: 'var(--ink-4)' }}>Penalty this month</p>
+              <p className="text-xl font-extrabold tabular-nums" style={{ color: missed.monthPenalty > 0 ? '#D7262E' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
+                {missed.monthPenalty > 0 ? `-${missed.monthPenalty}` : '0'} <span className="text-xs font-bold">pts</span>
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleAddMissed} className="flex flex-col md:flex-row gap-2.5">
+            <input
+              className="input-base md:flex-[2]"
+              placeholder="A task I did not do…"
+              value={missedTitle}
+              onChange={e => setMissedTitle(e.target.value)}
+              aria-label="Task you did not do"
+              maxLength={140}
+            />
+            <input
+              className="input-base md:flex-[2]"
+              placeholder="Why? (optional)"
+              value={missedNote}
+              onChange={e => setMissedNote(e.target.value)}
+              aria-label="Reason"
+              maxLength={240}
+            />
+            <button
+              type="submit"
+              disabled={addingMissed || !missedTitle.trim()}
+              className="btn text-sm font-bold text-white shrink-0"
+              style={{ background: '#D7262E', borderColor: '#D7262E', opacity: addingMissed || !missedTitle.trim() ? 0.5 : 1 }}
+            >
+              {addingMissed ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Log as not done
+            </button>
+          </form>
+
+          {missed.tasks.length === 0 ? (
+            <div className="py-6 text-center rounded-xl text-xs" style={{ border: '1.5px dashed var(--border)', color: 'var(--ink-4)', background: 'var(--surface-2)' }}>
+              Nothing missed. Keep it that way.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {missed.tasks.map(t => {
+                const done = t.status === 'COMPLETED';
+                return (
+                  <div key={t._id} className="flex items-center gap-3 rounded-xl border px-4 py-3 flex-wrap" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold truncate" style={{ color: 'var(--ink)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</p>
+                      <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
+                        {t.missedReason === 'OVERDUE' && t.dueDate
+                          ? `Due ${new Date(t.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, not completed`
+                          : 'Logged by you'}
+                        {t.description ? ` · ${t.description}` : ''}
+                      </p>
+                    </div>
+                    <span
+                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-full tabular-nums"
+                      style={{ background: t.penaltyApplied ? 'rgba(215, 38, 46, 0.1)' : 'var(--surface-3)', color: t.penaltyApplied ? '#D7262E' : 'var(--ink-3)' }}
+                      title={t.penaltyApplied ? 'SDW points deducted' : 'No employee profile is linked to this task, so no points were deducted'}
+                    >
+                      {t.penaltyApplied ? `-${t.penaltyPoints} pt` : 'No points linked'}
+                    </span>
+                    {done ? (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(74, 124, 89, 0.12)', color: 'var(--success)' }}>Done late</span>
+                    ) : (
+                      <button onClick={() => handleFinishLate(t)} className="btn btn-secondary text-xs py-1.5 px-3">
+                        <Check size={13} /> Finished it now
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Finishing a task late does not give the points back.</p>
         </div>
       )}
 

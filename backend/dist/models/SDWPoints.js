@@ -37,7 +37,9 @@ exports.SDWPoints = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const SDWPointsSchema = new mongoose_1.Schema({
     employeeId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee', required: true },
-    sessionId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'DeepWorkSession', required: true },
+    sessionId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'DeepWorkSession' },
+    taskId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Task' },
+    reason: { type: String },
     points: { type: Number, required: true, default: 5 },
     earnedAt: { type: Date, default: Date.now },
     weekNumber: { type: Number, required: true },

@@ -20,6 +20,11 @@ export interface ITask extends Document {
   assignedTo?: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
   dueDate?: Date;
+  missed: boolean;               // not done: overdue, or added by the user as "not done"
+  missedAt?: Date;
+  missedReason?: 'OVERDUE' | 'MANUAL';
+  penaltyApplied: boolean;       // an SDW penalty was recorded for this miss
+  penaltyPoints: number;
 }
 
 const TaskSchema: Schema = new Schema<ITask>(
@@ -39,11 +44,17 @@ const TaskSchema: Schema = new Schema<ITask>(
     assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
+    missed: { type: Boolean, default: false },
+    missedAt: { type: Date },
+    missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },
+    penaltyApplied: { type: Boolean, default: false },
+    penaltyPoints: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
 TaskSchema.index({ status: 1, priority: -1 });
 TaskSchema.index({ assignedTo: 1 });
+TaskSchema.index({ missed: 1, createdBy: 1 });
 
 export const Task = mongoose.model<ITask>('Task', TaskSchema);

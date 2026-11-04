@@ -63,7 +63,13 @@ const TaskSchema = new mongoose_1.Schema({
     assignedTo: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee' },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
+    missed: { type: Boolean, default: false },
+    missedAt: { type: Date },
+    missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },
+    penaltyApplied: { type: Boolean, default: false },
+    penaltyPoints: { type: Number, default: 0 },
 }, { timestamps: true });
 TaskSchema.index({ status: 1, priority: -1 });
 TaskSchema.index({ assignedTo: 1 });
+TaskSchema.index({ missed: 1, createdBy: 1 });
 exports.Task = mongoose_1.default.model('Task', TaskSchema);

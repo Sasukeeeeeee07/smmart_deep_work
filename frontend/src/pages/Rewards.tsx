@@ -239,7 +239,7 @@ export default function RewardsPage() {
           <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between text-xs font-bold text-[var(--ink-2)]">
             <span>Weekly Target: 25 pts</span>
             <span style={{ color: sdwData.weekly >= 25 ? 'var(--forest)' : 'var(--amber-w)' }}>
-              {Math.min(100, Math.round((sdwData.weekly / 25) * 100))}% of weekly goal
+              {Math.max(0, Math.min(100, Math.round((sdwData.weekly / 25) * 100)))}% of weekly goal
             </span>
           </div>
         </div>

@@ -758,6 +758,7 @@ const getSDWPoints = async (req, res) => {
         startOfWeek.setHours(0, 0, 0, 0);
         let weekly = 0;
         let monthly = 0;
+        let hasPointRecords = false;
         // 1. Query SDWPoints aggregation if employee is known
         if (targetEmployeeId) {
             const [weeklyResult, monthlyResult] = await Promise.all([
@@ -772,9 +773,10 @@ const getSDWPoints = async (req, res) => {
             ]);
             weekly = weeklyResult[0]?.total || 0;
             monthly = monthlyResult[0]?.total || 0;
+            hasPointRecords = weeklyResult.length > 0 || monthlyResult.length > 0;
         }
-        // 2. Fallback to DeepWorkSession if SDWPoints collection has 0
-        if (weekly === 0 && monthly === 0) {
+        // 2. Fallback to DeepWorkSession if there are no SDWPoints records (a +5 and a -5 must not trigger this)
+        if (!hasPointRecords && weekly === 0 && monthly === 0) {
             const queryMatcher = targetEmployeeId
                 ? { $or: [{ employeeId: targetEmployeeId }, { deviceUid: req.params.uid }] }
                 : { deviceUid: req.params.uid };

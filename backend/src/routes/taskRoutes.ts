@@ -6,6 +6,8 @@ import {
   updateTask,
   updateTaskStatus,
   deleteTask,
+  getMissedTasks,
+  addMissedTask,
 } from '../controllers/taskController';
 import { protect, authorize } from '../middleware/auth';
 
@@ -16,6 +18,8 @@ router.use(protect);
 
 // Routes accessible by all authenticated users (to read tasks)
 router.get('/', getTasks);
+router.get('/missed', getMissedTasks);   // must stay above '/:id'
+router.post('/missed', addMissedTask);
 router.get('/:id', getTask);
 router.patch('/:id/status', updateTaskStatus);
 
