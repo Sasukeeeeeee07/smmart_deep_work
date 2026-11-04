@@ -9,7 +9,7 @@ type Range = 'week' | 'month' | 'all';
 interface Summary {
   range: Range;
   rules: { inactivityDays: number; penaltySessionHours: number; penaltyDays: number; missedTaskHours: number };
-  wasted: { breakMinutes: number; invalidMinutes: number; invalidSessions: number; totalMinutes: number };
+  wasted: { breakMinutes: number };
   tasks: { count: number; hours: number; items: { _id: string; title: string; missedAt?: string; missedReason?: string }[] };
   deepWork: {
     count: number; currentHours: number; days: number; status: 'PENDING' | 'ACTIVE' | null;
@@ -26,6 +26,31 @@ const RANGES: { key: Range; label: string }[] = [
 
 const NAVY = '#14285E';
 const RED = '#D7262E';
+
+/** Hours typed in the Dashboard's time-currency card (one entry per day, kept in localStorage), summed over the period. */
+function readManualWastedMinutes(range: Range): number {
+  const now = new Date();
+  let from: Date | null = null;
+  if (range === 'week') {
+    from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    from.setDate(from.getDate() - ((from.getDay() + 6) % 7)); // Monday
+  } else if (range === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  let total = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      const m = /^smmart_wasted_(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+      if (!m) continue;
+      const day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (from && day < from) continue;
+      const v = JSON.parse(localStorage.getItem(key) || '{}');
+      total += Math.max(0, Math.round((parseFloat(v.h) || 0) * 60 + (parseFloat(v.m) || 0)));
+    }
+  } catch { /* storage unavailable */ }
+  return total;
+}
 
 function hm(minutes: number) {
   const h = Math.floor(minutes / 60), m = Math.round(minutes % 60);
@@ -77,7 +102,10 @@ export default function Penalty() {
     <>Add your yearly income in <Link to="/profile" className="underline font-semibold" style={{ color: NAVY }}>Profile</Link> to see rupees.</>
   );
 
-  const wastedHours = data ? data.wasted.totalMinutes / 60 : 0;
+  const breakMin = data ? data.wasted.breakMinutes : 0;
+  const manualMin = data ? readManualWastedMinutes(range) : 0;
+  const wastedMin = breakMin + manualMin;
+  const wastedHours = wastedMin / 60;
 
   return (
     <div className="space-y-6">
@@ -116,14 +144,14 @@ export default function Penalty() {
             <Stat
               number={1} icon={Hourglass} tone={NAVY}
               label="No. of hours wasted"
-              value={hm(data.wasted.totalMinutes)}
-              sub={`Breaks ${hm(data.wasted.breakMinutes)}${data.wasted.invalidSessions ? ` + ${data.wasted.invalidSessions} invalid session${data.wasted.invalidSessions > 1 ? 's' : ''} ${hm(data.wasted.invalidMinutes)}` : ''}`}
+              value={hm(wastedMin)}
+              sub={`Session breaks ${hm(breakMin)} + hours you entered ${hm(manualMin)}`}
             />
             <Stat
               number={2} icon={Wallet} tone={RED}
               label="Money lost"
               value={money(wastedHours)}
-              sub={tv ? `${hm(data.wasted.totalMinutes)} at ${formatRupees(tv.perHour)} an hour` : needIncome}
+              sub={tv ? `${hm(wastedMin)} at ${formatRupees(tv.perHour)} an hour` : needIncome}
             />
             <Stat
               number={3} icon={Timer} tone={NAVY}
@@ -171,7 +199,7 @@ export default function Penalty() {
             <section className="rounded-2xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>How penalties work</h2>
               <ul className="space-y-2.5 text-xs leading-relaxed" style={{ color: 'var(--ink-3)' }}>
-                <li><strong style={{ color: 'var(--ink)' }}>Hours wasted</strong> is break time inside your deep work sessions, plus the time of sessions thrown out as invalid.</li>
+                <li><strong style={{ color: 'var(--ink)' }}>Hours wasted</strong> is the break time inside your deep work sessions plus the hours you type into the time currency card on the Dashboard.</li>
                 <li><strong style={{ color: 'var(--ink)' }}>Money lost</strong> is those hours at your hourly income from Profile.</li>
                 <li><strong style={{ color: 'var(--ink)' }}>Deep work penalty:</strong> if the desk stays off for {data.rules.inactivityDays} days in a row, your sessions become {data.rules.penaltySessionHours} hours long for {data.rules.penaltyDays} days once you switch it back on.</li>
                 <li><strong style={{ color: 'var(--ink)' }}>Tasks not done:</strong> each one costs {data.rules.missedTaskHours} hour of your time in rupees. A task lands there when its deadline passes undone, or when you log it yourself.</li>

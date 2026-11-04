@@ -28,19 +28,12 @@ const getPenaltySummary = async (req, res) => {
         await (0, penaltyService_1.flagOverdueTasks)();
         const emps = await Employee_1.Employee.find({ $or: [{ user: req.user._id }, { email: req.user.email }] }).select('_id');
         const empIds = emps.map(e => e._id);
-        // Time wasted: break time inside sessions, plus the time of sessions that were thrown out as invalid
+        // Time wasted inside deep work sessions: the breaks (the hours typed on the Dashboard are added on the page)
         const sessionFilter = { employeeId: { $in: empIds } };
         if (from)
             sessionFilter.startTime = { $gte: from };
-        const sessions = await DeepWorkSession_1.DeepWorkSession.find(sessionFilter).select('totalBreakMinutes activeMinutes status');
-        let breakMinutes = 0, invalidMinutes = 0, invalidSessions = 0;
-        for (const s of sessions) {
-            breakMinutes += s.totalBreakMinutes || 0;
-            if (s.status === 'INVALID') {
-                invalidMinutes += s.activeMinutes || 0;
-                invalidSessions++;
-            }
-        }
+        const sessions = await DeepWorkSession_1.DeepWorkSession.find(sessionFilter).select('totalBreakMinutes');
+        const breakMinutes = sessions.reduce((sum, s) => sum + (s.totalBreakMinutes || 0), 0);
         // Tasks that were not done
         const taskFilter = {
             missed: true,
@@ -65,12 +58,7 @@ const getPenaltySummary = async (req, res) => {
                     penaltyDays: penaltyService_1.INACTIVITY_PENALTY_DAYS,
                     missedTaskHours: penaltyService_1.MISSED_TASK_PENALTY_HOURS,
                 },
-                wasted: {
-                    breakMinutes,
-                    invalidMinutes,
-                    invalidSessions,
-                    totalMinutes: breakMinutes + invalidMinutes,
-                },
+                wasted: { breakMinutes },
                 tasks: {
                     count: missedTasks.length,
                     hours: missedTasks.length * penaltyService_1.MISSED_TASK_PENALTY_HOURS,
