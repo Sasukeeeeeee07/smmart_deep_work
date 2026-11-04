@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, AlertCircle, Hourglass, Wallet, Timer, ClipboardX, CheckCircle2 } from 'lucide-react';
 import { penaltyService } from '../services/api';
+import { importLocalWastedTime } from '../utils/wastedTime';
 import { formatRupees, readAnnualIncome, timeValue } from '../utils/timeCurrency';
 
 type Range = 'week' | 'month' | 'all';
@@ -9,7 +10,7 @@ type Range = 'week' | 'month' | 'all';
 interface Summary {
   range: Range;
   rules: { inactivityDays: number; penaltySessionHours: number; penaltyDays: number; missedTaskHours: number };
-  wasted: { breakMinutes: number };
+  wasted: { breakMinutes: number; manualMinutes: number };
   tasks: { count: number; hours: number; items: { _id: string; title: string; missedAt?: string; missedReason?: string }[] };
   deepWork: {
     count: number; currentHours: number; days: number; status: 'PENDING' | 'ACTIVE' | null;
@@ -26,31 +27,6 @@ const RANGES: { key: Range; label: string }[] = [
 
 const NAVY = '#14285E';
 const RED = '#D7262E';
-
-/** Hours typed in the Dashboard's time-currency card (one entry per day, kept in localStorage), summed over the period. */
-function readManualWastedMinutes(range: Range): number {
-  const now = new Date();
-  let from: Date | null = null;
-  if (range === 'week') {
-    from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    from.setDate(from.getDate() - ((from.getDay() + 6) % 7)); // Monday
-  } else if (range === 'month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-  let total = 0;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i) || '';
-      const m = /^smmart_wasted_(\d{4})-(\d{2})-(\d{2})$/.exec(key);
-      if (!m) continue;
-      const day = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      if (from && day < from) continue;
-      const v = JSON.parse(localStorage.getItem(key) || '{}');
-      total += Math.max(0, Math.round((parseFloat(v.h) || 0) * 60 + (parseFloat(v.m) || 0)));
-    }
-  } catch { /* storage unavailable */ }
-  return total;
-}
 
 function hm(minutes: number) {
   const h = Math.floor(minutes / 60), m = Math.round(minutes % 60);
@@ -86,6 +62,7 @@ export default function Penalty() {
   const load = useCallback(async (r: Range) => {
     try {
       setError(null);
+      await importLocalWastedTime();
       setData(await penaltyService.getSummary(r));
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Failed to load penalties');
@@ -103,7 +80,7 @@ export default function Penalty() {
   );
 
   const breakMin = data ? data.wasted.breakMinutes : 0;
-  const manualMin = data ? readManualWastedMinutes(range) : 0;
+  const manualMin = data ? data.wasted.manualMinutes : 0;
   const wastedMin = breakMin + manualMin;
   const wastedHours = wastedMin / 60;
 

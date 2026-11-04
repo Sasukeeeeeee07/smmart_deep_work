@@ -64,6 +64,18 @@ export const penaltyService = {
     const response = await api.get('/penalties/summary', { params: { range } });
     return response.data.data;
   },
+  getWasted: async (from?: string, to?: string): Promise<{ date: string; minutes: number }[]> => {
+    const response = await api.get('/penalties/wasted', { params: { from, to } });
+    return response.data.data;
+  },
+  setWasted: async (date: string, minutes: number) => {
+    const response = await api.put(`/penalties/wasted/${date}`, { minutes });
+    return response.data.data;
+  },
+  importWasted: async (entries: { date: string; minutes: number }[]) => {
+    const response = await api.post('/penalties/wasted/import', { entries });
+    return response.data.data;
+  },
 };
 
 export const taskService = {

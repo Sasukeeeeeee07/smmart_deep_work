@@ -9,4 +9,7 @@ const auth_1 = require("../middleware/auth");
 const router = express_1.default.Router();
 router.use(auth_1.protect);
 router.get('/summary', penaltyController_1.getPenaltySummary);
+router.get('/wasted', penaltyController_1.getWastedTime);
+router.post('/wasted/import', penaltyController_1.importWastedTime); // must stay above '/wasted/:date'
+router.put('/wasted/:date', penaltyController_1.setWastedTime);
 exports.default = router;

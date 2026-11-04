@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sessionService } from '../services/api';
+import { sessionService, penaltyService } from '../services/api';
+import { importLocalWastedTime } from '../utils/wastedTime';
 import { TrendingUp, Timer, ArrowRight } from 'lucide-react';
 import { formatRupees, readAnnualIncome, timeValue } from '../utils/timeCurrency';
 import {
@@ -302,24 +303,47 @@ const Dashboard = () => {
   const [avgScore, setAvgScore]       = useState(0);
   const [breakDays, setBreakDays] = useState<{ label: string; date: Date; minutes: number }[]>([]);
   // "How much time did I waste yesterday?" typed by the user (hours / minutes), kept per calendar day
-  const yesterdayKey = (() => {
+  const yesterdayDate = (() => {
     const d = new Date(); d.setDate(d.getDate() - 1);
-    return `smmart_wasted_${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   })();
+  const yesterdayKey = `smmart_wasted_${yesterdayDate}`;
   const [wastedH, setWastedH] = useState('');
   const [wastedM, setWastedM] = useState('');
+  const wastedSaveTimer = useRef<number | undefined>(undefined);
+  const wastedTouched = useRef(false);
+  // The browser copy shows instantly; the server copy (saved in the database) then takes over
   useEffect(() => {
     try {
       const raw = localStorage.getItem(yesterdayKey);
       if (raw) { const v = JSON.parse(raw); setWastedH(v.h ?? ''); setWastedM(v.m ?? ''); }
     } catch { /* ignore */ }
-  }, [yesterdayKey]);
+    let cancelled = false;
+    (async () => {
+      await importLocalWastedTime();
+      try {
+        const rows = await penaltyService.getWasted(yesterdayDate, yesterdayDate);
+        if (cancelled || wastedTouched.current) return;
+        const min = rows[0]?.minutes ?? 0;
+        if (min > 0) {
+          setWastedH(min >= 60 ? String(Math.floor(min / 60)) : '');
+          setWastedM(min % 60 ? String(min % 60) : '');
+        }
+      } catch { /* keep the browser copy */ }
+    })();
+    return () => { cancelled = true; };
+  }, [yesterdayKey, yesterdayDate]);
   const updateWasted = (h: string, m: string) => {
+    wastedTouched.current = true;
     setWastedH(h); setWastedM(m);
     try {
       if (h === '' && m === '') localStorage.removeItem(yesterdayKey);
       else localStorage.setItem(yesterdayKey, JSON.stringify({ h, m }));
     } catch { /* ignore */ }
+    // Save to the database a moment after the last keystroke
+    window.clearTimeout(wastedSaveTimer.current);
+    const minutes = Math.min(24 * 60, Math.max(0, Math.round((parseFloat(h) || 0) * 60 + (parseFloat(m) || 0))));
+    wastedSaveTimer.current = window.setTimeout(() => { penaltyService.setWasted(yesterdayDate, minutes).catch(() => {}); }, 600);
   };
   const [selectedWeek, setSelectedWeek] = useState<WeekData | null>(null);
   const [hoveredWeek, setHoveredWeek]   = useState<WeekData | null>(null);
