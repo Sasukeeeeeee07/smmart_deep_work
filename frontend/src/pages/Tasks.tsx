@@ -28,9 +28,8 @@ interface Task {
   status: TaskStatus; priority: TaskPriority;
   assignedTo?: Employee; dueDate?: string; dueHasTime?: boolean; createdAt: string;
   missed?: boolean; missedAt?: string; missedReason?: 'OVERDUE' | 'MANUAL';
-  penaltyApplied?: boolean; penaltyPoints?: number;
 }
-interface MissedData { tasks: Task[]; penaltyPerTask: number; monthPenalty: number; }
+interface MissedData { tasks: Task[]; }
 
 const COLUMNS: { key: TaskStatus; label: string; countColor: string }[] = [
   { key: 'TODO',        label: 'To do',       countColor: 'var(--ink-4)' },
@@ -241,15 +240,6 @@ function MissedCard({ task, onFinish }: { task: Task; onFinish: (t: Task) => voi
       )}
 
       <div className="flex flex-wrap items-center gap-2 pl-6.5">
-        {task.penaltyApplied ? (
-          <span className="pill text-[10px]" style={{ color: '#D7262E', background: 'rgba(215, 38, 46, 0.1)', borderColor: 'rgba(215, 38, 46, 0.3)' }} title="SDW points deducted">
-            -{task.penaltyPoints} pt
-          </span>
-        ) : (
-          <span className="pill text-[10px]" style={{ color: 'var(--ink-4)', background: 'var(--surface-2)', borderColor: 'var(--border)' }} title="No employee profile is linked to this task, so no points were deducted">
-            No points linked
-          </span>
-        )}
         <span className="pill text-[10px]" style={{ color: p.color, background: p.bg, borderColor: p.border }}>
           <Flag size={9} />
           {p.label}
@@ -289,7 +279,7 @@ const Tasks = () => {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
-  const [missed, setMissed] = useState<MissedData>({ tasks: [], penaltyPerTask: 1, monthPenalty: 0 });
+  const [missed, setMissed] = useState<MissedData>({ tasks: [] });
   const [missedTitle, setMissedTitle] = useState('');
   const [missedNote, setMissedNote] = useState('');
   const [addingMissed, setAddingMissed] = useState(false);
@@ -360,7 +350,7 @@ const Tasks = () => {
     e.preventDefault();
     const title = missedTitle.trim();
     if (!title) return;
-    if (!window.confirm(`Log "${title}" as a task you did not do? This costs you ${missed.penaltyPerTask} SDW point.`)) return;
+    if (!window.confirm(`Log "${title}" as a task you did not do? It counts toward your penalty.`)) return;
     setAddingMissed(true);
     try {
       await taskService.addMissedTask({ title, description: missedNote.trim() || undefined });
@@ -481,7 +471,7 @@ const Tasks = () => {
                 <BellRing size={16} className="shrink-0 bell-vibrate" />
                 <p className="min-w-0">
                   <strong>"{t.title}"</strong> is due in {formatLeft(left)} (at {dl.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}).
-                  Finish it in time or it moves to "Tasks I did not do" and costs {missed.penaltyPerTask} SDW point.
+                  Finish it in time or it moves to "Tasks I did not do" and counts toward your penalty.
                 </p>
               </div>
             );
@@ -561,11 +551,6 @@ const Tasks = () => {
               <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: '#D7262E', fontFamily: 'DM Sans, sans-serif' }}>
                 {missed.tasks.length}
               </span>
-              {missed.monthPenalty > 0 && (
-                <span className="ml-auto text-[11px] font-bold tabular-nums" style={{ color: '#D7262E' }} title="SDW points lost this month">
-                  -{missed.monthPenalty} pts
-                </span>
-              )}
             </div>
 
             <div className="space-y-2.5">
@@ -590,7 +575,7 @@ const Tasks = () => {
                     maxLength={240}
                     style={{ fontSize: 13 }}
                   />
-                  <p className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Costs {missed.penaltyPerTask} SDW point.</p>
+                  <p className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Counts toward your penalty.</p>
                   <div className="flex justify-end gap-2">
                     <button type="button" onClick={() => { setShowMissedForm(false); setMissedTitle(''); setMissedNote(''); }} className="btn btn-secondary text-xs py-1.5 px-3">Cancel</button>
                     <button

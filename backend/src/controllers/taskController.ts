@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { Task, TaskStatus } from '../models/Task';
 import { TaskHistory } from '../models/TaskHistory';
 import { Employee } from '../models/Employee';
-import { flagOverdueTasks, markTaskMissed, MISSED_TASK_PENALTY } from '../services/penaltyService';
+import { flagOverdueTasks, markTaskMissed } from '../services/penaltyService';
 
 // @desc    Get all tasks (with optional filters)
 // @route   GET /api/tasks
@@ -193,19 +193,13 @@ export const getMissedTasks = async (req: Request, res: Response) => {
       .populate('assignedTo', 'firstName lastName email')
       .sort({ missedAt: -1 });
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthPenalty = tasks
-      .filter(t => t.missedAt && t.missedAt >= monthStart)
-      .reduce((sum, t) => sum + (t.penaltyPoints || 0), 0);
-
-    res.json({ success: true, data: { tasks, penaltyPerTask: MISSED_TASK_PENALTY, monthPenalty } });
+    res.json({ success: true, data: { tasks } });
   } catch (error) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch missed tasks' } });
   }
 };
 
-// @desc    Log a task the user did not do. Costs MISSED_TASK_PENALTY SDW points.
+// @desc    Log a task the user did not do. Counts toward the penalty.
 // @route   POST /api/tasks/missed
 // @access  Private
 export const addMissedTask = async (req: Request, res: Response) => {

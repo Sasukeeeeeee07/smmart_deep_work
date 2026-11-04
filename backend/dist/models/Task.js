@@ -68,8 +68,6 @@ const TaskSchema = new mongoose_1.Schema({
     missed: { type: Boolean, default: false },
     missedAt: { type: Date },
     missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },
-    penaltyApplied: { type: Boolean, default: false },
-    penaltyPoints: { type: Number, default: 0 },
 }, { timestamps: true });
 TaskSchema.index({ status: 1, priority: -1 });
 TaskSchema.index({ assignedTo: 1 });

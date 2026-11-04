@@ -25,8 +25,6 @@ export interface ITask extends Document {
   missed: boolean;               // not done: overdue, or added by the user as "not done"
   missedAt?: Date;
   missedReason?: 'OVERDUE' | 'MANUAL';
-  penaltyApplied: boolean;       // an SDW penalty was recorded for this miss
-  penaltyPoints: number;
 }
 
 const TaskSchema: Schema = new Schema<ITask>(
@@ -51,8 +49,6 @@ const TaskSchema: Schema = new Schema<ITask>(
     missed: { type: Boolean, default: false },
     missedAt: { type: Date },
     missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },
-    penaltyApplied: { type: Boolean, default: false },
-    penaltyPoints: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

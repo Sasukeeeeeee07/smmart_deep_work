@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEADLINE_ALERT_MINUTES = exports.DEFAULT_SESSION_MINUTES = exports.INACTIVITY_PENALTY_DAYS = exports.INACTIVITY_SESSION_MINUTES = exports.INACTIVITY_DAYS = exports.MISSED_TASK_PENALTY_HOURS = exports.MISSED_TASK_PENALTY = void 0;
+exports.DEADLINE_ALERT_MINUTES = exports.DEFAULT_SESSION_MINUTES = exports.INACTIVITY_PENALTY_DAYS = exports.INACTIVITY_SESSION_MINUTES = exports.INACTIVITY_DAYS = exports.MISSED_TASK_PENALTY_HOURS = void 0;
 exports.deadlineOf = deadlineOf;
 exports.markTaskMissed = markTaskMissed;
 exports.flagOverdueTasks = flagOverdueTasks;
@@ -13,11 +13,8 @@ const Device_1 = require("../models/Device");
 const Penalty_1 = require("../models/Penalty");
 const DeepWorkSession_1 = require("../models/DeepWorkSession");
 const voiceService_1 = require("./voiceService");
-const SDWPoints_1 = require("../models/SDWPoints");
 const Notification_1 = require("../models/Notification");
 const notificationController_1 = require("../controllers/notificationController");
-/** SDW points taken off for every task that was not done. */
-exports.MISSED_TASK_PENALTY = 1;
 /** Money side of a missed task: it costs this many hours of the user's time value. */
 exports.MISSED_TASK_PENALTY_HOURS = 1;
 /** A device that stays off this long earns an inactivity penalty. */
@@ -35,13 +32,6 @@ function deadlineOf(task) {
     if (task.dueHasTime)
         return d;
     return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999);
-}
-function isoWeek(d) {
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = date.getUTCDay() || 7;
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 /** The employee who carries the penalty: the assignee, else the person who created the task. */
 async function penaltyOwner(task) {
@@ -62,32 +52,18 @@ async function markTaskMissed(taskId, reason) {
     const task = await Task_1.Task.findOneAndUpdate({ _id: taskId, missed: { $ne: true } }, { $set: { missed: true, missedAt: now, missedReason: reason } }, { new: true });
     if (!task)
         return null;
+    // The penalty is money (hours of the user's time), worked out on the Penalty page; the owner is just told.
     const owner = await penaltyOwner(task);
-    if (owner) {
-        await SDWPoints_1.SDWPoints.create({
-            employeeId: owner._id,
-            taskId: task._id,
-            reason: `Missed task: ${task.title}`,
-            points: -exports.MISSED_TASK_PENALTY,
-            earnedAt: now,
-            weekNumber: isoWeek(now),
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
+    if (owner?.user) {
+        await (0, notificationController_1.createNotificationInternal)({
+            type: Notification_1.NotificationType.TASK,
+            title: `Task not done: ${task.title}`,
+            message: reason === 'OVERDUE'
+                ? `"${task.title}" reached its deadline without being completed. It counts toward your penalty.`
+                : `You logged "${task.title}" as not done. It counts toward your penalty.`,
+            targetUser: String(owner.user),
+            relatedId: String(task._id),
         });
-        task.penaltyApplied = true;
-        task.penaltyPoints = exports.MISSED_TASK_PENALTY;
-        await task.save();
-        if (owner.user) {
-            await (0, notificationController_1.createNotificationInternal)({
-                type: Notification_1.NotificationType.TASK,
-                title: `Missed task: -${exports.MISSED_TASK_PENALTY} SDW point`,
-                message: reason === 'OVERDUE'
-                    ? `"${task.title}" reached its deadline without being completed.`
-                    : `You logged "${task.title}" as not done.`,
-                targetUser: String(owner.user),
-                relatedId: String(task._id),
-            });
-        }
     }
     return task;
 }
@@ -139,7 +115,7 @@ async function alertUpcomingDeadlines() {
             await (0, notificationController_1.createNotificationInternal)({
                 type: Notification_1.NotificationType.TASK,
                 title: `Due in ${mins} min: ${claimed.title}`,
-                message: `"${claimed.title}" reaches its deadline at ${new Date(claimed.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. If it is not done by then it moves to "Tasks I did not do" and costs ${exports.MISSED_TASK_PENALTY} SDW point.`,
+                message: `"${claimed.title}" reaches its deadline at ${new Date(claimed.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}. If it is not done by then it moves to "Tasks I did not do" and counts toward your penalty.`,
                 targetUser,
                 relatedId: String(claimed._id),
             });

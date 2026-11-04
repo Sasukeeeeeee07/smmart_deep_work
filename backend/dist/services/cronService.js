@@ -83,7 +83,7 @@ const startCronJobs = () => {
         try {
             console.log('[CRON] Running background checks...');
             const now = new Date();
-            // 0. Overdue tasks become missed tasks (with their SDW penalty)
+            // 0. Overdue tasks become missed tasks
             await (0, penaltyService_1.flagOverdueTasks)();
             // 1. Check for tasks assigned today that haven't been completed for a long time (e.g. > 4 hours)
             const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000);

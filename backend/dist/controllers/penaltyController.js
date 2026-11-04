@@ -48,7 +48,7 @@ const getPenaltySummary = async (req, res) => {
         };
         if (from)
             taskFilter.missedAt = { $gte: from };
-        const missedTasks = await Task_1.Task.find(taskFilter).sort({ missedAt: -1 }).select('title missedAt missedReason dueDate penaltyPoints status');
+        const missedTasks = await Task_1.Task.find(taskFilter).sort({ missedAt: -1 }).select('title missedAt missedReason dueDate status');
         // Inactivity (deep work) penalties
         const penaltyFilter = { employeeId: { $in: empIds } };
         if (from)
@@ -63,7 +63,6 @@ const getPenaltySummary = async (req, res) => {
                     inactivityDays: penaltyService_1.INACTIVITY_DAYS,
                     penaltySessionHours: penaltyService_1.INACTIVITY_SESSION_MINUTES / 60,
                     penaltyDays: penaltyService_1.INACTIVITY_PENALTY_DAYS,
-                    missedTaskPoints: penaltyService_1.MISSED_TASK_PENALTY,
                     missedTaskHours: penaltyService_1.MISSED_TASK_PENALTY_HOURS,
                 },
                 wasted: {

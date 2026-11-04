@@ -172,19 +172,14 @@ const getMissedTasks = async (req, res) => {
         })
             .populate('assignedTo', 'firstName lastName email')
             .sort({ missedAt: -1 });
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthPenalty = tasks
-            .filter(t => t.missedAt && t.missedAt >= monthStart)
-            .reduce((sum, t) => sum + (t.penaltyPoints || 0), 0);
-        res.json({ success: true, data: { tasks, penaltyPerTask: penaltyService_1.MISSED_TASK_PENALTY, monthPenalty } });
+        res.json({ success: true, data: { tasks } });
     }
     catch (error) {
         res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to fetch missed tasks' } });
     }
 };
 exports.getMissedTasks = getMissedTasks;
-// @desc    Log a task the user did not do. Costs MISSED_TASK_PENALTY SDW points.
+// @desc    Log a task the user did not do. Counts toward the penalty.
 // @route   POST /api/tasks/missed
 // @access  Private
 const addMissedTask = async (req, res) => {

@@ -5,7 +5,6 @@ import { Task } from '../models/Task';
 import { Penalty } from '../models/Penalty';
 import {
   flagOverdueTasks,
-  MISSED_TASK_PENALTY,
   MISSED_TASK_PENALTY_HOURS,
   INACTIVITY_DAYS,
   INACTIVITY_SESSION_MINUTES,
@@ -55,7 +54,7 @@ export const getPenaltySummary = async (req: Request, res: Response) => {
       $or: [{ createdBy: req.user!._id }, { assignedTo: { $in: empIds } }],
     };
     if (from) taskFilter.missedAt = { $gte: from };
-    const missedTasks = await Task.find(taskFilter).sort({ missedAt: -1 }).select('title missedAt missedReason dueDate penaltyPoints status');
+    const missedTasks = await Task.find(taskFilter).sort({ missedAt: -1 }).select('title missedAt missedReason dueDate status');
 
     // Inactivity (deep work) penalties
     const penaltyFilter: Record<string, any> = { employeeId: { $in: empIds } };
@@ -71,7 +70,6 @@ export const getPenaltySummary = async (req: Request, res: Response) => {
           inactivityDays: INACTIVITY_DAYS,
           penaltySessionHours: INACTIVITY_SESSION_MINUTES / 60,
           penaltyDays: INACTIVITY_PENALTY_DAYS,
-          missedTaskPoints: MISSED_TASK_PENALTY,
           missedTaskHours: MISSED_TASK_PENALTY_HOURS,
         },
         wasted: {

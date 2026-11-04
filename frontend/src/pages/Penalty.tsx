@@ -8,7 +8,7 @@ type Range = 'week' | 'month' | 'all';
 
 interface Summary {
   range: Range;
-  rules: { inactivityDays: number; penaltySessionHours: number; penaltyDays: number; missedTaskPoints: number; missedTaskHours: number };
+  rules: { inactivityDays: number; penaltySessionHours: number; penaltyDays: number; missedTaskHours: number };
   wasted: { breakMinutes: number; invalidMinutes: number; invalidSessions: number; totalMinutes: number };
   tasks: { count: number; hours: number; items: { _id: string; title: string; missedAt?: string; missedReason?: string }[] };
   deepWork: {
@@ -174,7 +174,7 @@ export default function Penalty() {
                 <li><strong style={{ color: 'var(--ink)' }}>Hours wasted</strong> is break time inside your deep work sessions, plus the time of sessions thrown out as invalid.</li>
                 <li><strong style={{ color: 'var(--ink)' }}>Money lost</strong> is those hours at your hourly income from Profile.</li>
                 <li><strong style={{ color: 'var(--ink)' }}>Deep work penalty:</strong> if the desk stays off for {data.rules.inactivityDays} days in a row, your sessions become {data.rules.penaltySessionHours} hours long for {data.rules.penaltyDays} days once you switch it back on.</li>
-                <li><strong style={{ color: 'var(--ink)' }}>Tasks not done:</strong> each one costs {data.rules.missedTaskPoints} SDW point and {data.rules.missedTaskHours} hour of your time in rupees. A task lands there when its deadline passes undone, or when you log it yourself.</li>
+                <li><strong style={{ color: 'var(--ink)' }}>Tasks not done:</strong> each one costs {data.rules.missedTaskHours} hour of your time in rupees. A task lands there when its deadline passes undone, or when you log it yourself.</li>
               </ul>
               {data.deepWork.history.length > 0 && (
                 <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>

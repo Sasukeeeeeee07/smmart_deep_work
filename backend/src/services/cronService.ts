@@ -97,7 +97,7 @@ export const startCronJobs = () => {
       
       const now = new Date();
 
-      // 0. Overdue tasks become missed tasks (with their SDW penalty)
+      // 0. Overdue tasks become missed tasks
       await flagOverdueTasks();
 
       // 1. Check for tasks assigned today that haven't been completed for a long time (e.g. > 4 hours)
