@@ -7,6 +7,7 @@ import { voiceService } from '../services/voiceService';
 import { syncOfflineDevicesAndSessions } from '../services/cronService';
 import { createNotificationInternal } from './notificationController';
 import { NotificationType } from '../models/Notification';
+import { sessionTargetMinutes } from '../services/penaltyService';
 
 // ── Penalty rules ───────────────────────────────────────────────────────────
 const MAX_STRIKES = 10;          // invalid sessions in a row before the lockout
@@ -246,6 +247,8 @@ export const startSession = async (req: Request, res: Response) => {
       employeeId: device.assignedTo,
       startTime: new Date(),
       status: 'ACTIVE',
+      // 3 hours while an inactivity penalty is running, otherwise the usual 2
+      targetDurationMinutes: await sessionTargetMinutes(device.assignedTo),
     });
 
     console.log(`[SESSION] Started: ${session._id} for device ${req.params.uid}`);

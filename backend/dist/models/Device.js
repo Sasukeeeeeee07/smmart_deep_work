@@ -46,6 +46,7 @@ const DeviceSchema = new mongoose_1.Schema({
     lockoutUntil: { type: Date, default: null },
     lockoutReason: { type: String, default: '' },
     adminUnlocked: { type: Boolean, default: false },
+    inactivityPenaltyFor: { type: Date, default: null },
     displayConfig: {
         breakDisplayMode: { type: String, enum: ['SESSION', 'DAILY'], default: 'SESSION' },
         showSessionTimer: { type: Boolean, default: true },

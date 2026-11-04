@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { taskService, employeeService } from '../services/api';
 import { 
   Plus, 
@@ -13,9 +13,11 @@ import {
   CheckCircle2, 
   Circle, 
   Check,
-  ShieldAlert
+  Clock,
+  BellRing
 } from 'lucide-react';
 import { soundFX } from '../utils/sound';
+import { DEADLINE_ALERT_MINUTES, deadlineOf, minutesLeft, formatLeft } from '../utils/deadline';
 
 type TaskStatus   = 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
 type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -24,7 +26,7 @@ interface Employee { _id: string; firstName: string; lastName: string; }
 interface Task {
   _id: string; title: string; description?: string;
   status: TaskStatus; priority: TaskPriority;
-  assignedTo?: Employee; dueDate?: string; createdAt: string;
+  assignedTo?: Employee; dueDate?: string; dueHasTime?: boolean; createdAt: string;
   missed?: boolean; missedAt?: string; missedReason?: 'OVERDUE' | 'MANUAL';
   penaltyApplied?: boolean; penaltyPoints?: number;
 }
@@ -56,7 +58,9 @@ function TaskCard({
 }) {
   const isCompleted = task.status === 'COMPLETED';
   const due = task.dueDate ? new Date(task.dueDate) : null;
-  const isOverdue = due && due < new Date() && !isCompleted;
+  const left = isCompleted ? null : minutesLeft(task);
+  const isOverdue = left !== null && left <= 0;
+  const dueSoon = left !== null && left > 0 && task.dueHasTime && left <= DEADLINE_ALERT_MINUTES;
   const p = PRIORITY_CFG[task.priority];
 
   return (
@@ -156,7 +160,13 @@ function TaskCard({
           >
             <Calendar size={10} />
             {due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            {task.dueHasTime && `, ${due.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`}
             {isOverdue && ' · overdue'}
+          </span>
+        )}
+        {dueSoon && left !== null && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgba(245, 130, 32, 0.14)', color: '#B45F0C', border: '1px solid rgba(245, 130, 32, 0.4)' }}>
+            <Clock size={10} /> Due in {formatLeft(left)}
           </span>
         )}
       </div>
@@ -209,6 +219,67 @@ function TaskCard({
   );
 }
 
+/* ── MissedCard: a task that was not done (same card as the board) ───── */
+function MissedCard({ task, onFinish }: { task: Task; onFinish: (t: Task) => void }) {
+  const done = task.status === 'COMPLETED';
+  const dl = deadlineOf(task);
+  const p = PRIORITY_CFG[task.priority] || PRIORITY_CFG.MEDIUM;
+  return (
+    <div
+      className="group relative rounded-xl border p-4 flex flex-col gap-3 transition-all duration-300 card-hover overflow-hidden"
+      style={{ background: 'var(--surface)', borderColor: done ? 'var(--border)' : 'rgba(215, 38, 46, 0.3)' }}
+    >
+      <div className="flex items-start gap-2 min-w-0">
+        <AlertCircle size={18} className="mt-0.5 shrink-0" style={{ color: done ? 'var(--ink-4)' : '#D7262E' }} />
+        <p className="text-sm font-semibold leading-snug break-words text-[var(--ink)]" style={{ textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.6 : 1 }}>
+          {task.title}
+        </p>
+      </div>
+
+      {task.description && (
+        <p className="text-xs leading-relaxed line-clamp-2 pl-6.5 text-[var(--ink-4)]">{task.description}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 pl-6.5">
+        {task.penaltyApplied ? (
+          <span className="pill text-[10px]" style={{ color: '#D7262E', background: 'rgba(215, 38, 46, 0.1)', borderColor: 'rgba(215, 38, 46, 0.3)' }} title="SDW points deducted">
+            -{task.penaltyPoints} pt
+          </span>
+        ) : (
+          <span className="pill text-[10px]" style={{ color: 'var(--ink-4)', background: 'var(--surface-2)', borderColor: 'var(--border)' }} title="No employee profile is linked to this task, so no points were deducted">
+            No points linked
+          </span>
+        )}
+        <span className="pill text-[10px]" style={{ color: p.color, background: p.bg, borderColor: p.border }}>
+          <Flag size={9} />
+          {p.label}
+        </span>
+        <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-4)' }}>
+          <Calendar size={10} />
+          {task.missedReason === 'OVERDUE' && dl
+            ? `Missed ${dl.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${task.dueHasTime ? `, ${dl.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}` : ''}`
+            : 'Logged by you'}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between pt-2.5 mt-0.5" style={{ borderTop: '1px solid var(--border)' }} title="Finishing it late does not give the points back">
+        {done ? (
+          <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--success)' }}>
+            <Check size={12} strokeWidth={3} /> Done late
+          </span>
+        ) : (
+          <button
+            onClick={() => onFinish(task)}
+            className="flex items-center gap-1 text-xs transition-colors cursor-pointer text-[var(--sage-dark)] hover:text-[var(--forest)] font-semibold"
+          >
+            <Check size={13} /> Finished it now
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────── */
 const Tasks = () => {
   const [tasks, setTasks]       = useState<Task[]>([]);
@@ -222,8 +293,11 @@ const Tasks = () => {
   const [missedTitle, setMissedTitle] = useState('');
   const [missedNote, setMissedNote] = useState('');
   const [addingMissed, setAddingMissed] = useState(false);
+  const [showMissedForm, setShowMissedForm] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const flaggedRef = useRef<Set<string>>(new Set());
   const [form, setForm] = useState({
-    title: '', description: '', priority: 'MEDIUM' as TaskPriority, assignedTo: '', dueDate: '',
+    title: '', description: '', priority: 'MEDIUM' as TaskPriority, assignedTo: '', dueDate: '', dueTime: '',
   });
 
   const fetchData = useCallback(async () => {
@@ -247,13 +321,35 @@ const Tasks = () => {
     fetchData(); 
   }, [fetchData]);
 
+  // Clock for the "due soon" warning. When a deadline passes, reload so the task moves to "Tasks I did not do".
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const passed = tasks.filter(t => t.status !== 'COMPLETED' && (minutesLeft(t, now) ?? 1) <= 0 && !flaggedRef.current.has(t._id));
+    if (passed.length > 0) {
+      passed.forEach(t => flaggedRef.current.add(t._id));
+      fetchData();
+    }
+  }, [now, tasks, fetchData]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await taskService.createTask({ ...form, assignedTo: form.assignedTo || undefined, dueDate: form.dueDate || undefined });
+      const { dueTime, ...rest } = form;
+      const withTime = !!form.dueDate && !!dueTime;
+      await taskService.createTask({
+        ...rest,
+        assignedTo: form.assignedTo || undefined,
+        // With a time the deadline is that exact moment (and the 30-minute warning applies); without one it is the end of the day
+        dueDate: form.dueDate ? (withTime ? new Date(`${form.dueDate}T${dueTime}`).toISOString() : form.dueDate) : undefined,
+        dueHasTime: withTime,
+      });
       setShowModal(false);
-      setForm({ title: '', description: '', priority: 'MEDIUM', assignedTo: '', dueDate: '' });
+      setForm({ title: '', description: '', priority: 'MEDIUM', assignedTo: '', dueDate: '', dueTime: '' });
       fetchData();
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Failed to create task');
@@ -268,7 +364,7 @@ const Tasks = () => {
     setAddingMissed(true);
     try {
       await taskService.addMissedTask({ title, description: missedNote.trim() || undefined });
-      setMissedTitle(''); setMissedNote('');
+      setMissedTitle(''); setMissedNote(''); setShowMissedForm(false);
       await fetchData();
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || 'Failed to log the missed task');
@@ -336,6 +432,10 @@ const Tasks = () => {
   };
 
   const byStatus = (s: TaskStatus) => tasks.filter(t => t.status === s);
+  const dueSoon = tasks.filter(t => {
+    const m = t.status === 'COMPLETED' || !t.dueHasTime ? null : minutesLeft(t, now);
+    return m !== null && m > 0 && m <= DEADLINE_ALERT_MINUTES;
+  });
 
   const COLUMN_ACCENT: Record<TaskStatus, string> = {
     TODO: 'var(--border)',
@@ -370,12 +470,31 @@ const Tasks = () => {
         </div>
       )}
 
+      {/* ── 30-minute warning ── */}
+      {!loading && dueSoon.length > 0 && (
+        <div className="space-y-2" role="alert">
+          {dueSoon.map(t => {
+            const left = minutesLeft(t, now) ?? 0;
+            const dl = deadlineOf(t)!;
+            return (
+              <div key={t._id} className="flex items-center gap-3 p-3.5 rounded-xl text-sm" style={{ background: 'rgba(245, 130, 32, 0.1)', border: '1px solid rgba(245, 130, 32, 0.45)', color: '#8A4708' }}>
+                <BellRing size={16} className="shrink-0 bell-vibrate" />
+                <p className="min-w-0">
+                  <strong>"{t.title}"</strong> is due in {formatLeft(left)} (at {dl.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}).
+                  Finish it in time or it moves to "Tasks I did not do" and costs {missed.penaltyPerTask} SDW point.
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-48">
           <Loader2 size={24} className="animate-spin" style={{ color: 'var(--ink-4)' }} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
           {COLUMNS.map(col => {
             const colTasks = byStatus(col.key);
             return (
@@ -435,99 +554,74 @@ const Tasks = () => {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* ── Missed tasks: tasks I did not do (each one costs SDW points) ── */}
-      {!loading && (
-        <div className="rounded-2xl border p-5 md:p-6 space-y-4" style={{ background: 'var(--surface)', borderColor: 'rgba(215, 38, 46, 0.25)' }}>
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(215, 38, 46, 0.1)', color: '#D7262E' }}>
-                <ShieldAlert size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>Tasks I did not do</h2>
-                <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                  Tasks past their due date land here on their own. You can also log one yourself. Each costs {missed.penaltyPerTask} SDW point.
-                </p>
-              </div>
+          {/* ── Tasks I did not do: same column as the others ── */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2.5 px-1 pb-3" style={{ borderBottom: '2px solid #D7262E' }}>
+              <p className="font-semibold text-sm" style={{ fontFamily: 'DM Sans, sans-serif', color: 'var(--ink)' }}>Tasks I did not do</p>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-2)', color: '#D7262E', fontFamily: 'DM Sans, sans-serif' }}>
+                {missed.tasks.length}
+              </span>
+              {missed.monthPenalty > 0 && (
+                <span className="ml-auto text-[11px] font-bold tabular-nums" style={{ color: '#D7262E' }} title="SDW points lost this month">
+                  -{missed.monthPenalty} pts
+                </span>
+              )}
             </div>
-            <div className="text-right">
-              <p className="text-[11px] uppercase font-bold tracking-wide" style={{ color: 'var(--ink-4)' }}>Penalty this month</p>
-              <p className="text-xl font-extrabold tabular-nums" style={{ color: missed.monthPenalty > 0 ? '#D7262E' : 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>
-                {missed.monthPenalty > 0 ? `-${missed.monthPenalty}` : '0'} <span className="text-xs font-bold">pts</span>
-              </p>
+
+            <div className="space-y-2.5">
+              {showMissedForm ? (
+                <form onSubmit={handleAddMissed} className="rounded-xl border p-3 space-y-2" style={{ background: 'var(--surface)', borderColor: 'rgba(215, 38, 46, 0.3)' }}>
+                  <input
+                    autoFocus
+                    className="input-base"
+                    placeholder="A task I did not do…"
+                    value={missedTitle}
+                    onChange={e => setMissedTitle(e.target.value)}
+                    aria-label="Task you did not do"
+                    maxLength={140}
+                    style={{ fontSize: 13 }}
+                  />
+                  <input
+                    className="input-base"
+                    placeholder="Why? (optional)"
+                    value={missedNote}
+                    onChange={e => setMissedNote(e.target.value)}
+                    aria-label="Reason"
+                    maxLength={240}
+                    style={{ fontSize: 13 }}
+                  />
+                  <p className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Costs {missed.penaltyPerTask} SDW point.</p>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => { setShowMissedForm(false); setMissedTitle(''); setMissedNote(''); }} className="btn btn-secondary text-xs py-1.5 px-3">Cancel</button>
+                    <button
+                      type="submit"
+                      disabled={addingMissed || !missedTitle.trim()}
+                      className="btn text-xs py-1.5 px-3 font-bold text-white"
+                      style={{ background: '#D7262E', borderColor: '#D7262E', opacity: addingMissed || !missedTitle.trim() ? 0.5 : 1 }}
+                    >
+                      {addingMissed ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Log as not done
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowMissedForm(true)}
+                  className="w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors hover:bg-[var(--surface-3)]"
+                  style={{ border: '1.5px dashed rgba(215, 38, 46, 0.4)', color: '#D7262E', background: 'var(--surface-2)' }}
+                >
+                  <Plus size={13} /> Log a task I did not do
+                </button>
+              )}
+
+              {missed.tasks.length === 0 ? (
+                <div className="py-8 text-center rounded-xl text-xs" style={{ border: '1.5px dashed var(--border)', color: 'var(--ink-4)', background: 'var(--surface-2)' }}>
+                  Nothing missed. Tasks that reach their deadline undone land here.
+                </div>
+              ) : (
+                missed.tasks.map(t => <MissedCard key={t._id} task={t} onFinish={handleFinishLate} />)
+              )}
             </div>
           </div>
-
-          <form onSubmit={handleAddMissed} className="flex flex-col md:flex-row gap-2.5">
-            <input
-              className="input-base md:flex-[2]"
-              placeholder="A task I did not do…"
-              value={missedTitle}
-              onChange={e => setMissedTitle(e.target.value)}
-              aria-label="Task you did not do"
-              maxLength={140}
-            />
-            <input
-              className="input-base md:flex-[2]"
-              placeholder="Why? (optional)"
-              value={missedNote}
-              onChange={e => setMissedNote(e.target.value)}
-              aria-label="Reason"
-              maxLength={240}
-            />
-            <button
-              type="submit"
-              disabled={addingMissed || !missedTitle.trim()}
-              className="btn text-sm font-bold text-white shrink-0"
-              style={{ background: '#D7262E', borderColor: '#D7262E', opacity: addingMissed || !missedTitle.trim() ? 0.5 : 1 }}
-            >
-              {addingMissed ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              Log as not done
-            </button>
-          </form>
-
-          {missed.tasks.length === 0 ? (
-            <div className="py-6 text-center rounded-xl text-xs" style={{ border: '1.5px dashed var(--border)', color: 'var(--ink-4)', background: 'var(--surface-2)' }}>
-              Nothing missed. Keep it that way.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {missed.tasks.map(t => {
-                const done = t.status === 'COMPLETED';
-                return (
-                  <div key={t._id} className="flex items-center gap-3 rounded-xl border px-4 py-3 flex-wrap" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold truncate" style={{ color: 'var(--ink)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</p>
-                      <p className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                        {t.missedReason === 'OVERDUE' && t.dueDate
-                          ? `Due ${new Date(t.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, not completed`
-                          : 'Logged by you'}
-                        {t.description ? ` · ${t.description}` : ''}
-                      </p>
-                    </div>
-                    <span
-                      className="text-[11px] font-extrabold px-2.5 py-1 rounded-full tabular-nums"
-                      style={{ background: t.penaltyApplied ? 'rgba(215, 38, 46, 0.1)' : 'var(--surface-3)', color: t.penaltyApplied ? '#D7262E' : 'var(--ink-3)' }}
-                      title={t.penaltyApplied ? 'SDW points deducted' : 'No employee profile is linked to this task, so no points were deducted'}
-                    >
-                      {t.penaltyApplied ? `-${t.penaltyPoints} pt` : 'No points linked'}
-                    </span>
-                    {done ? (
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: 'rgba(74, 124, 89, 0.12)', color: 'var(--success)' }}>Done late</span>
-                    ) : (
-                      <button onClick={() => handleFinishLate(t)} className="btn btn-secondary text-xs py-1.5 px-3">
-                        <Check size={13} /> Finished it now
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <p className="text-[11px]" style={{ color: 'var(--ink-4)' }}>Finishing a task late does not give the points back.</p>
         </div>
       )}
 
@@ -611,10 +705,28 @@ const Tasks = () => {
                     type="date"
                     className="input-base"
                     value={form.dueDate}
-                    onChange={e => setForm({ ...form, dueDate: e.target.value })}
+                    onChange={e => setForm({ ...form, dueDate: e.target.value, dueTime: e.target.value ? form.dueTime : '' })}
                     style={{ fontSize: 13 }}
                   />
                 </div>
+              </div>
+
+              {/* Due time */}
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-3)' }}>
+                  Due time <span style={{ color: 'var(--ink-4)' }}>(optional)</span>
+                </label>
+                <input
+                  type="time"
+                  className="input-base"
+                  value={form.dueTime}
+                  disabled={!form.dueDate}
+                  onChange={e => setForm({ ...form, dueTime: e.target.value })}
+                  style={{ fontSize: 13 }}
+                />
+                <p className="text-[11px] mt-1" style={{ color: 'var(--ink-4)' }}>
+                  Set a time to get a warning {DEADLINE_ALERT_MINUTES} minutes before. Without one, the deadline is the end of that day.
+                </p>
               </div>
 
               {/* Assign */}

@@ -2,7 +2,7 @@ import { DeepWorkSession } from '../models/DeepWorkSession';
 import { Device } from '../models/Device';
 import { Task, TaskStatus } from '../models/Task';
 import { voiceService } from './voiceService';
-import { flagOverdueTasks } from './penaltyService';
+import { flagOverdueTasks, alertUpcomingDeadlines, checkInactiveDevices } from './penaltyService';
 
 // Device offline threshold in milliseconds (default 120 seconds / 2 minutes)
 const OFFLINE_THRESHOLD_MS = (parseInt(process.env.DEVICE_OFFLINE_THRESHOLD_SECONDS || '120', 10)) * 1000;
@@ -77,6 +77,18 @@ export const startCronJobs = () => {
 
   // Run offline checks every 30 seconds
   setInterval(syncOfflineDevicesAndSessions, 30 * 1000);
+
+  // Task deadlines: 30-minute warning, and tasks that reached their deadline move to "not done" (every minute)
+  const deadlineChecks = async () => {
+    await alertUpcomingDeadlines();
+    await flagOverdueTasks();
+  };
+  deadlineChecks();
+  setInterval(deadlineChecks, 60 * 1000);
+
+  // Devices that stayed off for 7 days in a row get the inactivity penalty (every 10 minutes)
+  checkInactiveDevices();
+  setInterval(checkInactiveDevices, 10 * 60 * 1000);
 
   // Background checks (task reminders & break alarms) every 5 minutes
   setInterval(async () => {

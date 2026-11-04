@@ -68,6 +68,16 @@ const startCronJobs = () => {
     (0, exports.syncOfflineDevicesAndSessions)();
     // Run offline checks every 30 seconds
     setInterval(exports.syncOfflineDevicesAndSessions, 30 * 1000);
+    // Task deadlines: 30-minute warning, and tasks that reached their deadline move to "not done" (every minute)
+    const deadlineChecks = async () => {
+        await (0, penaltyService_1.alertUpcomingDeadlines)();
+        await (0, penaltyService_1.flagOverdueTasks)();
+    };
+    deadlineChecks();
+    setInterval(deadlineChecks, 60 * 1000);
+    // Devices that stayed off for 7 days in a row get the inactivity penalty (every 10 minutes)
+    (0, penaltyService_1.checkInactiveDevices)();
+    setInterval(penaltyService_1.checkInactiveDevices, 10 * 60 * 1000);
     // Background checks (task reminders & break alarms) every 5 minutes
     setInterval(async () => {
         try {

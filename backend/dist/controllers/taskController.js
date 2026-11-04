@@ -57,13 +57,14 @@ exports.getTask = getTask;
 // @access  Private (Admin/Manager)
 const createTask = async (req, res) => {
     try {
-        const { title, description, priority, assignedTo, dueDate } = req.body;
+        const { title, description, priority, assignedTo, dueDate, dueHasTime } = req.body;
         const task = await Task_1.Task.create({
             title,
             description,
             priority,
             assignedTo: assignedTo || undefined,
             dueDate: dueDate || undefined,
+            dueHasTime: !!dueDate && dueHasTime === true,
             createdBy: req.user._id,
             status: Task_1.TaskStatus.TODO,
         });
@@ -83,8 +84,8 @@ exports.createTask = createTask;
 // @access  Private (Admin/Manager)
 const updateTask = async (req, res) => {
     try {
-        const { title, description, priority, assignedTo, dueDate } = req.body;
-        const task = await Task_1.Task.findByIdAndUpdate(req.params.id, { title, description, priority, assignedTo: assignedTo || undefined, dueDate: dueDate || undefined }, { new: true, runValidators: true })
+        const { title, description, priority, assignedTo, dueDate, dueHasTime } = req.body;
+        const task = await Task_1.Task.findByIdAndUpdate(req.params.id, { title, description, priority, assignedTo: assignedTo || undefined, dueDate: dueDate || undefined, dueHasTime: !!dueDate && dueHasTime === true, deadlineAlertSent: false }, { new: true, runValidators: true })
             .populate('assignedTo', 'firstName lastName email')
             .populate('createdBy', 'name email');
         if (!task) {

@@ -63,6 +63,8 @@ const TaskSchema = new mongoose_1.Schema({
     assignedTo: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee' },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
+    dueHasTime: { type: Boolean, default: false },
+    deadlineAlertSent: { type: Boolean, default: false },
     missed: { type: Boolean, default: false },
     missedAt: { type: Date },
     missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },

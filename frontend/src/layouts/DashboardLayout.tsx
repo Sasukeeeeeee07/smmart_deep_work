@@ -13,6 +13,7 @@ import {
   Activity,
   Cpu,
   ShieldAlert,
+  Gavel,
   Users,
   PanelRightClose,
   PanelRightOpen
@@ -110,6 +111,7 @@ export default function DashboardLayout() {
     { label: 'Dashboard', tint: '#2F6FE4', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Deep Work', tint: '#3B6FD0', path: '/deepwork', icon: Timer },
     { label: 'Tasks', tint: '#1E6AE1', path: '/tasks', icon: CheckSquare },
+    { label: 'Penalty', tint: '#D7262E', path: '/penalty', icon: Gavel },
     { label: 'Profile', tint: '#0EA5D9', path: '/profile', icon: User },
     ...(!isIndividual ? [
       { label: 'Activity Monitor', tint: '#2F6FE4', path: '/activity', icon: Activity },

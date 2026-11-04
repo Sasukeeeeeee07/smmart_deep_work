@@ -20,6 +20,8 @@ export interface ITask extends Document {
   assignedTo?: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
   dueDate?: Date;
+  dueHasTime?: boolean;          // true when dueDate carries a time of day; otherwise the deadline is the end of that day
+  deadlineAlertSent?: boolean;   // the 30-minutes-before alert has been raised
   missed: boolean;               // not done: overdue, or added by the user as "not done"
   missedAt?: Date;
   missedReason?: 'OVERDUE' | 'MANUAL';
@@ -44,6 +46,8 @@ const TaskSchema: Schema = new Schema<ITask>(
     assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
+    dueHasTime: { type: Boolean, default: false },
+    deadlineAlertSent: { type: Boolean, default: false },
     missed: { type: Boolean, default: false },
     missedAt: { type: Date },
     missedReason: { type: String, enum: ['OVERDUE', 'MANUAL'] },

@@ -8,6 +8,7 @@ const voiceService_1 = require("../services/voiceService");
 const cronService_1 = require("../services/cronService");
 const notificationController_1 = require("./notificationController");
 const Notification_1 = require("../models/Notification");
+const penaltyService_1 = require("../services/penaltyService");
 // ── Penalty rules ───────────────────────────────────────────────────────────
 const MAX_STRIKES = 10; // invalid sessions in a row before the lockout
 const STRIKE_WARNING_AT = 7; // start warning admins from this strike on
@@ -232,6 +233,8 @@ const startSession = async (req, res) => {
             employeeId: device.assignedTo,
             startTime: new Date(),
             status: 'ACTIVE',
+            // 3 hours while an inactivity penalty is running, otherwise the usual 2
+            targetDurationMinutes: await (0, penaltyService_1.sessionTargetMinutes)(device.assignedTo),
         });
         console.log(`[SESSION] Started: ${session._id} for device ${req.params.uid}`);
         res.json({ success: true, data: { sessionId: session._id, startTime: session.startTime } });

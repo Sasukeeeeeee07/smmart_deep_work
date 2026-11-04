@@ -13,6 +13,7 @@ import taskRoutes from './routes/taskRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import userRoutes from './routes/userRoutes';
+import penaltyRoutes from './routes/penaltyRoutes';
 import voiceRoutes from './routes/voiceRoutes';
 import { globalApiLimiter, authRateLimiter, voiceRateLimiter } from './middleware/rateLimiters';
 
@@ -47,6 +48,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/penalties', penaltyRoutes);
 app.use('/api/voice', voiceRateLimiter, voiceRoutes);
 
 // API Health Check

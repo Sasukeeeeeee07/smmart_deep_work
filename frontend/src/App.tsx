@@ -12,6 +12,7 @@ import DeepWorkPage from './pages/DeepWork';
 import Profile from './pages/Profile';
 import SettingsPage from './pages/Settings';
 import RewardsPage from './pages/Rewards';
+import Penalty from './pages/Penalty';
 import ModeratorConfig from './pages/ModeratorConfig';
 import NotFound from './pages/NotFound';
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
+          <Route path="/penalty" element={<Penalty />} />
           <Route path="/notifications" element={<Notifications />} />
           
           {/* Secret / URL-only Autonomous AI Moderator Configuration */}

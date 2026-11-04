@@ -59,6 +59,13 @@ export const employeeService = {
 };
 
 // Task Services
+export const penaltyService = {
+  getSummary: async (range: 'week' | 'month' | 'all') => {
+    const response = await api.get('/penalties/summary', { params: { range } });
+    return response.data.data;
+  },
+};
+
 export const taskService = {
   getAllTasks: async (filters?: { status?: string; priority?: string; assignedTo?: string }) => {
     const response = await api.get('/tasks', { params: filters });
