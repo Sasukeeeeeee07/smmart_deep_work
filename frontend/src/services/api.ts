@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://backend-kwid.onrender.com/api',
+  // VITE_API_URL lets a local build point at a local backend; production uses the Render API.
+  baseURL: import.meta.env.VITE_API_URL || 'https://backend-kwid.onrender.com/api',
 });
 
 // Add a request interceptor to attach the JWT token
@@ -35,7 +36,12 @@ export const deviceService = {
   updateDisplayConfig: async (uid: string, config: any) => {
     const response = await api.patch(`/devices/${uid}/display-config`, config);
     return response.data.data;
-  }
+  },
+  /** Admin only. Returns the new key once; the server keeps only its hash. */
+  generateKey: async (uid: string): Promise<{ uid: string; key: string; keyCreatedAt: string }> => {
+    const response = await api.post(`/devices/${uid}/key`);
+    return response.data.data;
+  },
 };
 
 // Employee Services
@@ -215,6 +221,45 @@ export const sessionService = {
   },
   unlockDevice: async (uid: string) => {
     const response = await api.post(`/sessions/${uid}/unlock`);
+    return response.data.data;
+  },
+};
+
+// Face ID Services
+export interface FaceStatus { employeeId: string; enrolled: boolean; sampleCount: number; updatedAt: string | null; }
+export interface FaceCheck {
+  required: boolean;
+  checkRequestedAt: string | null;
+  lastResult: 'MATCH' | 'MISMATCH' | 'NO_FACE' | 'NOT_ENROLLED' | 'ERROR' | null;
+  lastCheckedAt: string | null;
+  message: string | null;
+}
+
+export const faceService = {
+  /** employeeId may be 'me' for the signed-in user. */
+  getStatus: async (employeeId: string): Promise<FaceStatus> => {
+    const response = await api.get(`/faces/${employeeId}/status`);
+    return response.data.data;
+  },
+  /** Admin/manager: everyone who has Face ID set up. */
+  listEnrolled: async (): Promise<{ employeeId: string; sampleCount: number; updatedAt: string }[]> => {
+    const response = await api.get('/faces/status');
+    return response.data.data;
+  },
+  enroll: async (employeeId: string, images: string[], consent: boolean): Promise<{ enrolled: boolean; sampleCount: number }> => {
+    const response = await api.post(`/faces/${employeeId}/enroll`, { images, consent }, { timeout: 90000 });
+    return response.data.data;
+  },
+  remove: async (employeeId: string) => {
+    const response = await api.delete(`/faces/${employeeId}`);
+    return response.data.data;
+  },
+  setDeviceRequired: async (uid: string, required: boolean): Promise<{ required: boolean }> => {
+    const response = await api.patch(`/faces/device/${uid}/settings`, { required });
+    return response.data.data;
+  },
+  getDeviceCheck: async (uid: string): Promise<FaceCheck> => {
+    const response = await api.get(`/faces/device/${uid}/check`);
     return response.data.data;
   },
 };

@@ -8,6 +8,8 @@ import { syncOfflineDevicesAndSessions } from '../services/cronService';
 import { createNotificationInternal } from './notificationController';
 import { NotificationType } from '../models/Notification';
 import { sessionTargetMinutes } from '../services/penaltyService';
+import { FaceProfile } from '../models/FaceProfile';
+import { FACE_VERIFY_VALID_MS, FACE_CHECK_REQUEST_MS } from './faceController';
 
 // ── Penalty rules ───────────────────────────────────────────────────────────
 const MAX_STRIKES = 10;          // invalid sessions in a row before the lockout
@@ -161,7 +163,8 @@ export const startSession = async (req: Request, res: Response) => {
     }
 
     // Check if request is from the physical ESP32 device
-    const isFromDevice = req.headers['x-device-client'] === 'ESP32' || (req.headers['user-agent'] && req.headers['user-agent'].includes('ESP32'));
+    // Set by middleware/deviceAuth when the caller is the device (its key, or a keyless device during rollout), never by a header.
+    const isFromDevice = Boolean(req.deviceAuth);
 
     if (isFromDevice) {
       device.lastHeartbeat = new Date();
@@ -206,6 +209,42 @@ export const startSession = async (req: Request, res: Response) => {
           status: existingActive.status
         }
       });
+    }
+
+    // FACE VERIFICATION: when the device requires it, only the assigned employee, confirmed by
+    // the device camera within the last 2 minutes, may start a session. One match = one start.
+    if (device.faceVerification?.required) {
+      const enrolled = await FaceProfile.exists({ employeeId: device.assignedTo });
+      if (!enrolled) {
+        return res.status(403).json({
+          success: false,
+          error: 'FACE_NOT_ENROLLED',
+          message: 'Face ID is required on this device, but the assigned employee has not set it up yet. Set it up from your Profile page.',
+        });
+      }
+      const fv = device.faceVerification;
+      const verified =
+        fv.verifiedAt &&
+        Date.now() - new Date(fv.verifiedAt).getTime() <= FACE_VERIFY_VALID_MS &&
+        fv.verifiedEmployee && String(fv.verifiedEmployee) === String(device.assignedTo);
+      if (!verified) {
+        // From the web, ask the device to take a check photo; the device picks this up on its next /current poll.
+        if (!isFromDevice) {
+          fv.checkRequestedAt = new Date();
+          await device.save();
+        }
+        return res.status(403).json({
+          success: false,
+          error: 'FACE_NOT_VERIFIED',
+          message: isFromDevice
+            ? 'Face not confirmed. Look at the camera and try again.'
+            : 'Look at your DeepWork device camera to confirm it is you.',
+          data: { faceCheckRequested: !isFromDevice, checkRequestedAt: fv.checkRequestedAt || null },
+        });
+      }
+      fv.verifiedAt = null;
+      fv.checkRequestedAt = null;
+      await device.save();
     }
 
     // Close any stale session for this device
@@ -701,7 +740,7 @@ export const getCurrentSession = async (req: Request, res: Response) => {
       }
 
       // If called by ESP32 device, update its heartbeat and mark ONLINE
-      const isFromDevice = req.headers['x-device-client'] === 'ESP32' || (req.headers['user-agent'] && req.headers['user-agent'].includes('ESP32'));
+      const isFromDevice = Boolean(req.deviceAuth);
       if (isFromDevice) {
         device.lastHeartbeat = new Date();
         if (device.status !== 'ONLINE') {
@@ -711,13 +750,24 @@ export const getCurrentSession = async (req: Request, res: Response) => {
       }
     }
 
+    // Face ID: whether the device must check faces, and whether the web is waiting for a check photo
+    // (asked within the last 30 s and not answered since).
+    const fv = device?.faceVerification;
+    const requestedAt = fv?.checkRequestedAt ? new Date(fv.checkRequestedAt).getTime() : 0;
+    const answeredAt = fv?.lastCheckedAt ? new Date(fv.lastCheckedAt).getTime() : 0;
+    const face = {
+      required: Boolean(fv?.required),
+      checkRequested: Boolean(fv?.required) && requestedAt > 0 &&
+        Date.now() - requestedAt <= FACE_CHECK_REQUEST_MS && answeredAt < requestedAt,
+    };
+
     const session = await DeepWorkSession.findOne({
       deviceUid: req.params.uid,
       status: { $in: ['ACTIVE', 'BREAK', 'DYING', 'COMPLETED', 'INVALID'] }
     }).sort({ startTime: -1 });
 
     if (!session) {
-      return res.json({ success: true, data: null, lockout: lockoutData });
+      return res.json({ success: true, data: null, lockout: lockoutData, face });
     }
 
     const now = Date.now();
@@ -761,7 +811,8 @@ export const getCurrentSession = async (req: Request, res: Response) => {
         remainingSeconds,
         lastResumedAt: session.lastResumedAt || latestBreakEnd || null,
       },
-      lockout: lockoutData
+      lockout: lockoutData,
+      face,
     });
   } catch (err) {
     console.error('[SESSION] current error:', err);

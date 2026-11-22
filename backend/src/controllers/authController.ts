@@ -1,24 +1,14 @@
 import { Request, Response } from 'express';
 import { User, Role } from '../models/User';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/jwt';
+
+export const MIN_PASSWORD_LENGTH = 8;
 
 const generateToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'super_secret_jwt_key', {
+  return jwt.sign({ id }, JWT_SECRET, {
     expiresIn: '30d',
   });
-};
-
-// TEMPORARY ENDPOINT TO FIX DB
-export const resetAdmin = async (req: Request, res: Response) => {
-  await User.deleteMany({ email: 'admin@smmart.com' });
-  await User.create({
-    name: 'Super Admin',
-    email: 'admin@smmart.com',
-    passwordHash: 'admin123', // Mongoose pre-save hook will hash this!
-    role: Role.ADMIN,
-    isActive: true
-  });
-  res.send('Admin reset successfully! You can now login with admin@smmart.com / admin123');
 };
 
 // @desc    Auth user & get token
@@ -65,13 +55,26 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
-// @desc    Register initial admin (Setup endpoint)
+// @desc    Create the first admin on a brand-new database (one-time setup)
 // @route   POST /api/auth/register-admin
-// @access  Public (Should be disabled or protected in production)
+// @access  Public only while no users exist; refused afterwards (admins add people from the Team page)
 export const registerAdmin = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   try {
+    if ((await User.estimatedDocumentCount()) > 0) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'SETUP_CLOSED', message: 'Setup is already done. Ask an admin to add you from the Team page.' },
+      });
+    }
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'WEAK_PASSWORD', message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
+      });
+    }
+
     const userExists = await User.findOne({ email });
 
     if (userExists) {

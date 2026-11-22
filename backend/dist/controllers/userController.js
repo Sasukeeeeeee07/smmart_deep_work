@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUsers = exports.registerUser = void 0;
 const User_1 = require("../models/User");
+const authController_1 = require("./authController");
 // @desc    Register a new user (Manager or Employee)
 // @route   POST /api/users
 // @access  Private (Admin/Manager)
@@ -15,6 +16,9 @@ const registerUser = async (req, res) => {
         }
         if (role === User_1.Role.MANAGER && reqUserRole !== User_1.Role.ADMIN) {
             return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only Admins can create Managers' } });
+        }
+        if (typeof password !== 'string' || password.length < authController_1.MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ success: false, error: { code: 'WEAK_PASSWORD', message: `Password must be at least ${authController_1.MIN_PASSWORD_LENGTH} characters.` } });
         }
         const userExists = await User_1.User.findOne({ email });
         if (userExists) {

@@ -2,7 +2,7 @@ import app from './app';
 import { connectDB } from './config/db';
 import os from 'os';
 import { User, Role } from './models/User';
-import bcrypt from 'bcrypt';
+import { MIN_PASSWORD_LENGTH } from './controllers/authController';
 import { startCronJobs } from './services/cronService';
 
 const PORT = process.env.PORT || 3000;
@@ -25,17 +25,20 @@ const startServer = async () => {
   // Start background cron jobs
   startCronJobs();
   
-  // Seed initial admin if empty
-  if ((await User.countDocuments()) === 0) {
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('admin123', salt);
-    await User.create({
-      name: 'Super Admin',
-      email: 'admin@smmart.com',
-      passwordHash,
-      role: Role.ADMIN
-    });
-    console.log('Seeded default admin user: admin@smmart.com / admin123');
+  // First admin on an empty database: only from environment variables, never a built-in password.
+  if ((await User.countDocuments().catch(() => -1)) === 0) {
+    const email = process.env.ADMIN_EMAIL?.trim();
+    const password = process.env.ADMIN_PASSWORD || '';
+    if (email && password.length >= MIN_PASSWORD_LENGTH) {
+      // The User pre-save hook hashes passwordHash.
+      await User.create({ name: 'Admin', email: email.toLowerCase(), passwordHash: password, role: Role.ADMIN });
+      console.log(`Created first admin user: ${email}`);
+    } else {
+      console.warn(
+        'No users yet. Set ADMIN_EMAIL and ADMIN_PASSWORD (8+ characters) and restart, ' +
+        'or create the first admin once with POST /api/auth/register-admin.'
+      );
+    }
   }
 
   // Listen on 0.0.0.0 so ESP32 and other LAN devices can reach us

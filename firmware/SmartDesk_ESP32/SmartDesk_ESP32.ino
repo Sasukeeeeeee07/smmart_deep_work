@@ -31,13 +31,21 @@ const unsigned long VOICE_POLL_INTERVAL = 10000; // Poll every 10s
 #include <WiFi.h>
 #include <time.h>
 
-// TODO: Replace with your actual WiFi credentials
-// 1. Update the WiFi name (EXACTLY matching your Mac, including spaces and
-// caps)
-const char *ssid = "smmart";
+// Wi-Fi credentials live in secrets.h (ignored by git).
+// First time: copy secrets.example.h to secrets.h in this folder and fill it in.
+#include "secrets.h"
+const char *ssid = WIFI_SSID;         // must match the network name exactly (spaces, caps)
+const char *password = WIFI_PASSWORD;
 
-// 2. Update the WiFi password
-const char *password = "smmart@26";
+// Device key (Dashboard > Devices > Generate key). Older secrets.h files may not define it.
+#ifndef DEVICE_KEY
+#define DEVICE_KEY ""
+#endif
+
+// Proves to the backend that a request comes from this desk. Call after every http.begin().
+void addDeviceKey(HTTPClient &client) {
+  if (strlen(DEVICE_KEY) > 0) client.addHeader("X-Device-Key", DEVICE_KEY);
+}
 
 // 3. Update the Server IP to match your Mac's new IP on the hotspot network!
 const char *serverName =
@@ -129,6 +137,15 @@ unsigned long presenceStartMs = 0; // when person returned
 int sdwWeeklyPts = 0;
 int sdwMonthlyPts = 0;
 bool sdwFetched = false;
+
+// Face ID (backend decides; the device only takes the photo)
+const char *faceVerifyURL =
+    "https://backend-kwid.onrender.com/api/faces/device/ESP32-S3-01/verify";
+bool faceRequired = false;                 // synced from /current: sessions need a face match first
+volatile bool faceCaptureRequested = false; // ask cameraTask for one frame, even off the camera page
+volatile bool faceFrameReady = false;       // that frame is in jpegBuffer, waiting to be sent
+bool pendingWebFaceCheck = false;           // the web pressed Start and is waiting for our photo
+unsigned long lastFaceCheckMs = 0;
 
 // Moderator (fetched from backend — stubbed for now)
 int moderatorCommands = 0;
@@ -1568,6 +1585,7 @@ void triggerSessionCompleted() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(String(sessionBaseURL) + "/end");
+    addDeviceKey(http);
     http.setTimeout(1500);
     http.addHeader("Content-Type", "application/json");
     unsigned long activeMins = sessionTotalMs / 60000;
@@ -1896,6 +1914,7 @@ void fetchTasksFromBackend() {
 
   HTTPClient http;
   http.begin(taskServerURL);
+  addDeviceKey(http);
   http.setTimeout(2000);
 
   int httpCode = http.GET();
@@ -2002,6 +2021,7 @@ void fetchStatsFromBackend() {
 
   HTTPClient http;
   http.begin(statsServerURL);
+  addDeviceKey(http);
   http.setTimeout(2000);
 
   int httpCode = http.GET();
@@ -2387,6 +2407,104 @@ void drawCameraPage() {
 }
 
 // =====================================================
+// FACE ID CHECK
+// The camera takes one photo; the backend compares it with the face
+// enrolled for this desk's assigned employee and answers MATCH,
+// MISMATCH, NO_FACE, NOT_ENROLLED or ERROR. Photos are not stored.
+// =====================================================
+void drawFaceCheckScreen(const char *title, const char *line1, const char *line2, uint16_t color) {
+  tft.fillScreen(COLOR_BG);
+  tft.fillRoundRect(15, 40, 290, 160, 10, COLOR_PANEL);
+  tft.drawRoundRect(15, 40, 290, 160, 10, color);
+
+  // Simple face glyph
+  tft.drawCircle(160, 82, 22, color);
+  tft.fillCircle(152, 77, 3, color);
+  tft.fillCircle(168, 77, 3, color);
+  tft.drawLine(151, 91, 169, 91, color);
+
+  tft.setTextSize(2);
+  tft.setTextColor(color);
+  tft.setCursor((320 - (int)strlen(title) * 12) / 2, 118);
+  tft.print(title);
+
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_TEXT);
+  tft.setCursor((320 - (int)strlen(line1) * 6) / 2, 150);
+  tft.print(line1);
+  tft.setTextColor(COLOR_MUTED);
+  tft.setCursor((320 - (int)strlen(line2) * 6) / 2, 166);
+  tft.print(line2);
+}
+
+// Asks cameraTask for a frame and waits for it. The first frame can be a stale
+// buffer from the camera board, so it is dropped and a fresh one is taken.
+bool captureFaceFrame(unsigned long timeoutMs) {
+  cameraFrameReady = false; // the main loop is busy here, so nothing is drawing it
+  for (int shot = 0; shot < 2; shot++) {
+    faceFrameReady = false;
+    faceCaptureRequested = true;
+    unsigned long start = millis();
+    while (!faceFrameReady) {
+      if (millis() - start > timeoutMs) {
+        faceCaptureRequested = false; // cameraTask drops a late frame
+        return false;
+      }
+      delay(10);
+    }
+  }
+  return true; // jpegBuffer holds the fresh frame until faceFrameReady is cleared
+}
+
+String verifyFaceWithServer() {
+  if (WiFi.status() != WL_CONNECTED) return "OFFLINE";
+  HTTPClient http;
+  http.begin(faceVerifyURL);
+  addDeviceKey(http);
+  http.setTimeout(20000); // the server loads its face model on the first check after idling
+  http.addHeader("Content-Type", "image/jpeg");
+  http.addHeader("X-Device-Client", "ESP32");
+  int code = http.POST(jpegBuffer, jpegLength);
+  String result = "ERROR";
+  if (code == 200) {
+    JsonDocument doc;
+    if (!deserializeJson(doc, http.getString())) {
+      result = (const char *)(doc["data"]["result"] | "ERROR");
+    }
+  } else {
+    Serial.printf("[FACE] Verify HTTP %d\n", code);
+  }
+  http.end();
+  return result;
+}
+
+// Takes the photo, asks the backend, and shows the outcome on screen.
+// Returns true only when the assigned employee is confirmed. The caller redraws its page.
+bool runFaceCheck() {
+  lastFaceCheckMs = millis();
+  drawFaceCheckScreen("LOOK AT CAMERA", "Checking it's you...", "Hold still for a moment", COLOR_ACCENT);
+
+  bool gotFrame = captureFaceFrame(4000);
+  String result = gotFrame ? verifyFaceWithServer() : String("CAMERA");
+  faceFrameReady = false; // give jpegBuffer back to the camera task
+  Serial.printf("[FACE] Check result: %s\n", result.c_str());
+
+  if (result == "MATCH") {
+    drawFaceCheckScreen("FACE CONFIRMED", "Starting your session", "", COLOR_GREEN);
+    delay(900);
+    return true;
+  }
+  if (result == "MISMATCH")          drawFaceCheckScreen("NOT RECOGNISED", "Only the assigned person", "can start a session at this desk", COLOR_RED);
+  else if (result == "NO_FACE")      drawFaceCheckScreen("NO FACE SEEN", "Face the camera in good light", "and press Start again", COLOR_YELLOW);
+  else if (result == "NOT_ENROLLED") drawFaceCheckScreen("FACE ID NOT SET UP", "Set up Face ID from the", "Profile page on the dashboard", COLOR_ORANGE);
+  else if (result == "CAMERA")       drawFaceCheckScreen("CAMERA NOT READY", "No photo from the camera", "Check its cable and try again", COLOR_ORANGE);
+  else if (result == "OFFLINE")      drawFaceCheckScreen("NO WIFI", "Face ID needs the internet", "Reconnect and try again", COLOR_ORANGE);
+  else                               drawFaceCheckScreen("CHECK FAILED", "Could not check your face", "Please try again", COLOR_ORANGE);
+  delay(2800);
+  return false;
+}
+
+// =====================================================
 // MANUAL SESSION START (from Device Button)
 // Calls exact same endpoint: POST /api/sessions/ESP32-S3-01/start
 // =====================================================
@@ -2397,6 +2515,12 @@ void startSessionFromDevice() {
   }
   if (sessionState == SESSION_ACTIVE) {
     Serial.println("[SESSION] Session already active.");
+    return;
+  }
+
+  // FACE ID: on a desk that requires it, only the assigned person may start a session.
+  if (faceRequired && !runFaceCheck()) {
+    drawHomePage();
     return;
   }
 
@@ -2425,6 +2549,7 @@ void startSessionFromDevice() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(String(sessionBaseURL) + "/start");
+    addDeviceKey(http);
     http.setTimeout(2500);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Device-Client", "ESP32");
@@ -2432,7 +2557,9 @@ void startSessionFromDevice() {
     if (startCode == 403) {
       String payload = http.getString();
       JsonDocument doc;
-      if (!deserializeJson(doc, payload) && doc["data"]["lockedOut"] == true) {
+      bool parsed = !deserializeJson(doc, payload);
+      const char *startErr = parsed ? (const char *)(doc["error"] | "") : "";
+      if (parsed && doc["data"]["lockedOut"] == true) {
         isDeviceLockedOut = true;
         sessionState = SESSION_LOCKED_OUT;
         currentPage = PAGE_LOCKOUT;
@@ -2440,12 +2567,25 @@ void startSessionFromDevice() {
         preferences.putUInt("lockSec", lockoutRemainingSec);
         soundAlarmActive = false;
         drawLockoutScreen();
+      } else if (strncmp(startErr, "FACE_", 5) == 0) {
+        // Face ID was switched on before our next sync, or the match expired: undo the optimistic start.
+        faceRequired = true;
+        sessionState = SESSION_IDLE;
+        sessionStartMs = 0;
+        if (strcmp(startErr, "FACE_NOT_ENROLLED") == 0) {
+          drawFaceCheckScreen("FACE ID NOT SET UP", "Set up Face ID from the", "Profile page on the dashboard", COLOR_ORANGE);
+        } else {
+          drawFaceCheckScreen("FACE CHECK NEEDED", "This desk now uses Face ID", "Press Start again", COLOR_ORANGE);
+        }
+        delay(2500);
+        drawHomePage();
       }
     } else if (startCode == 200) {
       Serial.println("[SESSION] Server registered session successfully from device button.");
       // Immediately fetch /current to lock timer into server's exact remainingSeconds
       HTTPClient httpCur;
       httpCur.begin(String(sessionBaseURL) + "/current");
+      addDeviceKey(httpCur);
       httpCur.addHeader("X-Device-Client", "ESP32");
       httpCur.setTimeout(2000);
       int curCode = httpCur.GET();
@@ -2504,6 +2644,7 @@ void resumeSessionFromDevice() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(String(sessionBaseURL) + "/resume");
+    addDeviceKey(http);
     http.setTimeout(2500);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Device-Client", "ESP32");
@@ -2598,6 +2739,7 @@ void handleTouch() {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/stop-sound");
+        addDeviceKey(http);
         http.setTimeout(1500);
         http.POST("{}");
         http.end();
@@ -2606,6 +2748,7 @@ void handleTouch() {
         if (shouldResume) {
           HTTPClient http2;
           http2.begin(String(sessionBaseURL) + "/resume");
+          addDeviceKey(http2);
           http2.setTimeout(1500);
           http2.addHeader("Content-Type", "application/json");
           http2.POST("{\"isCountedBreak\":" + String(wasCounted ? "true" : "false") + "}");
@@ -2639,6 +2782,7 @@ void handleTouch() {
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/rate");
+          addDeviceKey(http);
           http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           http.POST("{\"rating\":" + String(selfRating) + "}");
@@ -2710,6 +2854,7 @@ void handleTouch() {
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/extend");
+          addDeviceKey(http);
           http.setTimeout(4000);
           http.addHeader("Content-Type", "application/json");
           int code = http.POST("{\"extensionMinutes\":" + String(chosenMins) + ",\"source\":\"device\"}");
@@ -2758,6 +2903,7 @@ void handleTouch() {
     if (WiFi.status() == WL_CONNECTED) {
       HTTPClient http;
       http.begin(String(sessionBaseURL) + "/resume");
+      addDeviceKey(http);
       http.setTimeout(1500);
       http.addHeader("Content-Type", "application/json");
       http.POST("{}");
@@ -2854,6 +3000,7 @@ void handleTouch() {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/rate");
+        addDeviceKey(http);
         http.addHeader("Content-Type", "application/json");
         http.POST("{\"rating\":" + String(selfRating) + "}");
         http.end();
@@ -2975,10 +3122,22 @@ void cameraTask(void *parameter) {
 
   while (true) {
     // =================================================
-    // CAMERA PAGE NOT ACTIVE
+    // FACE ID FRAME STILL BEING UPLOADED: keep jpegBuffer untouched
     // =================================================
 
-    if (currentPage != PAGE_CAMERA) {
+    if (faceFrameReady) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+
+      continue;
+    }
+
+    bool wantFace = faceCaptureRequested;
+
+    // =================================================
+    // CAMERA PAGE NOT ACTIVE (and no face check asked for)
+    // =================================================
+
+    if (currentPage != PAGE_CAMERA && !wantFace) {
       vTaskDelay(pdMS_TO_TICKS(20));
 
       continue;
@@ -3001,6 +3160,19 @@ void cameraTask(void *parameter) {
     bool success = receiveFrame();
 
     // =================================================
+    // FACE ID: hand the frame to runFaceCheck(), not the camera page
+    // =================================================
+
+    if (wantFace) {
+      // Only hand it over if runFaceCheck() is still waiting (it may have timed out).
+      if (success && faceCaptureRequested) {
+        faceCaptureRequested = false;
+        faceFrameReady = true;
+      }
+      continue;
+    }
+
+    // =================================================
     // CHECK PAGE AGAIN
     // =================================================
 
@@ -3020,6 +3192,7 @@ void sendRadarDataToBackend() {
     static HTTPClient http;
     http.setReuse(true); // Keep SSL connection alive to stop UI lag!
     http.begin(serverName);
+    addDeviceKey(http);
     http.addHeader("Content-Type", "application/json");
 
     // Set a moderate timeout
@@ -3061,6 +3234,7 @@ void pollVoiceAgent() {
     HTTPClient http;
     // URL matching your backend setup
     http.begin("https://backend-kwid.onrender.com/api/voice/ESP32-S3-01/next");
+    addDeviceKey(http);
     http.setTimeout(1500);
     int httpCode = http.GET();
 
@@ -3109,6 +3283,7 @@ void fetchDisplayConfig() {
   if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   http.begin(displayConfigURL);
+  addDeviceKey(http);
   http.setTimeout(2000);
   int code = http.GET();
   if (code == 200) {
@@ -3630,6 +3805,7 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/break");
+        addDeviceKey(http);
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.addHeader("X-Device-Client", "ESP32");
@@ -3663,6 +3839,7 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/break-counted");
+        addDeviceKey(http);
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.POST("{\"breakCount\":" + String(sessionBreakCount) + "}");
@@ -3689,6 +3866,7 @@ void loop() {
         if (WiFi.status() == WL_CONNECTED) {
           HTTPClient http;
           http.begin(String(sessionBaseURL) + "/alarm-trigger");
+          addDeviceKey(http);
           http.setTimeout(1500);
           http.addHeader("Content-Type", "application/json");
           http.POST("{\"message\":\"SESSION INVALID: Exceeded " + String(maxAllowedBreaks) + " breaks limit\",\"isInvalid\":true}");
@@ -3735,6 +3913,7 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/resume");
+        addDeviceKey(http);
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         http.POST("{\"isCountedBreak\":true}");
@@ -3754,6 +3933,7 @@ void loop() {
       if (WiFi.status() == WL_CONNECTED && activeMins > 0) {
         HTTPClient http;
         http.begin(String(sessionBaseURL) + "/end");
+        addDeviceKey(http);
         http.setTimeout(1500);
         http.addHeader("Content-Type", "application/json");
         String body = "{\"activeMinutes\":" + String(activeMins) +
@@ -3850,6 +4030,7 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED && currentPage != PAGE_CAMERA) {
       HTTPClient http;
       http.begin(String(sessionBaseURL) + "/current");
+      addDeviceKey(http);
       http.setTimeout(2000);
       int code = http.GET();
       if (code == 200) {
@@ -3887,6 +4068,16 @@ void loop() {
                 preferences.putUInt("lockSec", lockoutRemainingSec);
                 updateLockoutCountdown();
               }
+            }
+          }
+
+          // Face ID: is it required here, and is the web waiting for our check photo?
+          if (!doc["face"].isNull()) {
+            faceRequired = doc["face"]["required"] | false;
+            bool beFaceCheck = doc["face"]["checkRequested"] | false;
+            if (beFaceCheck && sessionState == SESSION_IDLE && !isDeviceLockedOut &&
+                millis() - lastFaceCheckMs > 8000) {
+              pendingWebFaceCheck = true; // run after this HTTP call is closed
             }
           }
 
@@ -4052,6 +4243,15 @@ void loop() {
       }
       http.end();
       vTaskDelay(pdMS_TO_TICKS(1));
+
+      // The web pressed Start on a Face ID desk: take the check photo now.
+      // On a match the web starts the session, and the next sync picks it up.
+      if (pendingWebFaceCheck) {
+        pendingWebFaceCheck = false;
+        runFaceCheck();
+        currentPage = PAGE_HOME;
+        drawHomePage();
+      }
     }
   }
 
@@ -4082,6 +4282,7 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED) {
       HTTPClient http;
       http.begin(sdwPointsURL);
+      addDeviceKey(http);
       http.setTimeout(2000);
       int code = http.GET();
       if (code == 200) {

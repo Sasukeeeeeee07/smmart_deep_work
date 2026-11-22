@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { User, Role } from '../models/User';
+import { MIN_PASSWORD_LENGTH } from './authController';
 
 // @desc    Register a new user (Manager or Employee)
 // @route   POST /api/users
@@ -17,6 +18,10 @@ export const registerUser = async (req: Request, res: Response) => {
     
     if (role === Role.MANAGER && reqUserRole !== Role.ADMIN) {
       return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only Admins can create Managers' } });
+    }
+
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ success: false, error: { code: 'WEAK_PASSWORD', message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` } });
     }
 
     const userExists = await User.findOne({ email });

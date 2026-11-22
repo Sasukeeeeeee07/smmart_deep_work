@@ -1,45 +1,39 @@
+/**
+ * Creates the first admin user.
+ *
+ *   MONGODB_URI=... ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='a long password' npm run seed
+ *
+ * Values can also come from backend/.env. Nothing secret is stored in this file.
+ */
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import { User, Role } from '../src/models/User';
 
-const MONGO_URI = 'mongodb+srv://technical_db_user:C0pcZuuDnq1ueZMq@cluster0.1yfpck7.mongodb.net/?appName=Cluster0';
-
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true },
-  role: { type: String, enum: ['ADMIN', 'MANAGER', 'EMPLOYEE'], default: 'EMPLOYEE' }
-});
-
-const User = mongoose.model('User', userSchema);
+dotenv.config();
 
 async function seed() {
+  const uri = process.env.MONGODB_URI;
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || '';
+
+  if (!uri) throw new Error('Set MONGODB_URI (in the environment or backend/.env).');
+  if (!email || password.length < 8) throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD (8+ characters).');
+
+  await mongoose.connect(uri);
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log('Connected to Atlas DB');
-
-    const exists = await User.findOne({ email: 'admin@smmart.com' });
-    if (exists) {
-      console.log('Admin already exists!');
-      process.exit(0);
+    if (await User.findOne({ email })) {
+      console.log(`A user with ${email} already exists. Nothing changed.`);
+      return;
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('admin123', salt);
-
-    await User.create({
-      name: 'Super Admin',
-      email: 'admin@smmart.com',
-      passwordHash,
-      role: 'ADMIN'
-    });
-
-    console.log('Admin created successfully! Email: admin@smmart.com | Password: admin123');
-  } catch (error) {
-    console.error('Error seeding admin:', error);
+    // The User pre-save hook hashes passwordHash.
+    await User.create({ name: 'Admin', email, passwordHash: password, role: Role.ADMIN });
+    console.log(`Admin created: ${email}`);
   } finally {
     await mongoose.disconnect();
-    process.exit(0);
   }
 }
 
-seed();
+seed().catch(err => {
+  console.error('Seeding failed:', err.message);
+  process.exit(1);
+});

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { deviceService, sessionService } from '../services/api';
+import { deviceService, sessionService, faceService } from '../services/api';
 import { LockoutScreen } from '../components/LockoutScreen';
 import SpikeRunner, { SPIKE_POINTS } from '../components/SpikeRunner';
 import { Ring, useCountUp } from '../components/DeepWorkBits';
 import {
   Timer, Power, AlertTriangle,
   VolumeX, Star,
-  Clock, History, X, Coffee, Send, Check, PowerOff
+  Clock, History, X, Coffee, Send, Check, PowerOff, ScanFace
 } from 'lucide-react';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -56,6 +56,7 @@ export default function DeepWorkPage() {
   const [starting, setStarting]       = useState(false);
   const [stoppingSound, setStoppingSound] = useState(false);
   const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+  const [faceNotice, setFaceNotice] = useState<string | null>(null);   // waiting for the device's Face ID check
   const [extending, setExtending]     = useState(false);
   const [customVoice, setCustomVoice] = useState('');
   const [sendingVoice, setSendingVoice] = useState(false);
@@ -252,9 +253,18 @@ export default function DeepWorkPage() {
       return;
     }
     setOfflineNotice(null);
+    setFaceNotice(null);
     setStarting(true);
     try {
-      await sessionService.startSession(selectedUid);
+      try {
+        await sessionService.startSession(selectedUid);
+      } catch (err: any) {
+        if (err.response?.data?.error !== 'FACE_NOT_VERIFIED') throw err;
+        // Face ID desk: the device takes a check photo, then we start again.
+        await waitForDeviceFaceCheck(err.response.data.data?.checkRequestedAt);
+        await sessionService.startSession(selectedUid);
+      }
+      setFaceNotice(null);
       const live = await sessionService.getCurrentSession(selectedUid);
       if (live) {
         setCurrentSession(live);
@@ -265,11 +275,30 @@ export default function DeepWorkPage() {
       }
       await loadData();
     } catch (err: any) {
+      setFaceNotice(null);
       const msg = err.response?.data?.message || err.message || 'Failed to start session';
       setOfflineNotice(msg);
     } finally {
       setStarting(false);
     }
+  };
+
+  /**
+   * Waits (up to 30 s) for the device to answer a web start's face-check request. Resolves on a
+   * match; throws with a readable message otherwise.
+   */
+  const waitForDeviceFaceCheck = async (requestedAt?: string | null) => {
+    setFaceNotice('Look at your DeepWork device camera to confirm it is you…');
+    const since = requestedAt ? new Date(requestedAt).getTime() : Date.now() - 1000;
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 2000));
+      const check = await faceService.getDeviceCheck(selectedUid).catch(() => null);
+      if (!check?.lastCheckedAt || new Date(check.lastCheckedAt).getTime() < since) continue;
+      if (check.lastResult === 'MATCH') return;
+      throw new Error(`${check.message || 'Face not confirmed'}. Press Start to try again.`);
+    }
+    throw new Error('The device did not take a check photo. Make sure it is on and its camera is connected, then try again.');
   };
 
   const handleStopSound = async () => {
@@ -364,6 +393,14 @@ export default function DeepWorkPage() {
             )}
           </button>
         </div>
+
+        {faceNotice && (
+          <div className="p-3.5 rounded-2xl border flex items-center gap-2 text-xs animate-fade-in shadow-xs" role="status" aria-live="polite"
+            style={{ borderColor: 'rgba(11, 94, 215, 0.3)', background: 'rgba(11, 94, 215, 0.08)', color: 'var(--forest)' }}>
+            <ScanFace size={16} className="shrink-0 animate-pulse" />
+            <span className="font-medium">{faceNotice}</span>
+          </div>
+        )}
 
         {offlineNotice && (
           <div className="p-3.5 rounded-2xl border border-rose-500/30 bg-rose-500/10 flex items-center justify-between gap-3 text-xs text-rose-700 animate-fade-in shadow-xs">

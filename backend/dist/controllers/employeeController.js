@@ -3,6 +3,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEmployee = exports.updateEmployee = exports.createEmployee = exports.getEmployees = void 0;
 const Employee_1 = require("../models/Employee");
 const User_1 = require("../models/User");
+const authController_1 = require("./authController");
+const ELEVATED_ROLES = [User_1.Role.ADMIN, User_1.Role.MANAGER];
+/**
+ * Only an Admin may create, promote to, or change Admin/Manager accounts. Without this a
+ * Manager could create an Admin login (or reset an Admin's password) and take over.
+ */
+function needsAdmin(req, targetRole, currentRole) {
+    if (req.user?.role === User_1.Role.ADMIN)
+        return false;
+    return Boolean((targetRole && ELEVATED_ROLES.includes(targetRole)) || (currentRole && ELEVATED_ROLES.includes(currentRole)));
+}
+const forbidden = (res) => res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Only an Admin can create or change Admin and Manager accounts.' } });
+const weakPassword = (res) => res.status(400).json({ success: false, error: { code: 'WEAK_PASSWORD', message: `Password must be at least ${authController_1.MIN_PASSWORD_LENGTH} characters.` } });
 // @desc    Get all employees
 // @route   GET /api/employees
 // @access  Private (Admin/Manager)
@@ -22,6 +35,10 @@ exports.getEmployees = getEmployees;
 const createEmployee = async (req, res) => {
     try {
         const { firstName, lastName, email, department, position, status, password, role } = req.body;
+        if (needsAdmin(req, role))
+            return forbidden(res);
+        if (typeof password !== 'string' || password.length < authController_1.MIN_PASSWORD_LENGTH)
+            return weakPassword(res);
         // Check if employee or user already exists
         const employeeExists = await Employee_1.Employee.findOne({ email });
         const userExists = await User_1.User.findOne({ email });
@@ -32,7 +49,7 @@ const createEmployee = async (req, res) => {
         const user = await User_1.User.create({
             name: `${firstName} ${lastName}`.trim(),
             email: email.trim().toLowerCase(),
-            passwordHash: password || 'defaultpassword123',
+            passwordHash: password,
             role: role || User_1.Role.EMPLOYEE,
             isActive: true,
         });
@@ -63,6 +80,14 @@ const updateEmployee = async (req, res) => {
         if (!employee) {
             return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Employee not found' } });
         }
+        // Check permissions and the new password before changing anything.
+        const linkedUser = employee.user
+            ? await User_1.User.findById(employee.user)
+            : await User_1.User.findOne({ email: employee.email });
+        if (needsAdmin(req, role, linkedUser?.role))
+            return forbidden(res);
+        if (password && (typeof password !== 'string' || password.length < authController_1.MIN_PASSWORD_LENGTH))
+            return weakPassword(res);
         if (firstName)
             employee.firstName = firstName;
         if (lastName)
@@ -101,12 +126,12 @@ const updateEmployee = async (req, res) => {
                 await employee.save();
             }
         }
-        else {
-            // Create user if one did not exist for this employee
+        else if (password) {
+            // Create a login for this employee only when a password was given (never a default one)
             const newUser = await User_1.User.create({
                 name: `${employee.firstName} ${employee.lastName}`,
                 email: employee.email,
-                passwordHash: password || 'defaultpassword123',
+                passwordHash: password,
                 role: role || User_1.Role.EMPLOYEE,
                 isActive: true,
             });
@@ -126,6 +151,13 @@ exports.updateEmployee = updateEmployee;
 // @access  Private (Admin/Manager)
 const deleteEmployee = async (req, res) => {
     try {
+        const existing = await Employee_1.Employee.findById(req.params.id);
+        if (!existing) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Employee not found' } });
+        }
+        const linkedUser = existing.user ? await User_1.User.findById(existing.user) : null;
+        if (needsAdmin(req, undefined, linkedUser?.role))
+            return forbidden(res);
         const employee = await Employee_1.Employee.findByIdAndDelete(req.params.id);
         if (!employee) {
             return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Employee not found' } });

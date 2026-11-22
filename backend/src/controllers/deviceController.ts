@@ -4,6 +4,29 @@ import { ActivitySession } from '../models/ActivitySession';
 import { Task, TaskStatus } from '../models/Task';
 import { Employee } from '../models/Employee';
 import { syncOfflineDevicesAndSessions } from '../services/cronService';
+import crypto from 'crypto';
+import { hashDeviceKey } from '../middleware/deviceAuth';
+
+// @desc    Generate (or replace) a device's secret key. The key is shown once; only its hash is stored.
+// @route   POST /api/devices/:uid/key
+// @access  Private (Admin)
+export const generateDeviceKey = async (req: Request, res: Response) => {
+  try {
+    const key = crypto.randomBytes(32).toString('hex');
+    const device = await Device.findOneAndUpdate(
+      { uid: req.params.uid },
+      { $set: { keyHash: hashDeviceKey(key), keyCreatedAt: new Date() } },
+      { new: true }
+    );
+    if (!device) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Device not found' } });
+    }
+    console.log(`[DEVICE] New key generated for ${device.uid} by user ${req.user?._id}`);
+    res.json({ success: true, data: { uid: device.uid, key, keyCreatedAt: device.keyCreatedAt } });
+  } catch {
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to generate device key' } });
+  }
+};
 
 // @desc    Get paginated activity history (optionally filtered by device uid)
 // @route   GET /api/devices/activity/history

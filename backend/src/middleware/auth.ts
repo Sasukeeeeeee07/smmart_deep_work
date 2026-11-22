@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/User';
+import { JWT_SECRET } from '../config/jwt';
 
 // Extend Express Request interface to include user
 declare global {
@@ -11,13 +12,25 @@ declare global {
   }
 }
 
+/** The signed-in user from a "Bearer <jwt>" header, or null when there is no valid token. */
+export async function userFromRequest(req: Request): Promise<IUser | null> {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return null;
+  try {
+    const decoded = jwt.verify(header.slice(7), JWT_SECRET) as any;
+    return await User.findById(decoded.id).select('-passwordHash');
+  } catch {
+    return null;
+  }
+}
+
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key') as any;
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
 
       const user = await User.findById(decoded.id).select('-passwordHash');
       

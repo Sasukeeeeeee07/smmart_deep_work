@@ -1,5 +1,7 @@
 node_modules/
 .env
+# Firmware credentials (copy firmware/SmartDesk_ESP32/secrets.example.h to secrets.h)
+secrets.h
 .DS_Store
 *.blend1
 *.blend2

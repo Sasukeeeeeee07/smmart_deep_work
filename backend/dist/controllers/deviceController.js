@@ -1,11 +1,34 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateDisplayConfig = exports.getDisplayConfig = exports.getDeviceStats = exports.getDeviceTasks = exports.assignDevice = exports.getLatestActivity = exports.handleActivity = exports.handleHeartbeat = exports.getAllDevices = exports.getDevice = exports.getActivityHistory = void 0;
+exports.updateDisplayConfig = exports.getDisplayConfig = exports.getDeviceStats = exports.getDeviceTasks = exports.assignDevice = exports.getLatestActivity = exports.handleActivity = exports.handleHeartbeat = exports.getAllDevices = exports.getDevice = exports.getActivityHistory = exports.generateDeviceKey = void 0;
 const Device_1 = require("../models/Device");
 const ActivitySession_1 = require("../models/ActivitySession");
 const Task_1 = require("../models/Task");
 const Employee_1 = require("../models/Employee");
 const cronService_1 = require("../services/cronService");
+const crypto_1 = __importDefault(require("crypto"));
+const deviceAuth_1 = require("../middleware/deviceAuth");
+// @desc    Generate (or replace) a device's secret key. The key is shown once; only its hash is stored.
+// @route   POST /api/devices/:uid/key
+// @access  Private (Admin)
+const generateDeviceKey = async (req, res) => {
+    try {
+        const key = crypto_1.default.randomBytes(32).toString('hex');
+        const device = await Device_1.Device.findOneAndUpdate({ uid: req.params.uid }, { $set: { keyHash: (0, deviceAuth_1.hashDeviceKey)(key), keyCreatedAt: new Date() } }, { new: true });
+        if (!device) {
+            return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Device not found' } });
+        }
+        console.log(`[DEVICE] New key generated for ${device.uid} by user ${req.user?._id}`);
+        res.json({ success: true, data: { uid: device.uid, key, keyCreatedAt: device.keyCreatedAt } });
+    }
+    catch {
+        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Failed to generate device key' } });
+    }
+};
+exports.generateDeviceKey = generateDeviceKey;
 // @desc    Get paginated activity history (optionally filtered by device uid)
 // @route   GET /api/devices/activity/history
 // @access  Private
