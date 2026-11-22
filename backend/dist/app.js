@@ -18,6 +18,7 @@ const sessionRoutes_1 = __importDefault(require("./routes/sessionRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const penaltyRoutes_1 = __importDefault(require("./routes/penaltyRoutes"));
 const voiceRoutes_1 = __importDefault(require("./routes/voiceRoutes"));
+const faceRoutes_1 = __importDefault(require("./routes/faceRoutes"));
 const rateLimiters_1 = require("./middleware/rateLimiters");
 const app = (0, express_1.default)();
 // Set trust proxy so rate limiters and loggers read the actual client IP when behind Render/Cloudflare
@@ -29,9 +30,12 @@ app.use((0, helmet_1.default)({
 }));
 // CORS Policy
 app.use((0, cors_1.default)());
-// Strict body size limit to prevent memory exhaustion / DoS attacks
-app.use(express_1.default.json({ limit: '100kb' }));
-app.use(express_1.default.urlencoded({ extended: true, limit: '100kb' }));
+// Strict body size limit to prevent memory exhaustion / DoS attacks.
+// Face routes carry photos and set their own (still bounded) limits in faceRoutes.
+const jsonParser = express_1.default.json({ limit: '100kb' });
+const formParser = express_1.default.urlencoded({ extended: true, limit: '100kb' });
+app.use((req, res, next) => (req.path.startsWith('/api/faces') ? next() : jsonParser(req, res, next)));
+app.use((req, res, next) => (req.path.startsWith('/api/faces') ? next() : formParser(req, res, next)));
 // Global DDoS and Bot protection limiter across all API endpoints
 app.use('/api', rateLimiters_1.globalApiLimiter);
 // Routes with specialized protection
@@ -44,6 +48,7 @@ app.use('/api/notifications', notificationRoutes_1.default);
 app.use('/api/sessions', sessionRoutes_1.default);
 app.use('/api/penalties', penaltyRoutes_1.default);
 app.use('/api/voice', rateLimiters_1.voiceRateLimiter, voiceRoutes_1.default);
+app.use('/api/faces', faceRoutes_1.default);
 // API Health Check
 app.get('/api/health', (req, res) => {
     const dbStatus = mongoose_1.default.connection.readyState === 1 ? 'connected' : 'disconnected';

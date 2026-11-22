@@ -47,6 +47,17 @@ const DeviceSchema = new mongoose_1.Schema({
     lockoutReason: { type: String, default: '' },
     adminUnlocked: { type: Boolean, default: false },
     inactivityPenaltyFor: { type: Date, default: null },
+    keyHash: { type: String, default: null, select: false },
+    keyCreatedAt: { type: Date, default: null },
+    faceVerification: {
+        required: { type: Boolean, default: false },
+        verifiedAt: { type: Date, default: null },
+        verifiedEmployee: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Employee', default: null },
+        checkRequestedAt: { type: Date, default: null },
+        lastResult: { type: String, enum: ['MATCH', 'MISMATCH', 'NO_FACE', 'NOT_ENROLLED', 'ERROR', null], default: null },
+        lastCheckedAt: { type: Date, default: null },
+        lastMismatchAlertAt: { type: Date, default: null },
+    },
     displayConfig: {
         breakDisplayMode: { type: String, enum: ['SESSION', 'DAILY'], default: 'SESSION' },
         showSessionTimer: { type: Boolean, default: true },

@@ -15,6 +15,7 @@ import sessionRoutes from './routes/sessionRoutes';
 import userRoutes from './routes/userRoutes';
 import penaltyRoutes from './routes/penaltyRoutes';
 import voiceRoutes from './routes/voiceRoutes';
+import faceRoutes from './routes/faceRoutes';
 import { globalApiLimiter, authRateLimiter, voiceRateLimiter } from './middleware/rateLimiters';
 
 const app = express();
@@ -33,9 +34,12 @@ app.use(
 // CORS Policy
 app.use(cors());
 
-// Strict body size limit to prevent memory exhaustion / DoS attacks
-app.use(express.json({ limit: '100kb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+// Strict body size limit to prevent memory exhaustion / DoS attacks.
+// Face routes carry photos and set their own (still bounded) limits in faceRoutes.
+const jsonParser = express.json({ limit: '100kb' });
+const formParser = express.urlencoded({ extended: true, limit: '100kb' });
+app.use((req, res, next) => (req.path.startsWith('/api/faces') ? next() : jsonParser(req, res, next)));
+app.use((req, res, next) => (req.path.startsWith('/api/faces') ? next() : formParser(req, res, next)));
 
 // Global DDoS and Bot protection limiter across all API endpoints
 app.use('/api', globalApiLimiter);
@@ -50,6 +54,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/penalties', penaltyRoutes);
 app.use('/api/voice', voiceRateLimiter, voiceRoutes);
+app.use('/api/faces', faceRoutes);
 
 // API Health Check
 app.get('/api/health', (req: Request, res: Response) => {

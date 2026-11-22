@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { deviceService, employeeService } from '../services/api';
+import { deviceService, employeeService, faceService } from '../services/api';
 import api from '../services/api';
 import {
   Cpu, Wifi, WifiOff, User, UserCheck, Loader2, Sliders,
-  Clock, Calendar, Star, Zap, ShieldAlert, Check, X, Eye
+  Clock, Calendar, Star, Zap, ShieldAlert, Check, X, Eye, ScanFace, KeyRound, Copy
 } from 'lucide-react';
 
 interface Employee { _id: string; firstName: string; lastName: string; }
@@ -20,6 +20,8 @@ interface Device {
   _id: string; uid: string; name: string;
   status: string; lastHeartbeat: string;
   assignedTo?: Employee; displayConfig?: DisplayConfig;
+  faceVerification?: { required: boolean; lastResult?: string | null; lastCheckedAt?: string | null };
+  keyCreatedAt?: string | null;
 }
 
 const defaultConfig: DisplayConfig = {
@@ -51,6 +53,46 @@ const Devices = () => {
   const [saving, setSaving]         = useState(false);
   const [saveOk, setSaveOk]         = useState(false);
 
+  const [faceEnrolled, setFaceEnrolled] = useState<Set<string>>(new Set());
+  const [faceSavingUid, setFaceSavingUid] = useState<string | null>(null);
+
+  // Device keys: only admins can generate them; the key is shown once
+  const isAdmin = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null')?.role === 'ADMIN'; } catch { return false; }
+  })();
+  const [keyBusyUid, setKeyBusyUid] = useState<string | null>(null);
+  const [newKey, setNewKey] = useState<{ uid: string; name: string; key: string } | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  const generateKey = async (device: Device) => {
+    const replacing = Boolean(device.keyCreatedAt);
+    const warning = replacing
+      ? `Replace the key for ${device.name}? The device stops working until you flash it with the new key.`
+      : `Generate a key for ${device.name}? Once the device is flashed with it, only the device and signed-in users can reach this desk.`;
+    if (!window.confirm(warning)) return;
+    setKeyBusyUid(device.uid);
+    try {
+      const r = await deviceService.generateKey(device.uid);
+      setDevices(prev => prev.map(d => d.uid === device.uid ? { ...d, keyCreatedAt: r.keyCreatedAt } : d));
+      setKeyCopied(false);
+      setNewKey({ uid: device.uid, name: device.name, key: r.key });
+    } catch (err: any) {
+      alert(err.response?.data?.error?.message || 'Could not generate a device key.');
+    } finally {
+      setKeyBusyUid(null);
+    }
+  };
+
+  const copyKey = async () => {
+    if (!newKey) return;
+    try {
+      await navigator.clipboard.writeText(newKey.key);
+      setKeyCopied(true);
+    } catch {
+      setKeyCopied(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [devs, emps] = await Promise.all([
@@ -60,7 +102,25 @@ const Devices = () => {
       setDevices(devs); setEmployees(emps);
     } catch {}
     finally { setLoading(false); }
+    faceService.listEnrolled()
+      .then(list => setFaceEnrolled(new Set(list.map(f => String(f.employeeId)))))
+      .catch(() => {});
   }, []);
+
+  const toggleFaceRequired = async (device: Device) => {
+    const next = !device.faceVerification?.required;
+    setFaceSavingUid(device.uid);
+    try {
+      const r = await faceService.setDeviceRequired(device.uid, next);
+      setDevices(prev => prev.map(d => d.uid === device.uid
+        ? { ...d, faceVerification: { ...(d.faceVerification || {}), required: r.required } }
+        : d));
+    } catch {
+      alert('Could not change the Face ID setting.');
+    } finally {
+      setFaceSavingUid(null);
+    }
+  };
 
   useEffect(() => {
     document.title = 'Devices — smmart Desk';
@@ -201,6 +261,73 @@ const Devices = () => {
                 </div>
               </div>
 
+              {/* Face ID requirement */}
+              {(() => {
+                const required = Boolean(device.faceVerification?.required);
+                const saving = faceSavingUid === device.uid;
+                const ownerEnrolled = device.assignedTo ? faceEnrolled.has(String(device.assignedTo._id)) : false;
+                return (
+                  <div className="rounded-xl border p-3" style={{ borderColor: required ? 'rgba(94, 112, 82, 0.4)' : 'var(--border)', background: required ? 'rgba(11, 94, 215, 0.04)' : 'var(--surface-2)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <ScanFace size={14} style={{ color: required ? 'var(--sage-dark)' : 'var(--ink-4)' }} />
+                        <div>
+                          <p className="text-xs font-semibold" style={{ color: 'var(--ink)' }}>Require Face ID</p>
+                          <p className="text-xs" style={{ color: 'var(--ink-4)', fontSize: 10 }}>Only the assigned person can start a session</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={required}
+                        aria-label={`Require Face ID on ${device.name}`}
+                        disabled={saving}
+                        onClick={() => toggleFaceRequired(device)}
+                        className="relative shrink-0 transition-colors disabled:opacity-50"
+                        style={{ width: 36, height: 20, borderRadius: 999, background: required ? 'var(--forest)' : 'var(--border-strong)' }}
+                      >
+                        <span
+                          className="absolute top-0.5 transition-all"
+                          style={{ left: required ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: 'white', boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.2))' }}
+                        />
+                      </button>
+                    </div>
+                    {required && device.assignedTo && !ownerEnrolled && (
+                      <p className="text-xs mt-2" style={{ color: 'var(--amber-w)', fontSize: 11 }}>
+                        {device.assignedTo.firstName} hasn't set up Face ID yet, so sessions on this desk are blocked. Set it up on the Team page.
+                      </p>
+                    )}
+                    {required && !device.assignedTo && (
+                      <p className="text-xs mt-2" style={{ color: 'var(--amber-w)', fontSize: 11 }}>Assign someone to this desk first.</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Device key */}
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span
+                  className="flex items-center gap-1.5 whitespace-nowrap"
+                  style={{ color: device.keyCreatedAt ? 'var(--success)' : 'var(--amber-w)' }}
+                  title={device.keyCreatedAt
+                    ? `Device key created ${new Date(device.keyCreatedAt).toLocaleString()}`
+                    : 'No device key yet: generate one and flash it into the device'}
+                >
+                  {device.keyCreatedAt ? <KeyRound size={13} /> : <ShieldAlert size={13} />}
+                  {device.keyCreatedAt ? 'Secured' : 'Not secured'}
+                </span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => generateKey(device)}
+                    disabled={keyBusyUid === device.uid}
+                    className="btn btn-ghost px-2 py-1 rounded-lg text-xs shrink-0"
+                  >
+                    {keyBusyUid === device.uid ? <Loader2 size={12} className="animate-spin" /> : device.keyCreatedAt ? 'Replace key' : 'Generate key'}
+                  </button>
+                )}
+              </div>
+
               {/* Configure button */}
               <button
                 onClick={() => openModal(device)}
@@ -213,6 +340,48 @@ const Devices = () => {
           );
         })}
       </div>
+
+      {/* ── New Device Key (shown once) ────────────────────── */}
+      {newKey && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(30, 32, 36, 0.4)', backdropFilter: 'blur(4px)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="device-key-title"
+        >
+          <div className="w-full animate-fade-up" style={{ maxWidth: 520, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, boxShadow: 'var(--shadow-xl)' }}>
+            <div className="flex items-center gap-2.5 px-6 py-5" style={{ borderBottom: '1px solid var(--border)' }}>
+              <KeyRound size={18} style={{ color: 'var(--forest)' }} />
+              <div>
+                <h3 id="device-key-title" className="font-semibold" style={{ fontFamily: 'DM Sans, sans-serif', fontSize: 16, color: 'var(--ink)' }}>Device key</h3>
+                <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--ink-4)' }}>{newKey.name} — {newKey.uid}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm" style={{ color: 'var(--ink-2)', lineHeight: 1.55 }}>
+                Copy this key now. It is shown only once; if you lose it, generate a new one.
+              </p>
+              <div className="flex items-stretch gap-2">
+                <code className="flex-1 text-xs font-mono p-3 rounded-xl break-all select-all" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--ink)' }}>
+                  {newKey.key}
+                </code>
+                <button type="button" onClick={copyKey} className="btn btn-secondary text-xs shrink-0">
+                  {keyCopied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+                </button>
+              </div>
+              <ol className="text-xs space-y-1.5 list-decimal pl-4" style={{ color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                <li>Open <span className="font-mono">firmware/SmartDesk_ESP32/secrets.h</span>.</li>
+                <li>Set <span className="font-mono">DEVICE_KEY</span> to this key.</li>
+                <li>Flash the device. From then on it must use this key.</li>
+              </ol>
+            </div>
+            <div className="flex justify-end px-6 pb-5">
+              <button type="button" onClick={() => setNewKey(null)} className="btn btn-primary text-sm">I've saved it</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Display Config Modal ───────────────────────────── */}
       {selected && (

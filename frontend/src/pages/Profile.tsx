@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save, Coins } from 'lucide-react';
+import { User, Mail, Phone, Briefcase, Target, Clock, Shield, Check, Save, Coins, ScanFace, Trash2 } from 'lucide-react';
+import FaceEnrollModal from '../components/FaceEnrollModal';
+import { faceService, type FaceStatus } from '../services/api';
 import { formatRupees, timeValue, WORKING_DAYS_PER_YEAR, WORKING_HOURS_PER_DAY } from '../utils/timeCurrency';
 
 export default function Profile() {
@@ -20,6 +22,35 @@ export default function Profile() {
   });
 
   const [saved, setSaved] = useState(false);
+
+  // Face ID for the signed-in user's employee record
+  const [face, setFace] = useState<FaceStatus | null>(null);
+  const [faceError, setFaceError] = useState('');
+  const [faceBusy, setFaceBusy] = useState(false);
+  const [showFaceEnroll, setShowFaceEnroll] = useState(false);
+
+  useEffect(() => {
+    faceService.getStatus('me')
+      .then(setFace)
+      .catch(err => setFaceError(
+        err.response?.status === 404
+          ? 'Your login is not linked to an employee record, so Face ID is not available. Ask an admin to add you to the team.'
+          : 'Could not load Face ID status.'
+      ));
+  }, []);
+
+  const removeFace = async () => {
+    if (!window.confirm('Remove your Face ID? If your desk requires it, you will not be able to start a session until you set it up again.')) return;
+    setFaceBusy(true);
+    try {
+      await faceService.remove('me');
+      setFace(f => (f ? { ...f, enrolled: false, sampleCount: 0, updatedAt: null } : f));
+    } catch {
+      alert('Could not remove Face ID. Try again.');
+    } finally {
+      setFaceBusy(false);
+    }
+  };
 
   useEffect(() => {
     document.title = 'Profile — smmart Desk';
@@ -108,6 +139,47 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Face ID */}
+      <div className="p-6 rounded-3xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="flex items-start gap-3">
+          <div className="flex items-center justify-center shrink-0" style={{ width: 40, height: 40, borderRadius: 12, background: face?.enrolled ? 'rgba(74,124,89,0.12)' : 'var(--surface-2)' }}>
+            <ScanFace size={20} style={{ color: face?.enrolled ? 'var(--success)' : 'var(--ink-4)' }} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold" style={{ color: 'var(--ink)', fontFamily: 'DM Sans, sans-serif' }}>Face ID</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--ink-3)', lineHeight: 1.5 }}>
+              {faceError
+                ? faceError
+                : face === null
+                  ? 'Checking…'
+                  : face.enrolled
+                    ? `Set up${face.updatedAt ? ` on ${new Date(face.updatedAt).toLocaleDateString()}` : ''}. Your DeepWork device recognises you when you press Start.`
+                    : 'Not set up. If your desk requires Face ID, you need it to start a Deep Work session.'}
+            </p>
+          </div>
+        </div>
+        {face && !faceError && (
+          <div className="flex gap-2 shrink-0">
+            {face.enrolled && (
+              <button type="button" onClick={removeFace} disabled={faceBusy} className="btn btn-secondary text-xs">
+                <Trash2 size={13} /> Remove
+              </button>
+            )}
+            <button type="button" onClick={() => setShowFaceEnroll(true)} disabled={faceBusy} className="btn btn-primary text-xs">
+              <ScanFace size={13} /> {face.enrolled ? 'Set up again' : 'Set up Face ID'}
+            </button>
+          </div>
+        )}
+      </div>
+      {showFaceEnroll && (
+        <FaceEnrollModal
+          employeeId="me"
+          employeeName={formData.name}
+          onClose={() => setShowFaceEnroll(false)}
+          onEnrolled={() => faceService.getStatus('me').then(setFace).catch(() => {})}
+        />
+      )}
 
       {/* Main Form Card */}
       <form onSubmit={handleSubmit} className="p-6 md:p-8 rounded-3xl border shadow-xs space-y-6" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>

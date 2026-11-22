@@ -3,27 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerAdmin = exports.loginUser = exports.resetAdmin = void 0;
+exports.registerAdmin = exports.loginUser = exports.MIN_PASSWORD_LENGTH = void 0;
 const User_1 = require("../models/User");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const jwt_1 = require("../config/jwt");
+exports.MIN_PASSWORD_LENGTH = 8;
 const generateToken = (id) => {
-    return jsonwebtoken_1.default.sign({ id }, process.env.JWT_SECRET || 'super_secret_jwt_key', {
+    return jsonwebtoken_1.default.sign({ id }, jwt_1.JWT_SECRET, {
         expiresIn: '30d',
     });
 };
-// TEMPORARY ENDPOINT TO FIX DB
-const resetAdmin = async (req, res) => {
-    await User_1.User.deleteMany({ email: 'admin@smmart.com' });
-    await User_1.User.create({
-        name: 'Super Admin',
-        email: 'admin@smmart.com',
-        passwordHash: 'admin123', // Mongoose pre-save hook will hash this!
-        role: User_1.Role.ADMIN,
-        isActive: true
-    });
-    res.send('Admin reset successfully! You can now login with admin@smmart.com / admin123');
-};
-exports.resetAdmin = resetAdmin;
 // @desc    Auth user & get token
 // @desc    Auth user & get token
 // @route   POST /api/auth/login
@@ -66,12 +55,24 @@ const loginUser = async (req, res) => {
     }
 };
 exports.loginUser = loginUser;
-// @desc    Register initial admin (Setup endpoint)
+// @desc    Create the first admin on a brand-new database (one-time setup)
 // @route   POST /api/auth/register-admin
-// @access  Public (Should be disabled or protected in production)
+// @access  Public only while no users exist; refused afterwards (admins add people from the Team page)
 const registerAdmin = async (req, res) => {
     const { name, email, password } = req.body;
     try {
+        if ((await User_1.User.estimatedDocumentCount()) > 0) {
+            return res.status(403).json({
+                success: false,
+                error: { code: 'SETUP_CLOSED', message: 'Setup is already done. Ask an admin to add you from the Team page.' },
+            });
+        }
+        if (typeof password !== 'string' || password.length < exports.MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({
+                success: false,
+                error: { code: 'WEAK_PASSWORD', message: `Password must be at least ${exports.MIN_PASSWORD_LENGTH} characters.` },
+            });
+        }
         const userExists = await User_1.User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ success: false, error: { code: 'USER_EXISTS', message: 'User already exists' } });

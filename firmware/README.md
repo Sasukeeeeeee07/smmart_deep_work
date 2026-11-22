@@ -27,6 +27,20 @@ firmware/
 
 ---
 
+## 🔑 Wi-Fi Credentials (first-time setup)
+
+Wi-Fi details are kept out of git. Before compiling:
+
+1. Copy `SmartDesk_ESP32/secrets.example.h` to `SmartDesk_ESP32/secrets.h`.
+2. Put your network name and password in `secrets.h`.
+3. On the dashboard, open **Devices**, press **Generate key** on this desk (admins only), and paste the key into `DEVICE_KEY` in `secrets.h`. The key is shown once.
+
+`secrets.h` is listed in `.gitignore`, so it is never committed.
+
+Once a desk has a key, the backend only accepts requests for that desk from the device (with its key) or from signed-in users. Generating a new key locks out the old one, so re-flash the device afterwards.
+
+---
+
 ## ⚙️ Arduino IDE Board Configuration
 
 - **Board**: `ESP32S3 Dev Module`

@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { voiceService } from '../services/voiceService';
+import { deviceAccess } from '../middleware/deviceAuth';
 
 const router = Router();
 
 // GET /api/voice/:uid/next
-// ESP32 polls this to check if there is an audio message to play
-router.get('/:uid/next', (req: Request, res: Response) => {
+// ESP32 polls this to check if there is an audio message to play (device only: it consumes the queue)
+router.get('/:uid/next', deviceAccess('device'), (req: Request, res: Response) => {
   const uid = req.params.uid as string;
   const audioUrl = voiceService.getNextMessage(uid);
   
@@ -17,8 +18,8 @@ router.get('/:uid/next', (req: Request, res: Response) => {
 });
 
 // POST /api/voice/:uid/speak
-// Manual endpoint to test making the desk speak
-router.post('/:uid/speak', (req: Request, res: Response) => {
+// Make the desk speak: an Admin/Manager or the desk's own employee (never anonymous)
+router.post('/:uid/speak', deviceAccess('write'), (req: Request, res: Response) => {
   const { text } = req.body;
   if (!text) {
     return res.status(400).json({ success: false, error: 'Text is required' });

@@ -4,14 +4,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorize = exports.protect = void 0;
+exports.userFromRequest = userFromRequest;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
+const jwt_1 = require("../config/jwt");
+/** The signed-in user from a "Bearer <jwt>" header, or null when there is no valid token. */
+async function userFromRequest(req) {
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer '))
+        return null;
+    try {
+        const decoded = jsonwebtoken_1.default.verify(header.slice(7), jwt_1.JWT_SECRET);
+        return await User_1.User.findById(decoded.id).select('-passwordHash');
+    }
+    catch {
+        return null;
+    }
+}
 const protect = async (req, res, next) => {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
             token = req.headers.authorization.split(' ')[1];
-            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'super_secret_jwt_key');
+            const decoded = jsonwebtoken_1.default.verify(token, jwt_1.JWT_SECRET);
             const user = await User_1.User.findById(decoded.id).select('-passwordHash');
             if (!user) {
                 return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'User not found' } });

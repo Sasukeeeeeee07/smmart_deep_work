@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { employeeService } from '../services/api';
-import { Users, Plus, Trash2, Edit2, X, Loader2, AlertCircle } from 'lucide-react';
+import { employeeService, faceService } from '../services/api';
+import { Users, Plus, Trash2, Edit2, X, Loader2, AlertCircle, ScanFace } from 'lucide-react';
+import FaceEnrollModal from '../components/FaceEnrollModal';
 
 const ROLES = ['EMPLOYEE', 'MANAGER', 'ADMIN'] as const;
 type Role = typeof ROLES[number];
@@ -65,12 +66,34 @@ const Employees = () => {
   const [editing, setEditing]     = useState<any>(null);
   const [newEmp, setNewEmp]       = useState(emptyForm);
 
+  // Face ID: who is enrolled, and whose enrolment modal is open
+  const [faceEnrolled, setFaceEnrolled] = useState<Set<string>>(new Set());
+  const [faceFor, setFaceFor] = useState<{ id: string; name: string } | null>(null);
+
+  const fetchFaceStatus = async () => {
+    try {
+      const list = await faceService.listEnrolled();
+      setFaceEnrolled(new Set(list.map(f => String(f.employeeId))));
+    } catch { /* silent: the column just shows "Not set up" */ }
+  };
+
+  const removeFace = async (id: string, name: string) => {
+    if (!window.confirm(`Remove ${name}'s Face ID? They won't be able to start sessions on a Face ID desk until it is set up again.`)) return;
+    try {
+      await faceService.remove(id);
+      await fetchFaceStatus();
+    } catch {
+      alert('Could not remove Face ID. Try again.');
+    }
+  };
+
   const fetchEmployees = async () => {
     try {
       const data = await employeeService.getAllEmployees();
       setEmployees(data);
     } catch { /* silent */ }
     finally { setLoading(false); }
+    fetchFaceStatus();
   };
 
   useEffect(() => { 
@@ -137,7 +160,7 @@ const Employees = () => {
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={isEdit ? 'New password' : 'Password'} id="empPw" optional={isEdit}>
-          <input id="empPw" type="password" minLength={6} className="input-base" value={data.password}
+          <input id="empPw" type="password" minLength={8} className="input-base" value={data.password}
             placeholder={isEdit ? 'Leave blank to keep' : ''}
             onChange={e => setData({ ...data, password: e.target.value })} required={!isEdit} />
         </Field>
@@ -203,7 +226,7 @@ const Employees = () => {
             <table className="w-full text-left">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
-                  {['Name', 'Department', 'Role', 'Status', ''].map(h => (
+                  {['Name', 'Department', 'Role', 'Status', 'Face ID', ''].map(h => (
                     <th key={h} className="section-label px-5 py-3.5 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -261,6 +284,39 @@ const Employees = () => {
                           {emp.status || 'Active'}
                         </span>
                       </td>
+                      <td className="px-5 py-3.5">
+                        {(() => {
+                          const name = `${emp.firstName} ${emp.lastName}`.trim();
+                          const enrolled = faceEnrolled.has(String(emp._id));
+                          return (
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
+                              <span className="pill shrink-0" style={enrolled
+                                ? { color: 'var(--success)', background: 'rgba(74, 124, 89, 0.1)', borderColor: 'rgba(74, 124, 89, 0.2)' }
+                                : { color: 'var(--ink-4)', background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                                <ScanFace size={11} />
+                                {enrolled ? 'Set up' : 'Not set up'}
+                              </span>
+                              <button
+                                onClick={() => setFaceFor({ id: emp._id, name })}
+                                className="btn btn-ghost px-2 py-1 rounded-lg text-xs"
+                                title={enrolled ? 'Set up Face ID again' : 'Set up Face ID'}
+                              >
+                                {enrolled ? 'Redo' : 'Set up'}
+                              </button>
+                              {enrolled && (
+                                <button
+                                  onClick={() => removeFace(emp._id, name)}
+                                  className="btn btn-ghost px-2 py-1 rounded-lg text-xs"
+                                  style={{ color: 'var(--ink-4)' }}
+                                  title="Remove Face ID"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -295,6 +351,14 @@ const Employees = () => {
       </div>
 
       {/* Modals */}
+      {faceFor && (
+        <FaceEnrollModal
+          employeeId={faceFor.id}
+          employeeName={faceFor.name}
+          onClose={() => setFaceFor(null)}
+          onEnrolled={fetchFaceStatus}
+        />
+      )}
       {showAdd && (
         <Modal title="Add team member" onClose={() => { setShowAdd(false); setFormError(''); }}>
           <EmpForm data={newEmp} setData={setNewEmp} onSubmit={handleAdd} isEdit={false} />
